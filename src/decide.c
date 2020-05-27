@@ -72,13 +72,19 @@ kissat_next_decision_variable (kissat * solver)
 static inline value
 decide_phase (kissat * solver, unsigned idx)
 {
+  bool force = GET_OPTION (forcephase);
+
   bool target;
-  if (!GET_OPTION (target))
+  if (force)
+    target = false;
+  else if (!GET_OPTION (target))
     target = false;
   else if (solver->stable)
     target = true;
   else
     target = (GET_OPTION (target) > 1);
+
+  const bool saved = !force && GET_OPTION (phasesaving);
 
   const phase *phase = PHASE (idx);
   value res = 0;
@@ -89,7 +95,7 @@ decide_phase (kissat * solver, unsigned idx)
       INC (target_decisions);
     }
 
-  if (!res && (res = phase->saved))
+  if (saved && !res && (res = phase->saved))
     {
       LOG ("variable %u uses saved decision phase %d", idx, (int) res);
       INC (saved_decisions);

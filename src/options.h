@@ -42,6 +42,7 @@ OPTION( failedmaxeff, 100, 1, 1e5, "maximum relative efficiency") \
 OPTION( failedmineff, 5e5, 0, 1e8, "minimum probe efficiency") \
 OPTION( failedreleff, 2, 0, 1e3, "relative efficiency in per mille") \
 OPTION( failedrounds, 2, 1, 100, "failed literal probing rounds") \
+OPTION( forcephase, 0, 0, 1, "force initial phase") \
 OPTION( forward, 1, 0, 1, "forward subsumption in BVE") \
 OPTION( hyper, 1, 0, 1, "on-the-fly hyper binary resolution") \
 OPTION( ifthenelse, 1, 0, 1, "extract and eliminate if-then-else gates") \
@@ -52,6 +53,7 @@ OPTION( modeinit, 1e3, 10, 1e8, "initial mode change interval") \
 OPTION( modeint, 1e3, 10, 1e8, "base mode change interval") \
 OPTION( otfs, 1, 0, 1, "on-the-fly strengthening") \
 OPTION( phase, 1, 0, 1, "initial decision phase") \
+OPTION( phasesaving, 1, 0, 1, "enable phase saving") \
 OPTION( probe, 1, 0, 1, "enable probing") \
 OPTION( probedelay, 0, 0, 1, "delay probing") \
 OPTION( probeinit, 100, 0, INT_MAX, "initial probing interval") \
