@@ -1,0 +1,564 @@
+#!/bin/sh
+
+asan=no
+check=unknown
+check_all=no
+check_heap=no
+check_queue=no
+check_vectors=no
+compact=no
+coverage=no
+debug=no
+default=no
+extreme=no
+embedded=unknown
+logging=unknown
+metrics=unknown
+m32=no
+options=yes
+optimize=unknown
+pedantic=unknown
+profile=no
+proofs=yes
+quiet=no
+sat=no
+statistics=unknown
+symbols=unknown
+testdefault=unknown
+ultimate=no
+unsat=no
+
+passthrough=""
+
+usage () {
+cat <<EOF
+usage: configure [ <option> ... ]
+
+where <option> is one of the following
+
+EOF
+if [ "$1" = complete ]
+then
+cat <<EOF
+  -h      print only a list of common command line options
+  --help  print this complete list of all command line options
+EOF
+else
+cat <<EOF
+  -h      print this list of common command line options
+  --help  print a complete list of all command line options
+EOF
+fi
+cat <<EOF
+
+  -c      include assertion checking code (default for '-g')
+  -g      compile for testing and debugging (implies '-c', '-s', '-l')
+  -l      include logging code (default for '-g', needs run-time enabling too)
+  -p      pedantic compilation ('-Werror -std=c99 --pedantic')
+  -s      add symbols (default for '-g')
+
+EOF
+if [ ! "$1" = complete ]
+then
+cat << EOF
+For a complete list of command line options try '--help'.
+EOF
+exit 0
+fi
+cat << EOF
+Options used to instrument the code for coverage and performance profiling.
+
+  --coverage       include line coverage code (to be used with 'gcov')
+  --profile        include profiling code (to be used with 'gprof')
+
+For coverage testing it might be useful to enforce different compiler
+optimization levels, i.e., lower than the default '-O3' (without '-g').
+  
+  -O[0|1|2|3]      set the optimization level of the compiler explicitly
+
+We have compile time options which save memory and speed up the solver by
+limiting the size of formulas that can be handled, fix the default
+configuration, disable messages, profiling and certain statistics.
+
+  --compact         limit watcher stacks to 2^32 watchers in total
+  --no-options      fix all solver options to their default value
+  --quiet           disable messages, built-in profiling and metrics
+                   
+  --extreme         same as last three '--compact --no-options --quiet'
+  --competition     same as '--extreme' (configuration of SAT competition)
+                   
+  --no-proofs       do not include code for proof generation
+  --ultimate        all configurations above ('--extreme --no-proofs')
+
+For '--no-options' (and '--extreme', '--ultimate', and '--competition' too)
+we allow the following options which enforce a different option at compile
+time (corresponding to the same run-time settings without '--no-options'):
+
+  --default         do not enforce specialized option configurations
+  --sat             force options to focus on satisfiable instance
+  --unsat           force options to focus on unsatisfiable instance
+
+Redundant metrics and statistics gathering code can be enabled and disabled
+separately.  Only essential counters are updated and printed without these.
+Metrics are considered to be statistics, thus  '--metrics' also implies
+'--statistics' and vice versa '--no-statistics' implies '--no-metrics.
+   
+   --metrics        include metrics code (default with '-g', '-l')
+   --no-metrics     no metrics code (default with '--quiet' etc.)
+                   
+   --statistics     include statistics code (default without '--extreme')
+   --no-statistics  no statistics code (default with '--extreme')
+
+For (delta) debugging and testing the parser can read options embedded
+in DIMACS files.  This feature is enabled for '-c', '-g', and '-l' but
+disabled for optimized compilation (without '-c', '-g', nor '-l'),
+except that '--embedded' is also assumed with '--coverage' unless options
+are disabled (with '--no-options', '--extreme' or '--no-options').
+
+   --embedded | -e  allow parsing option value pairs in DIMACS file 
+   --no-embedded    disable parsing option value pairs in DIMACS file
+
+The default goal of the generated 'makefile' only builds the library
+'libkissat.a' and the stand alone SAT solver 'kissat'.  The test program
+'tissat' is only compiled on demand (with 'make test'), unless '-g',
+'--coverage' or '--embedded' is specified.  To force compilation of
+'tissat' by default use the following:
+
+   --test           compile test program by default (default with '-g')
+   --no-test        do not compile test program (default without '-g')
+
+Enable (very) expensive low-level checkers for data structures:
+
+   --check-all      check consistency of all data structures
+   --check-heap     check consistency of binary heaps
+   --check-queue    check consistency of the variable-move-to-front queue
+   --check-vectors  check consistency of watch vectors
+
+We also allow an explicit choice of the C compiler.
+
+  CC=<compiler>     default is 'gcc' (and we regularly test with 'CC=clang')
+
+The following options are for convenience and in essence just passed through
+to the makefile and thus the compiler to avoid editing the makefile.  However,
+for '-m32' the configure script checks that it can actually really do 32-bit
+builds. Furthermore, in case of '-fsanitize=address' the macro '-DASAN' is
+defined, such that some tests incompatible with ASAN can be omitted.
+       
+  -m32              add '-m32' option to compile for 32-bit
+  -f...             add -f... options (e.g., '-fsanitize=address' or '-fPIC')
+
+The default configuration builds optimized code with 'gcc' without symbols,
+an no checking, metrics, embedded options parsing nor logging code included.
+EOF
+  exit 0
+}
+
+msg () {
+  echo "configure: $*"
+}
+
+if [ -t 1 ]
+then
+  BOLD="\033[1m"
+  NORMAL="\033[0m"
+  RED="\033[1;31m"
+else
+  BOLD=""
+  NORMAL=""
+  RED=""
+fi
+
+die () {
+  echo "${BOLD}configure: ${RED}error:${NORMAL} $*" 1>&2
+  exit 1
+}
+
+[ $# = 0 ] && \
+msg "default configuration (see '-h')"
+
+while [ $# -gt 0 ]
+do
+  case "$1" in
+    -h) usage;;
+    --help) usage complete;;
+    -p) pedantic=yes;;
+
+    -c) check=yes;;
+    -g) debug=yes;;
+    -l) logging=yes;;
+    -s) symbols=yes;;
+
+    --coverage) coverage=yes;;
+    --profile) profile=yes;;
+
+    -O0) optimize=0;;
+    -O1) optimize=1;;
+    -O2) optimize=2;;
+    -O3) optimize=3;;
+
+    --compact) compact=yes;;
+    --no-options) options=no;;
+    --quiet) quiet=yes;;
+    --extreme) extreme=extreme;;
+    --competition) extreme=competition;;
+
+    --default) default=yes;;
+    --sat) sat=yes;;
+    --unsat) unsat=yes;;
+
+    --no-proofs) proofs=no;;
+    --ultimate) ultimate=yes;;
+
+    --metrics)
+      [ $metrics = no ] && \
+        die "can not combine '--metrics' and '--no-metrics'"
+      metrics=yes
+      ;;
+    --no-metrics)
+      [ $metrics = yes ] && \
+        die "can not combine '--metrics' and '--no-metrics'"
+      metrics=no
+      ;;
+
+    --stats | --statistics)
+      [ $statistics = no ] && \
+        die "can not combine '--statistics' and '--no-statistics'"
+      statistics=yes
+      ;;
+    --no-stats | --no-statistics)
+      [ $statistics = yes ] && \
+        die "can not combine '--statistics' and '--no-statistics'"
+      statistics=no
+      ;;
+
+    -e|--embedded) embedded=yes;;
+    --no-embedded) embedded=no;;
+
+    -m32) m32=yes;;
+    -f*)
+      [ x"`echo $1|grep fsanitize=.*address`" = x ] || asan=yes
+      passthrough="$passthrough $1"
+      ;;
+
+    --test) testdefault=yes;;
+    --no-test) testdefault=no;;
+
+    --check-all) check_all=yes;;
+    --check-heap) check_heap=yes;;
+    --check-queue) check_queue=yes;;
+    --check-vectors) check_vectors=yes;;
+
+    CC=*) CC="`echo \"$1\"|sed -e s,^CC=,,`";;
+
+    *) die "invalid option '$1' (try '-h')";;
+  esac
+  shift
+done
+
+dir="`pwd|sed -e 's,.*/,,'`"
+
+if [ -d src -a -f VERSION ]
+then
+   BUILD=build
+elif [ -f kissat.h -o x"$dir" = xtest -o x"$dir" = xscripts ]
+then
+   BUILD=../build/
+elif [ -d ../src -a -f ../VERSION ]
+then
+   BUILD=../"`pwd|sed -e 's,.*/,,'`"
+else
+   die "could not find 'src' nor 'VERSION' in current nor parent directory"
+fi
+
+if [ -d "$BUILD" ]
+then
+  msg "reusing existing build directory '$BUILD'"
+else
+  mkdir "$BUILD" || exit 1
+  msg "new build directory '$BUILD'"
+fi
+
+cd "$BUILD" || exit 1
+
+BUILD="`pwd`"
+ROOT="`pwd|xargs dirname`"
+
+cat <<EOF >../makefile
+all:
+	\$(MAKE) -C "$BUILD"
+clean:
+	rm -f "$ROOT"/makefile
+	-\$(MAKE) -C "$BUILD" clean
+	rm -rf "$BUILD"
+coverage:
+	\$(MAKE) -C "$BUILD" coverage
+indent:
+	\$(MAKE) -C "$BUILD" indent
+test:
+	\$(MAKE) -C "$BUILD" test
+.PHONY: all clean coverage indent test
+EOF
+
+[ $statistics = no -a $metrics = yes ] && \
+  die "can not combine '--no-statistics' and '--metrics'"
+[ $statistics = yes -a $metrics = yes ] && \
+  die "redundant combination '--statistics' and '--metrics'"
+[ $statistics = no -a $metrics = no ] && \
+  die "redundant combination '--no-statistics' and '--no-metrics'"
+[ $statistics = yes -a $metrics = yes ] && \
+  die "redundant combination '--statistics' and '--metrics'"
+
+if [ $debug = yes ]
+then
+  [ $check = yes ] && die "can not combine '-g' and '-c'"
+  [ $logging = yes ] && die "can not combine '-g' and '-l'"
+  [ $symbols = yes ] && die "can not combine '-g' and '-s'"
+  [ $metrics = yes ] && "can not combine '-g' and '--metrics'"
+  [ $statistics = yes ] && "can not combine '-g' and '--statistics'"
+fi
+
+if [ $quiet = yes ]
+then
+  [ $logging = yes ] && die "can not combine '--quiet' and '-l'"
+  [ $metrics = no ] && "can not combine '--quiet' and '--no-metrics'"
+  [ $statistics = no ] && "can not combine '--quiet' and '--no-statistics'"
+fi
+
+if [ ! $extreme = no ]
+then
+  [ $compact = yes ] && die "can not combine '--$extreme' and '--compact'"
+  [ $embedded = yes ] && die "can not combine '--$extreme' and '--embedded'"
+  [ $logging = yes ] && die "can not combine '--$extreme' and '-l'"
+  [ $options = no ] && die "can not combine '--$extreme' and '--no-options'"
+  [ $quiet = yes ] && die "can not combine '--$extreme' and '--quiet'"
+  [ $ultimate = yes ] && die "can not combine '--$extreme' and '--ultimate'"
+  [ $metrics = no ] && "can not combine '--$extreme' and '--no-metrics'"
+  [ $statistics = no ] && "can not combine '--$extreme' and '--no-statistics'"
+  compact=yes
+  options=no
+  quiet=yes
+fi
+
+if [ $ultimate = yes ]
+then
+  [ $compact = yes ] && die "can not combine '--ultimate' and '--compact'"
+  [ $embedded = yes ] && die "can not combine '--ultimate' and '--embedded'"
+  [ $logging = yes ] && die "can not combine '--ultimate' and '-l'"
+  [ $options = no ] && die "can not combine '--ultimate' and '--no-options'"
+  [ $proofs = no ] && die "can not combine '--ultimate' and '--no-proofs'"
+  [ $quiet = yes ] && die "can not combine '--ultimate' and '--quiet'"
+  [ $metrics = no ] && "can not combine '--ultimate' and '--no-metrics'"
+  [ $statistics = no ] && "can not combine '--ultimate' and '--no-statistics'"
+  compact=yes
+  options=no
+  proofs=no
+  quiet=yes
+fi
+
+[ $default = yes -a $sat = yes ] && \
+die "can not combine '--default' and '--sat'"
+
+[ $default = yes -a $unsat = yes ] && \
+die "can not combine '--default' and '--unsat'"
+
+[ $sat = yes -a $unsat = yes ] && die "can not combine '--sat' and '--unsat'"
+
+[ $default = yes -a $options = yes ] && \
+die "can not use '--default' without '--no-options'"
+
+[ $sat = yes -a $options = yes ] && \
+die "can not use '--sat' without '--no-options'"
+
+[ $unsat = yes -a $options = yes ] && \
+die "can not use '--unsat' without '--no-options'"
+
+if [ $options = no ]
+then
+  [ $embedded = yes ] && die "can not combine '--no-options' and '--embedded'"
+fi
+
+if [ $metrics = unknown ]
+then
+  if [ $statistics = no ]
+  then
+    metrics=no
+  elif [ $debug = yes -o $logging = yes ]
+  then
+    metrics=yes
+  else
+    metrics=no
+  fi
+elif [ $metrics = yes ]
+then
+  [ $logging = yes ] && die "can not combine '--metrics' and '-l'" 
+else
+  [ $debug = no -a $logging = no ] && \
+    die "can not use '--no-metrics' without '-g' nor '-l'" 
+fi
+
+if [ $statistics = unknown ]
+then
+  if [ $metrics = yes -o $debug = yes -o $logging = yes ]
+  then
+    statistics=yes
+  else
+    statistics=no
+  fi
+elif [ $statistics = yes -a $logging = yes ]
+then
+  die "can not combine '--metrics' and '-l'" 
+fi
+
+if [ $embedded = unknown ]
+then
+  if [ $options = no ]
+  then
+    embedded=no
+  elif [ $check = yes -o $debug = yes -o $logging = yes -o $coverage = yes ]
+  then
+    embedded=yes
+  else
+    embedded=no
+  fi
+elif [ $embedded = yes ]
+then
+  [ $check = yes ] && die "can not combine '--embedded' and '-c'" 
+  [ $debug = yes ] && die "can not combine '--embedded' and '-g'" 
+  [ $logging = yes ] && die "can not combine '--embedded' and '-l'" 
+elif [ $check = no -a $debug = no -a $logging = no ]
+then
+  die "can not use '--no-embedded' without '-c', '-g', nor '-l'"
+fi
+
+[ $quiet = yes ] && logging=no
+[ $symbols = unknown ] && symbols=$debug
+[ $logging = unknown ] && logging=$debug
+[ $check = unknown ] && check=$debug
+
+[ "$CC" = "" ] && CC=gcc
+
+if [ $m32 = yes ]
+then
+  passthrough="$passthrough -m32"
+cat <<EOF > m32.c
+#include <stdio.h>
+int main (void) {
+  printf ("%zu\n", sizeof (void*));
+  return 0;
+}
+EOF
+  if $CC -m32 -o m32 m32.c 1>/dev/null 2>/dev/null
+  then
+    res="`./m32 2>/dev/null`"
+    if [ "$res" = 4 ]
+    then
+      msg "compilation with '-m32' leads to pointer size of '$res' bytes"
+    else
+      die "'$BUILD/m32' determines pointer size of '$res' bytes"
+    fi
+  else
+    die "32-bit compilation '$CC -m32 $BUILD/m32.c' failed (install 'g++-multilib' before using '-m32' option)"
+  fi
+fi
+
+case "$CC" in
+  gcc*|clang*)
+    CFLAGS="-W -Wall"
+    [ $pedantic = yes ] && \
+      CFLAGS="$CFLAGS -Werror -std=c99 --pedantic"
+    if [ $optimize = unknown ]
+    then
+      [ $debug = no ] && CFLAGS="$CFLAGS -O3"
+    else
+      CFLAGS="$CFLAGS -O$optimize"
+    fi
+    [ $symbols = yes ] && CFLAGS="$CFLAGS -ggdb3"
+    [ $profile = yes ] && CFLAGS="$CFLAGS -pg"
+    [ $coverage = yes ] && \
+      passthrough="$passthrough -ftest-coverage -fprofile-arcs"
+    ;;
+  *)
+    CFLAGS="-W"
+    if [ $optimize = unknown ]
+    then
+      [ $debug = no ] && CFLAGS="$CFLAGS -O"
+    else
+      CFLAGS="$CFLAGS -O$optimize"
+    fi
+    [ $symbols = yes ] && CFLAGS="$CFLAGS -g"
+    [ $profile = yes ] && CFLAGS="$CFLAGS -p"
+    ;;
+esac
+
+if [ $check_all = yes ]
+then
+  check_heap=yes
+  check_queue=yes
+  check_vectors=yes
+fi
+[ $check_heap = yes ] && check=yes
+[ $check_queue = yes ] && check=yes
+[ $check_vectors = yes ] && check=yes
+
+[ $asan = yes ] && CFLAGS="$CFLAGS -DASAN"
+[ $check_heap = yes ] && CFLAGS="$CFLAGS -DCHECK_HEAP"
+[ $check_queue = yes ] && CFLAGS="$CFLAGS -DCHECK_QUEUE"
+[ $check_vectors = yes ] && CFLAGS="$CFLAGS -DCHECK_VECTORS"
+[ $compact = yes ] && CFLAGS="$CFLAGS -DCOMPACT"
+if [ $coverage = yes ]
+then
+  case "$CC" in
+    gcc*) CFLAGS="$CFLAGS -DCOVERAGE"
+  esac
+fi
+[ $embedded = no ] && CFLAGS="$CFLAGS -DNEMBEDDED"
+[ $quiet = no -a $logging = yes ] && CFLAGS="$CFLAGS -DLOGGING"
+[ $check = no ] && CFLAGS="$CFLAGS -DNDEBUG"
+[ $metrics = no ] && CFLAGS="$CFLAGS -DNMETRICS"
+[ $options = no ] && CFLAGS="$CFLAGS -DNOPTIONS"
+[ $proofs = no ] && CFLAGS="$CFLAGS -DNPROOFS"
+[ $quiet = yes ] && CFLAGS="$CFLAGS -DQUIET"
+[ $sat = yes ] && CFLAGS="$CFLAGS -DSAT"
+[ $statistics = no ] && CFLAGS="$CFLAGS -DNSTATISTICS"
+[ $unsat = yes ] && CFLAGS="$CFLAGS -DUNSAT"
+
+CFLAGS="${CFLAGS}$passthrough"
+
+msg "compiler '$CC $CFLAGS'"
+
+if [ "$passthrough" = "" ]
+then
+  LD="${CC}"
+  msg "linker '$LD' (no additional options passed through)"
+else
+  LD="${CC}$passthrough"
+  msg "linker '$LD' (additional options passed through)"
+fi
+
+if [ $testdefault = unknown ]
+then
+  if [ $coverage = yes -o $embedded = yes ]
+  then
+    testdefault=yes
+  else
+    testdefault=$debug
+  fi
+fi
+
+if [ $testdefault = yes ]
+then
+  TESTDEFAULT="tissat"
+  msg "adding '$TESTDEFAULT' to default makefile goal too"
+  TESTDEFAULT=" $TESTDEFAULT"
+else
+  msg "no test programs added to default makefile goal"
+  TESTDEFAULT=""
+fi
+
+rm -f makefile
+sed \
+  -e "s#@CC@#$CC#" \
+  -e "s#@CFLAGS@#$CFLAGS#" \
+  -e "s#@LD@#$LD#" \
+  -e "s#@TESTDEFAULT@#$TESTDEFAULT#" \
+  ../makefile.in > makefile

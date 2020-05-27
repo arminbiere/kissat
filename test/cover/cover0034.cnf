@@ -1,0 +1,7 @@
+c status 10
+c --eliminateinit=0
+c --walkinitially=1
+p cnf 5 3
+4 5 1 0
+4 0
+2 3 0

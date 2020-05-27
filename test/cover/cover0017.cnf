@@ -1,0 +1,10 @@
+c status 20
+c --probeinit=0
+c --substitute=0
+p cnf 5 6
+-3 5 0
+-3 2 0
+-4 -1 0
+-2 -5 0
+3 1 0
+3 4 0

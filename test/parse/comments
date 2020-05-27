@@ -1,0 +1,9 @@
+c this is a comment
+p cnf 2 2
+c comment here?
+       1 c first comment
+  c another one
+0c end of clause
+2  comment
+0
+comment

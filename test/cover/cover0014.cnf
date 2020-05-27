@@ -1,0 +1,9 @@
+c status 10
+c --defraglim=0
+c --defragsize=0
+c --focus=0
+c --otfs=0
+c --phase=0
+p cnf 3 2
+2 -3 1 0
+2 1 3 0

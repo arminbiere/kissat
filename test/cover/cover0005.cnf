@@ -1,0 +1,6 @@
+c status 10
+c --probeinit=0
+p cnf 2 3
+-2 -1 0
+-2 1 0
+2 -1 0

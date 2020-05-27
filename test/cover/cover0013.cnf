@@ -1,0 +1,7 @@
+c status 10
+c --focus=0
+c --phase=0
+c --reluctant=0
+p cnf 2 2
+2 1 0
+2 -1 0

@@ -1,0 +1,6 @@
+c status 10
+c --probeinit=0
+c --vivifymineff=0
+p cnf 3 2
+3 1 0
+3 -1 2 0

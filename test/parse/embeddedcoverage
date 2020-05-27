@@ -1,0 +1,5 @@
+c --option=nodigit
+c --option=21474836470
+c --option=2147483648
+c --option=0             then spaces and and some chars
+p cnf 0 0

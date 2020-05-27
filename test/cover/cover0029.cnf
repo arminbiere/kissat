@@ -1,0 +1,8 @@
+c status 10
+c --probeinit=0
+c --really=0
+c --ternarymineff=0
+p cnf 7 3
+4 1 5 0
+-1 6 7 0
+2 3 1 0

@@ -1,0 +1,8 @@
+c status 10
+c --eliminateinit=0
+c --eliminatemineff=0
+c --phase=0
+p cnf 5 3
+1 2 0
+3 1 0
+4 -1 5 3 0
