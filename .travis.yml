@@ -1,6 +1,6 @@
 language: c
-dist: bionic
-osx_image: xcode10.2
+dist: xenial
+osx_image: xcode11.5
 compiler:
 - gcc
 - clang
