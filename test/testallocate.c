@@ -17,11 +17,11 @@ test_allocate_basic (void)
   assert (!solver->statistics.allocated_current);
   assert (solver->statistics.allocated_max == 1u << 30);
 #endif
-  p = kissat_calloc (solver, 1 << 29, 4);
+  p = kissat_calloc (solver, 1 << 28, 4);
   assume (kissat_aligned_pointer (p));
-  for (unsigned i = 0; i < 29; i++)
+  for (unsigned i = 0; i < 28; i++)
     assert (!p[1u << i]);
-  kissat_dealloc (solver, p, 1 << 29, 4);
+  kissat_dealloc (solver, p, 1 << 28, 4);
 #ifndef NMETRICS
   assert (!solver->statistics.allocated_current);
   assert (solver->statistics.allocated_max == 1u << 31);

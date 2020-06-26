@@ -65,4 +65,4 @@ test.o: test.c build.h ../[st]*/*.h makefile
 libkissat.a: $(LIBOBJ) makefile
 	ar rc $@ $(LIBOBJ)
 
-.PHONY: all clean build.h
+.PHONY: all clean coverage indent test build.h
