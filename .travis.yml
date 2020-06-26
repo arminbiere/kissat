@@ -1,6 +1,5 @@
 language: c
 dist: xenial
-osx_image: xcode11.5
 compiler:
 - gcc
 - clang
