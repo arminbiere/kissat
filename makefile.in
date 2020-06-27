@@ -1,6 +1,7 @@
 CC=@CC@
 CFLAGS=@CFLAGS@
 LD=@LD@
+AR=@AR@
 
 VPATH=../src:../test
 
@@ -63,6 +64,6 @@ test.o: test.c build.h ../[st]*/*.h makefile
 	$(CC) $(CFLAGS) $(INCLUDES) -c $<
 
 libkissat.a: $(LIBOBJ) makefile
-	ar rc $@ $(LIBOBJ)
+	$(AR) rc $@ $(LIBOBJ)
 
 .PHONY: all clean coverage indent test build.h

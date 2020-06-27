@@ -22,6 +22,7 @@ profile=no
 proofs=yes
 quiet=no
 sat=no
+static=no
 statistics=unknown
 symbols=unknown
 testdefault=unknown
@@ -145,7 +146,8 @@ builds. Furthermore, in case of '-fsanitize=address' the macro '-DASAN' is
 defined, such that some tests incompatible with ASAN can be omitted.
        
   -m32              add '-m32' option to compile for 32-bit
-  -f...             add -f... options (e.g., '-fsanitize=address' or '-fPIC')
+  -f...             add '-f...' options,('-fsanitize=address', '-fPIC' ...)
+  -static           add '-static' linking flag
 
 The default configuration builds optimized code with 'gcc' without symbols,
 an no checking, metrics, embedded options parsing nor logging code included.
@@ -235,6 +237,7 @@ do
     --no-embedded) embedded=no;;
 
     -m32) m32=yes;;
+    -static) static=yes;;
     -f*)
       [ x"`echo $1|grep fsanitize=.*address`" = x ] || asan=yes
       passthrough="$passthrough $1"
@@ -286,6 +289,10 @@ ROOT="`pwd|xargs dirname`"
 cat <<EOF >../makefile
 all:
 	\$(MAKE) -C "$BUILD"
+kissat:
+	\$(MAKE) -C "$BUILD" kissat
+tissat:
+	\$(MAKE) -C "$BUILD" tissat
 clean:
 	rm -f "$ROOT"/makefile
 	-\$(MAKE) -C "$BUILD" clean
@@ -296,7 +303,7 @@ indent:
 	\$(MAKE) -C "$BUILD" indent
 test:
 	\$(MAKE) -C "$BUILD" test
-.PHONY: all clean coverage indent test
+.PHONY: all clean coverage indent kissat test tissat
 EOF
 
 [ $statistics = no -a $metrics = yes ] && \
@@ -462,7 +469,7 @@ EOF
 fi
 
 case "$CC" in
-  gcc*|clang*)
+  gcc*|*-gcc|clang*)
     CFLAGS="-W -Wall"
     [ $pedantic = yes ] && \
       CFLAGS="$CFLAGS -Werror -std=c99 --pedantic"
@@ -526,14 +533,28 @@ CFLAGS="${CFLAGS}$passthrough"
 
 msg "compiler '$CC $CFLAGS'"
 
+[ $static = yes ] && passthrough="$passthrough -static"
+
 if [ "$passthrough" = "" ]
 then
   LD="${CC}"
-  msg "linker '$LD' (no additional options passed through)"
+  msg "linker '$LD' (no additional options)"
 else
   LD="${CC}$passthrough"
-  msg "linker '$LD' (additional options passed through)"
+  msg "linker '$LD' (additional options)"
 fi
+
+case "$CC" in
+  *-linux-gnu-gcc)
+    architecture="`echo $CC|sed -e 's,\(.*\)-linux-gnu-gcc,\1,'`"
+    AR="${architecture}-linux-gnu-ar"
+    msg "cross compilation for '$architecture' (using '$AR')"
+    ;;
+  *)
+    AR="ar"
+    msg "using default 'ar' (no cross compilation)"
+    ;;
+esac
 
 if [ $testdefault = unknown ]
 then
@@ -560,5 +581,6 @@ sed \
   -e "s#@CC@#$CC#" \
   -e "s#@CFLAGS@#$CFLAGS#" \
   -e "s#@LD@#$LD#" \
+  -e "s#@AR@#$AR#" \
   -e "s#@TESTDEFAULT@#$TESTDEFAULT#" \
   ../makefile.in > makefile

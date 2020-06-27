@@ -24,7 +24,7 @@ test_allocate_basic (void)
   kissat_dealloc (solver, p, 1 << 28, 4);
 #ifndef NMETRICS
   assert (!solver->statistics.allocated_current);
-  assert (solver->statistics.allocated_max == 1u << 31);
+  assert (solver->statistics.allocated_max == 1u << 30);
 #endif
   char *s = kissat_strdup (solver, "test");
   assume (kissat_aligned_pointer (s));

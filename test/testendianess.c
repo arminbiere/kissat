@@ -1,5 +1,7 @@
 #include "test.h"
 
+#include "../src/endianess.h"
+
 #include <stdbool.h>
 
 struct first
@@ -47,10 +49,17 @@ test_endianess (void)
   PRINT (((union type) { .raw = (1u<<31)}).last.bit);
   PRINT (((union type) { .raw = (1u<<31)}).last.rest);
   printf ("\n");
+#ifdef KISSAT_IS_BIG_ENDIAN
+  if (((union type) { .raw = 1u}).last.bit)
+    printf ("big endian as expected\n");
+  else if (((union type) { .raw = 1u}).first.bit)
+    FATAL ("unexpected little endian");
+#else
   if (((union type) { .raw = 1u}).first.bit)
-    printf ("little endianess as expected\n");
+    printf ("little endian as expected\n");
   else if (((union type) { .raw = 1u}).last.bit)
-    FATAL ("unexpected big endianess");
+    FATAL ("unexpected big endian");
+#endif
   else
     FATAL ("could not determine endianess");
   // *INDENT-ON*

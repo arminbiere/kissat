@@ -1,6 +1,7 @@
 #ifndef _watch_h_INCLUDED
 #define _watch_h_INCLUDED
 
+#include "endianess.h"
 #include "reference.h"
 #include "stack.h"
 #include "vector.h"
@@ -18,30 +19,54 @@ typedef struct large_watch large_watch;
 
 struct watch_type
 {
+#ifdef KISSAT_IS_BIG_ENDIAN
+  bool binary:1;
+  unsigned padding:2;
+  unsigned lit:29;
+#else
   unsigned lit:29;
   unsigned padding:2;
   bool binary:1;
+#endif
 };
 
 struct binary_watch
 {
+#ifdef KISSAT_IS_BIG_ENDIAN
+  bool binary:1;
+  bool redundant:1;
+  bool hyper:1;
+  unsigned lit:29;
+#else
   unsigned lit:29;
   bool hyper:1;
   bool redundant:1;
   bool binary:1;
+#endif
 };
 
 struct large_watch
 {
+#ifdef KISSAT_IS_BIG_ENDIAN
+  bool binary:1;
+  unsigned ref:31;
+#else
   unsigned ref:31;
   bool binary:1;
+#endif
 };
 
 struct blocking_watch
 {
+#ifdef KISSAT_IS_BIG_ENDIAN
+  bool binary:1;
+  unsigned padding:2;
+  unsigned lit:29;
+#else
   unsigned lit:29;
   unsigned padding:2;
   bool binary:1;
+#endif
 };
 
 union watch
