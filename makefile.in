@@ -44,10 +44,10 @@ indent:
 	indent ../*/*.[ch]
 
 kissat: main.o $(APPOBJ) libkissat.a makefile
-	$(LD) -o $@ main.o $(APPOBJ) -L. -lkissat -lm
+	$(LD) -o $@ $< $(APPOBJ) -L. -lkissat -lm
 
 tissat: test.o $(TSTOBJ) libkissat.a makefile
-	$(LD) -o $@ test.o $(TSTOBJ) -L. -lkissat -lm
+	$(LD) -o $@ $< $(TSTOBJ) -L. -lkissat -lm
 
 build.h:
 	../scripts/generate-build-header.sh > $@
