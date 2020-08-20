@@ -29,7 +29,7 @@ do { \
   const size_t WIDTH_RADIX = (1 << LENGTH_RADIX); \
   const RTYPE MASK_RADIX = WIDTH_RADIX - 1; \
   \
-  size_t COUNT_RADIX[WIDTH_RADIX]; \
+  size_t* COUNT_RADIX = _alloca(sizeof(size_t)*WIDTH_RADIX); \
   \
   VTYPE * TMP_RADIX = 0; \
   const size_t BYTES_TMP_RADIX = N_RADIX * sizeof (VTYPE); \

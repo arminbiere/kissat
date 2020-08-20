@@ -7,6 +7,8 @@
 #include <limits.h>
 #include <string.h>
 
+#include <unistd.h>
+
 #ifdef COMPACT
 typedef unsigned sector;
 #define SECTOR_FORMAT "u"

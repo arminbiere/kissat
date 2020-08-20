@@ -9,7 +9,7 @@ kissat_initialize_terminal (int fd)
 {
   assert (fd == 1 || fd == 2);
   assert (kissat_is_terminal[fd] < 0);
-  return kissat_is_terminal[fd] = isatty (fd);
+  return kissat_is_terminal[fd] = (isatty (fd) ? 1:0);
 }
 
 void

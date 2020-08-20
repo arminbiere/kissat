@@ -854,10 +854,8 @@ enum round
   IRREDUNDANT_ROUND = 3
 };
 
-typedef enum round round;
-
 static void
-vivify_round (kissat * solver, round round)
+vivify_round (kissat * solver, enum round round)
 {
   assert (solver->watching);
   assert (solver->probing);

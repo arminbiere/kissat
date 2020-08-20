@@ -16,14 +16,14 @@ struct clause
 {
   unsigned glue:LD_MAX_GLUE;
 
-  bool garbage:1;
-  bool hyper:1;
-  bool keep:1;
-  bool reason:1;
-  bool redundant:1;
-  bool shrunken:1;
-  bool subsume:1;
-  bool vivify:1;
+  unsigned garbage:1;
+  unsigned hyper:1;
+  unsigned keep:1;
+  unsigned reason:1;
+  unsigned redundant:1;
+  unsigned shrunken:1;
+  unsigned subsume:1;
+  unsigned vivify:1;
 
   unsigned used:2;
 

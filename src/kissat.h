@@ -1,39 +1,41 @@
 #ifndef _kissat_h_INCLUDED
 #define _kissat_h_INCLUDED
 
+#include <unistd.h>
+
 typedef struct kissat kissat;
 
 // Default (partial) IPASIR interface.
 
-const char *kissat_signature (void);
-kissat *kissat_init (void);
-void kissat_add (kissat * solver, int lit);
-int kissat_solve (kissat * solver);
-void kissat_terminate (kissat * solver);
-int kissat_value (kissat * solver, int lit);
-void kissat_release (kissat * solver);
+DllExport const char *kissat_signature (void);
+DllExport kissat *kissat_init (void);
+DllExport void kissat_add (kissat * solver, int lit);
+DllExport int kissat_solve (kissat * solver);
+DllExport void kissat_terminate (kissat * solver);
+DllExport int kissat_value (kissat * solver, int lit);
+DllExport void kissat_release (kissat * solver);
 
-void kissat_set_terminate (kissat * solver,
+DllExport void kissat_set_terminate (kissat * solver,
 			   void *state, int (*terminate) (void *state));
 
 // Additional API functions.
 
-void kissat_reserve (kissat * solver, int max_var);
+DllExport void kissat_reserve (kissat * solver, int max_var);
 
-const char *kissat_id (void);
-const char *kissat_version (void);
-const char *kissat_compiler (void);
+DllExport const char *kissat_id (void);
+DllExport const char *kissat_version (void);
+DllExport const char *kissat_compiler (void);
 
-void kissat_banner (const char *line_prefix, const char *name_of_app);
+DllExport void kissat_banner (const char *line_prefix, const char *name_of_app);
 
-int kissat_get_option (kissat * solver, const char *name);
-int kissat_set_option (kissat * solver, const char *name, int new_value);
+DllExport int kissat_get_option (kissat * solver, const char *name);
+DllExport int kissat_set_option (kissat * solver, const char *name, int new_value);
 
-void kissat_set_configuration (kissat * solver, const char *name);
+DllExport void kissat_set_configuration (kissat * solver, const char *name);
 
-void kissat_set_conflict_limit (kissat * solver, unsigned);
-void kissat_set_decision_limit (kissat * solver, unsigned);
+DllExport void kissat_set_conflict_limit (kissat * solver, unsigned);
+DllExport void kissat_set_decision_limit (kissat * solver, unsigned);
 
-void kissat_print_statistics (kissat * solver);
+DllExport void kissat_print_statistics (kissat * solver);
 
 #endif

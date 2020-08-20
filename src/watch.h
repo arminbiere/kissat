@@ -17,6 +17,7 @@ typedef struct binary_watch binary_watch;
 typedef struct blocking_watch blocking_watch;
 typedef struct large_watch large_watch;
 
+#pragma pack(push, 1)
 struct watch_type
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
@@ -26,7 +27,7 @@ struct watch_type
 #else
   unsigned lit:29;
   unsigned padding:2;
-  bool binary:1;
+  unsigned binary:1;
 #endif
 };
 
@@ -39,9 +40,9 @@ struct binary_watch
   unsigned lit:29;
 #else
   unsigned lit:29;
-  bool hyper:1;
-  bool redundant:1;
-  bool binary:1;
+  unsigned hyper:1;
+  unsigned redundant:1;
+  unsigned binary:1;
 #endif
 };
 
@@ -52,7 +53,7 @@ struct large_watch
   unsigned ref:31;
 #else
   unsigned ref:31;
-  bool binary:1;
+  unsigned binary:1;
 #endif
 };
 
@@ -65,7 +66,7 @@ struct blocking_watch
 #else
   unsigned lit:29;
   unsigned padding:2;
-  bool binary:1;
+  unsigned binary:1;
 #endif
 };
 
@@ -77,6 +78,8 @@ union watch
   large_watch large;
   unsigned raw;
 };
+
+#pragma pack(pop)
 
 typedef vector watches;
 

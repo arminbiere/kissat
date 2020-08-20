@@ -248,7 +248,7 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
   if (large_clauses1 < 2)
     return false;
 
-  unsigned lits[size_limit];
+  unsigned* lits = _alloca(sizeof(unsigned)*size_limit);
 
   const value *values = solver->values;
   value *marks = solver->marks;

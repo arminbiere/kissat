@@ -21,554 +21,269 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="allocate.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="analyze.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ands.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="application.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="arena.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="assign.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="autarky.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="averages.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="backtrack.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="backward.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="build.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="bump.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="check.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="clause.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="clueue.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="collect.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="colors.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="compact.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="config.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="decide.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="deduce.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="dense.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="dominate.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="dump.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="eliminate.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="equivalences.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="error.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="extend.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="failed.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="file.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="flags.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="format.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="forward.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="frames.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="gates.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="handle.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="heap.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ifthenelse.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="import.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="internal.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="learn.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="limits.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="logging.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="main.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="minimize.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="mode.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="options.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="parse.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="phases.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="print.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="probe.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="profile.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="promote.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="proof.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="propdense.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="prophyper.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="proprobe.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="propsearch.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="queue.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="reduce.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="reluctant.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="rephase.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="report.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="resize.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="resolve.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="resources.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="restart.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="search.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="smooth.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="sort.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="stack.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="statistics.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="strengthen.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="substitute.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="terminate.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="ternary.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="trail.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="transitive.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="utilities.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vector.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="vivify.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="walk.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="watch.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="weaken.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="witness.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="xors.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="pal-win\unistd.c">
       <Filter>PAL</Filter>
     </ClCompile>
+    <ClCompile Include="src\allocate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\analyze.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ands.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\application.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\arena.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\assign.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\autarky.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\averages.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\backtrack.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\backward.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\build.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\bump.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\check.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\clause.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\clueue.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\collect.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\colors.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\compact.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\config.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\decide.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\deduce.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dense.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dominate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dump.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\eliminate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\equivalences.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\error.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\extend.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\failed.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\file.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\flags.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\format.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\forward.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\frames.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\gates.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\handle.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\heap.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ifthenelse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\import.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\internal.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\learn.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\limits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\logging.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\minimize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\mode.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\options.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\parse.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\phases.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\print.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\probe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\profile.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\promote.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\proof.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\propdense.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\prophyper.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\proprobe.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\propsearch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\queue.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\reduce.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\reluctant.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\rephase.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\report.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resize.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resolve.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\resources.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\restart.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\search.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\smooth.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\sort.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stack.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\statistics.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\strengthen.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\substitute.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\terminate.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ternary.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\trail.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\transitive.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\utilities.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vector.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\vivify.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\walk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\watch.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\weaken.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\witness.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\xors.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="allocate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="analyze.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ands.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="application.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="arena.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="assign.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="autarky.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="averages.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="backtrack.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="backward.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="bump.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="check.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="clause.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="clueue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="collect.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="colors.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="compact.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="config.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="cover.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="decide.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="deduce.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="dense.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="dominate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="eliminate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="endianess.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="equivalences.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="error.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="extend.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="failed.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="file.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="flags.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="format.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="forward.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="frames.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="gates.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="handle.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="heap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ifthenelse.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="import.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="inline.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="internal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="kissat.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="learn.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="limits.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="literal.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="logging.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="minimize.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="mode.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="options.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="parse.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="phases.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="print.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="probe.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="profile.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="promote.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="proof.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="propdense.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="prophyper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="proplit.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="proprobe.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="propsearch.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="queue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="random.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="rank.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="reduce.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="reference.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="reluctant.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="rephase.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="report.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="require.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resize.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resolve.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="resources.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="restart.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="search.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="smooth.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="sort.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="stack.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="statistics.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="strengthen.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="substitute.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="terminate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="ternary.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="trail.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="transitive.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="utilities.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="value.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vector.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="vivify.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="walk.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="watch.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="weaken.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="witness.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="xors.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="build.h">
-      <Filter>PAL</Filter>
-    </ClInclude>
     <ClInclude Include="pal-win\sys\time.h">
       <Filter>PAL\sys</Filter>
     </ClInclude>
@@ -580,6 +295,291 @@
     </ClInclude>
     <ClInclude Include="pal-win\sys\resource.h">
       <Filter>PAL\sys</Filter>
+    </ClInclude>
+    <ClInclude Include="src\allocate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\analyze.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ands.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\application.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\arena.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\assign.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\autarky.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\averages.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\backtrack.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\backward.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\build.h">
+      <Filter>PAL</Filter>
+    </ClInclude>
+    <ClInclude Include="src\bump.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\check.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\clause.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\clueue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\collect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\colors.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\compact.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\cover.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\decide.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\deduce.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dense.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dominate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\eliminate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\endianess.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\equivalences.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\extend.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\failed.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\file.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\flags.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\format.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\forward.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\frames.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\gates.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\handle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\heap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ifthenelse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\import.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\inline.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\internal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kissat.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\learn.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\limits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\literal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\logging.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\minimize.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\mode.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\options.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\parse.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\phases.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\print.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\probe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\profile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\promote.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\proof.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\propdense.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\prophyper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\proplit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\proprobe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\propsearch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rank.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\reduce.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\reference.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\reluctant.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\rephase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\report.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\require.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resize.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resolve.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\resources.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\restart.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\search.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\smooth.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\sort.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\stack.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\statistics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\strengthen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\substitute.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\terminate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ternary.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\trail.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\transitive.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\utilities.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\value.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\vivify.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\walk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\watch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\weaken.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\witness.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\xors.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

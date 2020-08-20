@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+#include <unistd.h>
+
 static void (*handler) (int);
 static volatile int caught_signal;
 static volatile bool handler_set;
