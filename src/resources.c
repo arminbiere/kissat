@@ -52,7 +52,12 @@ kissat_current_resident_set_size (void)
   sprintf (path, "/proc/%" PRIu64 "/statm", (uint64_t) getpid ());
   FILE *file = fopen (path, "r");
   if (!file)
-    return 0;
+  {
+	  // Fall back to rusage, if the '/proc' file system is not found
+	  struct rusage u;
+	  if (getrusage(RUSAGE_SELF, &u)) return 0;
+	  return ((size_t)u.ru_idrss + (size_t)u.ru_ixrss) << 10;
+  }
   uint64_t dummy, rss;
   int scanned = fscanf (file, "%" PRIu64 " %" PRIu64 "", &dummy, &rss);
   fclose (file);
