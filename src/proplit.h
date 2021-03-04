@@ -85,7 +85,7 @@ PROPAGATE_LITERAL (kissat * solver,
   const watch *end_watches = END_WATCHES (*watches), *p = q;
   unsigneds *delayed = &solver->delayed;
 
-  uint64_t ticks = kissat_cache_lines (watches->size, sizeof (watch));
+  uint64_t ticks = 1 + kissat_cache_lines (watches->size, sizeof (watch));
 
   clause *res = 0;
 
