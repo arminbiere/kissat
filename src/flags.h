@@ -15,6 +15,7 @@ struct flags
   bool fixed:1;
   bool probe:1;
   bool subsume:1;
+  bool sweep:1;
   bool transitive:1;
 };
 

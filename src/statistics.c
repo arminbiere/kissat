@@ -35,6 +35,9 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define CONF_INT(NAME) \
   RELATIVE (conflicts, NAME)
 
+#define SWEEPS_PER_COMPLETED(NAME) \
+  RELATIVE (sweep, NAME)
+
 #define NO_SECONDARY(NAME) \
   0
 
@@ -74,6 +77,9 @@ kissat_statistics_print (kissat * solver, bool verbose)
 
 #define PER_FORWARD_CHECK(NAME) \
   RELATIVE (NAME, forward_checks)
+
+#define PER_KITTEN_PROP(NAME) \
+  RELATIVE (NAME, kitten_propagations)
 
 #define PER_KITTEN_SOLVED(NAME) \
   RELATIVE (NAME, kitten_solved)
@@ -187,6 +193,9 @@ kissat_statistics_print (kissat * solver, bool verbose)
 
 #define PCNT_SUBSUMPTION_CHECK(NAME) \
   PERCENT (NAME, subsumption_checks)
+
+#define PCNT_SWEEP_SOLVED(NAME) \
+  PERCENT (NAME, sweep_solved)
 
 #ifndef STATISTICS
 #define PCNT_TICKS(NAME) \

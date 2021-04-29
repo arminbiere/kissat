@@ -47,8 +47,8 @@ test_terminate (int bit, const char *name,
   (void) error;
   kissat_close_file (&file);
   tissat_verbose ("solving '%s' forcing 'TERMINATED (%s)'", cnf, name);
-  assert (0 <= bit), assert (bit < 32);
-  solver->termination.flagged = (1u << bit);
+  assert (0 <= bit), assert (bit < 64);
+  solver->termination.flagged = ((uint64_t) 1 << bit);
   int res = kissat_solve (solver);
   if (res)
     FATAL ("solver returned '%d' but expected '0'", res);

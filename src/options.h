@@ -10,7 +10,7 @@ OPTION( autarky, 1, 0, 1, "enable autarky reasoning") \
 OPTION( autarkydelay, 0, 0, 1, "delay autarky reasoning") \
 OPTION( backbone, 1, 0, 2, "binary clause backbone (2=eager)") \
 OPTION( backbonedelay, 0, 0, 1, "delay backbone computation") \
-OPTION( backboneeffort, 20, 0, 1e5, "relative effort in per mille") \
+OPTION( backboneeffort, 20, 0, 1e5, "effort in per mille") \
 OPTION( backbonefocus, 0, 0, 1, "focus on not-yet-tried literals") \
 OPTION( backbonekeep, 1, 0, 1, "keep backbone candidates") \
 OPTION( backbonemaxrounds, 1e3, 1, INT_MAX, "maximum backbone rounds") \
@@ -36,7 +36,7 @@ OPTION( eliminate, 1, 0, 1, "bounded variable elimination (BVE)") \
 OPTION( eliminatebound, 16 ,0 , 1<<13, "maximum elimination bound") \
 OPTION( eliminateclslim, 100, 1, INT_MAX, "elimination clause size limit") \
 OPTION( eliminatedelay, 0, 0, 1, "delay variable elimination") \
-OPTION( eliminateeffort, 100, 0, 2e3, "relative effort in per mille") \
+OPTION( eliminateeffort, 100, 0, 2e3, "effort in per mille") \
 OPTION( eliminateheap, 0, 0, 1, "use heap to schedule elimination") \
 OPTION( eliminateinit, 500, 0, INT_MAX, "initial elimination interval") \
 OPTION( eliminateint, 500, 10, INT_MAX, "base elimination interval") \
@@ -51,11 +51,11 @@ OPTION( extract, 1, 0, 1, "extract gates in variable elimination") \
 OPTION( failed, 1, 0, 1, "failed literal probing") \
 OPTION( failedcont, 90, 0, 100, "continue if many failed (in percent)") \
 OPTION( faileddelay, 1, 0, 1, "delay failed literal probing") \
-OPTION( failedeffort, 50, 0, 1e8, "minimum probe effort") \
+OPTION( failedeffort, 50, 0, 1e8, "effort in per mille") \
 OPTION( failedrounds, 2, 1, 100, "failed literal probing rounds") \
 OPTION( forcephase, 0, 0, 1, "force initial phase") \
 OPTION( forward, 1, 0, 1, "forward subsumption in BVE") \
-OPTION( forwardeffort, 100, 0, 1e6, "relative effort in per mille") \
+OPTION( forwardeffort, 100, 0, 1e6, "effort in per mille") \
 OPTION( hyper, 1, 0, 1, "on-the-fly hyper binary resolution") \
 OPTION( ifthenelse, 1, 0, 1, "extract and eliminate if-then-else gates") \
 OPTION( incremental, 0, 0, 1, "enable incremental solving") \
@@ -105,31 +105,37 @@ OPTION( simplify, 1, 0, 1, "enable probing and elimination") \
 OPTION( stable, STABLE_DEFAULT, 0, 2, "enable stable search mode") \
 NQTOPT( statistics, 0, 0, 1, "print complete statistics") \
 OPTION( substitute, 1, 0, 1, "equivalent literal substitution") \
-OPTION( substituteeffort, 10, 1, 1e3, "maximum substitution round effort") \
+OPTION( substituteeffort, 10, 1, 1e3, "effort in per mille") \
 OPTION( substituterounds, 2, 1, 100, "maximum substitution rounds") \
 OPTION( subsumeclslim, 1e3, 1, INT_MAX, "subsumption clause size limit") \
 OPTION( subsumeocclim, 1e3, 0, INT_MAX, "subsumption occurrence limit") \
+OPTION( sweep, 1, 0, 1, "enable SAT sweeping") \
+OPTION( sweepclauses, 1000, 0, INT_MAX, "maximum environment clauses") \
+OPTION( sweepdepth, 2, 0, INT_MAX, "environment depth") \
+OPTION( sweepeffort, 20, 0, 1e4, "effort in per mille") \
+OPTION( sweepmaxdepth, 4, 2, INT_MAX, "maximum environment depth") \
+OPTION( sweepvars, 100, 0, INT_MAX, "maximum environment variables") \
 OPTION( target, TARGET_DEFAULT, 0, 2, "target phases (1=stable,2=focused)") \
 OPTION( ternary, 1, 0, 1, "enable hyper ternary resolution") \
 OPTION( ternarydelay, 1, 0, 1, "delay hyper ternary resolution") \
-OPTION( ternaryeffort, 70, 0, 2e3, "relative effort in per mille") \
+OPTION( ternaryeffort, 70, 0, 2e3, "effort in per mille") \
 OPTION( ternaryheap, 1, 0, 1, "use heap to schedule ternary resolution") \
 OPTION( ternarymaxadd, 20, 0, 1e4, "maximum clauses added in percent") \
 OPTION( tier1, 2, 1, 100, "learned clause tier one glue limit") \
 OPTION( tier2, 6, 1,1e3, "learned clause tier two glue limit") \
 OPTION( transitive, 1, 0, 1, "transitive reduction of binary clauses") \
-OPTION( transitiveeffort, 20, 0, 2e3, "relative effort in per mille") \
+OPTION( transitiveeffort, 20, 0, 2e3, "effort in per mille") \
 OPTION( transitivekeep, 1, 0, 1, "keep transitivity candidates") \
 OPTION( tumble, 1, 0, 1, "tumbled external indices order") \
 NQTOPT( verbose, 0, 0, 3, "verbosity level") \
 OPTION( vivify, 1, 0, 1, "vivify clauses") \
-OPTION( vivifyeffort, 100, 0, 1e3, "relative effort in per mille") \
+OPTION( vivifyeffort, 100, 0, 1e3, "effort in per mille") \
 OPTION( vivifyimply, 2, 0, 2, "remove implied redundant clauses") \
 OPTION( vivifyirred, 1, 1, 100, "relative irredundant effort") \
 OPTION( vivifykeep, 0, 0, 1, "keep vivification candidates") \
 OPTION( vivifytier1, 3, 1, 100, "relative tier1 effort") \
 OPTION( vivifytier2, 6, 1, 100, "relative tier2 effort") \
-OPTION( walkeffort, 5, 0, 1e6, "relative effort in per mille") \
+OPTION( walkeffort, 5, 0, 1e6, "effort in per mille") \
 OPTION( walkfit, 1, 0, 1, "fit CB value to average clause length") \
 OPTION( walkinitially, 0, 0, 1, "initial local search") \
 OPTION( walkreuse, 1, 0, 2, "reuse walking results (2=always)") \

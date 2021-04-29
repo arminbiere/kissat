@@ -7,6 +7,7 @@
 #include "ternary.h"
 #include "transitive.h"
 #include "substitute.h"
+#include "sweep.h"
 #include "vivify.h"
 
 #include <inttypes.h>
@@ -38,6 +39,7 @@ probe (kissat * solver)
   kissat_transitive_reduction (solver);
   kissat_failed_literal_computation (solver);
   kissat_vivify (solver);
+  kissat_sweep (solver);
   kissat_substitute (solver);
   kissat_binary_clauses_backbone (solver);
   const changes after = kissat_changes (solver);

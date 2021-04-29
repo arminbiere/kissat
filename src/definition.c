@@ -58,35 +58,28 @@ struct lemma_extractor
 };
 
 static void
-traverse_one_sided_core_lemma (void *state,
-			       size_t msize, const unsigned *mlits)
+traverse_one_sided_core_lemma (void *state, bool learned,
+			       size_t size, const unsigned *lits)
 {
+  if (!learned)
+    return;
   lemma_extractor *extractor = state;
   kissat *solver = extractor->solver;
   const unsigned unit = extractor->unit;
   unsigneds *added = &solver->added;
-  unsigneds *analyzed = &solver->analyzed;
   assert (extractor->lemmas || EMPTY_STACK (*added));
-  if (msize)
+  if (size)
     {
-      assert (msize <= UINT_MAX);
-      const size_t size = msize + 1;
-      PUSH_STACK (*added, size);
+      PUSH_STACK (*added, size + 1);
       const size_t offset = SIZE_STACK (*added);
       PUSH_STACK (*added, unit);
-      const unsigned *end = mlits + msize;
-      for (const unsigned *p = mlits; p != end; p++)
-	{
-	  const unsigned mlit = *p;
-	  const unsigned midx = mlit / 2;
-	  const unsigned idx = PEEK_STACK (*analyzed, midx);
-	  const unsigned lit = LIT (idx) + (mlit & 1);
-	  PUSH_STACK (*added, lit);
-	}
-      unsigned *lits = &PEEK_STACK (*added, offset);
+      const unsigned *end = lits + size;
+      for (const unsigned *p = lits; p != end; p++)
+	PUSH_STACK (*added, *p);
+      unsigned *extended = &PEEK_STACK (*added, offset);
       assert (offset + size + 1 == SIZE_STACK (*added));
-      CHECK_AND_ADD_LITS (size + 1, lits);
-      ADD_LITS_TO_PROOF (size + 1, lits);
+      CHECK_AND_ADD_LITS (size + 1, extended);
+      ADD_LITS_TO_PROOF (size + 1, extended);
     }
   else
     {
@@ -107,26 +100,6 @@ traverse_one_sided_core_lemma (void *state,
 
 #endif
 
-static void
-add_mapped_literal (kissat * solver, unsigned *const map,
-		    unsigneds * mclause, unsigneds * analyzed,
-		    unsigned lit, unsigned *vars_ptr)
-{
-  const unsigned idx = IDX (lit);
-  if (!map[idx])
-    {
-      PUSH_STACK (*analyzed, idx);
-      unsigned vars = *vars_ptr;
-      *vars_ptr = ++vars;
-      map[idx] = vars;
-      assert (vars == SIZE_STACK (*analyzed));
-      assert (PEEK_STACK (*analyzed, vars - 1) == idx);
-    }
-  const unsigned midx = map[idx] - 1;
-  const unsigned mlit = 2 * midx + (lit & 1);
-  PUSH_STACK (*mclause, mlit);
-}
-
 bool
 kissat_find_definition (kissat * solver, unsigned lit)
 {
@@ -142,55 +115,29 @@ kissat_find_definition (kissat * solver, unsigned lit)
   extractor.solver = solver;
   extractor.watches[0] = &WATCHES (lit);
   extractor.watches[1] = &WATCHES (not_lit);
-  unsigneds mclause;
-  INIT_STACK (mclause);
   kitten_track_antecedents (kitten);
-  unsigned vars = 0;
-  unsigned *const map = solver->map;
   unsigned exported = 0;
-  assert (EMPTY_STACK (solver->analyzed));
 #if !defined(QUIET) || !defined(NDEBUG)
   size_t occs[2] = { 0, 0 };
 #endif
-  unsigneds *analyzed = &solver->analyzed;
   for (unsigned sign = 0; sign < 2; sign++)
     {
+      const unsigned except = sign ? not_lit : lit;
       for (all_binary_large_watches (watch, *extractor.watches[sign]))
 	{
-	  assert (EMPTY_STACK (mclause));
 	  if (watch.type.binary)
 	    {
 	      const unsigned other = watch.binary.lit;
-	      add_mapped_literal (solver, map,
-				  &mclause, analyzed, other, &vars);
+	      kitten_clause_with_id_and_exception (kitten, exported,
+						   1, &other, INVALID_LIT);
 	    }
 	  else
 	    {
 	      const reference ref = watch.large.ref;
 	      clause *c = kissat_dereference_clause (solver, ref);
-	      for (all_literals_in_clause (other, c))
-		{
-		  if (sign)
-		    {
-		      if (other == not_lit)
-			continue;
-		      assert (other != lit);
-		    }
-		  else
-		    {
-		      if (other == lit)
-			continue;
-		      assert (other != not_lit);
-		    }
-		  add_mapped_literal (solver, map,
-				      &mclause, analyzed, other, &vars);
-		}
+	      kitten_clause_with_id_and_exception (kitten, exported,
+						   c->size, c->lits, except);
 	    }
-	  assert (SIZE_STACK (mclause) <= UINT_MAX);
-	  unsigned size = SIZE_STACK (mclause);
-	  const unsigned *const lits = BEGIN_STACK (mclause);
-	  kitten_clause (kitten, exported, size, lits);
-	  CLEAR_STACK (mclause);
 #if !defined(QUIET) || !defined(NDEBUG)
 	  occs[sign]++;
 #endif
@@ -198,7 +145,6 @@ kissat_find_definition (kissat * solver, unsigned lit)
 	}
     }
   bool res = false;
-  LOG ("environment of literal %s has %u variables", LOGLIT (lit), vars);
   LOG ("exported %u = %zu + %zu environment clauses to sub-solver",
        exported, occs[0], occs[1]);
   INC (definitions_checked);
@@ -214,7 +160,7 @@ kissat_find_definition (kissat * solver, unsigned lit)
       for (int i = 2; i <= GET_OPTION (definitioncores); i++)
 	{
 	  kitten_shrink_to_clausal_core (kitten);
-	  kitten_shuffle (kitten);
+	  kitten_shuffle_clauses (kitten);
 #ifndef NDEBUG
 	  int tmp =
 #endif
@@ -231,8 +177,7 @@ kissat_find_definition (kissat * solver, unsigned lit)
 	  (void) reduced;
 #endif
 	}
-      kitten_traverse_clausal_core (kitten, &extractor,
-				    traverse_definition_core);
+      kitten_traverse_core_ids (kitten, &extractor, traverse_definition_core);
       size_t size[2];
       size[0] = SIZE_STACK (solver->gates[0]);
       size[1] = SIZE_STACK (solver->gates[1]);
@@ -288,8 +233,8 @@ kissat_find_definition (kissat * solver, unsigned lit)
 	      extractor.solver = solver;
 	      extractor.unit = unit;
 	      extractor.lemmas = 0;
-	      kitten_traverse_core_lemmas (kitten, &extractor,
-					   traverse_one_sided_core_lemma);
+	      kitten_traverse_core_clauses (kitten, &extractor,
+					    traverse_one_sided_core_lemma);
 	    }
 	  else
 #endif
@@ -301,9 +246,6 @@ kissat_find_definition (kissat * solver, unsigned lit)
     }
   else
     LOG ("sub-solver failed to show that definition exists");
-  RELEASE_STACK (mclause);
-  for (all_stack (unsigned, idx, solver->analyzed))
-      map[idx] = 0;
   CLEAR_STACK (solver->analyzed);
   STOP (definition);
   return res;

@@ -10,7 +10,7 @@
 
 typedef struct clause clause;
 
-#define LD_MAX_GLUE 22u
+#define LD_MAX_GLUE 21u
 #define MAX_GLUE ((1u<<LD_MAX_GLUE)-1)
 
 struct clause
@@ -24,6 +24,7 @@ struct clause
   bool redundant:1;
   bool shrunken:1;
   bool subsume:1;
+  bool sweeped:1;
   bool vivify:1;
 
   unsigned used:2;

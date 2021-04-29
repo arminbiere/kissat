@@ -46,6 +46,7 @@ init_clause (kissat * solver, clause * res,
   res->redundant = redundant;
   res->shrunken = false;
   res->subsume = false;
+  res->sweeped = false;
   res->vivify = false;
 
   res->used = 0;

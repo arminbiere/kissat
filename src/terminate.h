@@ -15,7 +15,7 @@ kissat_terminated (kissat * solver, int bit, const char *name,
 {
   assert (0 <= bit), assert (bit < 64);
 #ifdef COVERAGE
-  const unsigned mask = (uint64_t) 1 << bit;
+  const uint64_t mask = (uint64_t) 1 << bit;
   if (!(solver->termination.flagged & mask))
     return false;
   solver->termination.flagged = ~(uint64_t) 0;
@@ -53,22 +53,26 @@ kissat_terminated (kissat * solver, int bit, const char *name,
 #define failed_terminated_1 10
 #define failed_terminated_2 11
 #define forward_terminated_1 12
-#define rephase_terminated_1 13
-#define rephase_terminated_2 14
-#define search_terminated_1 15
-#define substitute_terminated_1 16
-#define ternary_terminated_1 17
-#define ternary_terminated_2 18
-#define ternary_terminated_3 19
-#define transitive_terminated_1 20
-#define transitive_terminated_2 21
-#define transitive_terminated_3 22
-#define vivify_terminated_1 23
-#define vivify_terminated_2 24
-#define vivify_terminated_3 25
-#define vivify_terminated_4 26
-#define walk_terminated_1 27
-#define walk_terminated_2 28
-#define xors_terminated_1 29
+#define kitten_terminated_1 13
+#define rephase_terminated_1 14
+#define rephase_terminated_2 15
+#define search_terminated_1 16
+#define substitute_terminated_1 17
+#define sweep_terminated_1 18
+#define sweep_terminated_2 19
+#define sweep_terminated_3 20
+#define ternary_terminated_1 21
+#define ternary_terminated_2 22
+#define ternary_terminated_3 23
+#define transitive_terminated_1 24
+#define transitive_terminated_2 25
+#define transitive_terminated_3 26
+#define vivify_terminated_1 27
+#define vivify_terminated_2 28
+#define vivify_terminated_3 29
+#define vivify_terminated_4 30
+#define walk_terminated_1 31
+#define walk_terminated_2 32
+#define xors_terminated_1 33
 
 #endif
