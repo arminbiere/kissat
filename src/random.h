@@ -24,7 +24,9 @@ kissat_next_random32 (generator * rng)
 static inline unsigned
 kissat_pick_random (generator * rng, unsigned l, unsigned r)
 {
-  assert (l < r);
+  assert (l <= r);
+  if (l == r)
+    return l;
   const unsigned delta = r - l;
   const unsigned tmp = kissat_next_random32 (rng);
   const double fraction = tmp / 4294967296.0;

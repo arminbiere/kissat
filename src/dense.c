@@ -25,7 +25,7 @@ flush_large_watches (kissat * solver,
   else
     LOG ("keep watching redundant binary clauses");
 #endif
-  const value *values = solver->values;
+  const value *const values = solver->values;
   size_t flushed = 0, collected = 0;
   watches *all_watches = solver->watches;
   for (all_literals (lit))
@@ -33,7 +33,7 @@ flush_large_watches (kissat * solver,
       const value lit_value = values[lit];
       watches *watches = all_watches + lit;
       watch *begin = BEGIN_WATCHES (*watches), *q = begin;
-      const watch *end_watches = END_WATCHES (*watches), *p = q;
+      const watch *const end_watches = END_WATCHES (*watches), *p = q;
       while (p != end_watches)
 	{
 	  const watch watch = *p++;
@@ -101,7 +101,7 @@ kissat_enter_dense_mode (kissat * solver,
 {
   assert (!solver->level);
   assert (solver->watching);
-  assert (solver->propagated == SIZE_STACK (solver->trail));
+  assert (kissat_propagated (solver));
   LOG ("entering dense mode with full occurrence lists");
   if (irredundant || redundant)
     flush_large_watches (solver, irredundant, redundant);
@@ -120,7 +120,7 @@ resume_watching_binaries_after_elimination (kissat * solver,
   size_t resumed_watching = 0;
   size_t flushed_eliminated = 0;
 #endif
-  const flags *flags = solver->flags;
+  const flags *const flags = solver->flags;
   watches *all_watches = solver->watches;
   for (all_stack (litwatch, litwatch, *binaries))
     {
@@ -219,11 +219,11 @@ resume_watching_large_clauses_after_elimination (kissat * solver)
   size_t resumed_watching_redundant = 0;
   size_t resumed_watching_irredundant = 0;
 #endif
-  const flags *flags = solver->flags;
+  const flags *const flags = solver->flags;
   watches *watches = solver->watches;
-  const value *values = solver->values;
-  const assigned *assigned = solver->assigned;
-  const word *arena = BEGIN_STACK (solver->arena);
+  const value *const values = solver->values;
+  const assigned *const assigned = solver->assigned;
+  ward *const arena = BEGIN_STACK (solver->arena);
 
   for (all_clauses (c))
     {
@@ -258,7 +258,7 @@ resume_watching_large_clauses_after_elimination (kissat * solver)
       kissat_sort_literals (solver, values, assigned, c->size, lits);
       c->searched = 2;
 
-      const reference ref = (word *) c - arena;
+      const reference ref = (ward *) c - arena;
       const unsigned l0 = lits[0];
       const unsigned l1 = lits[1];
 
@@ -308,20 +308,20 @@ kissat_resume_sparse_mode (kissat * solver, bool flush_eliminated,
   else
     kissat_watch_large_clauses (solver);
   LOG ("forcing to propagate units on all clauses");
-  solver->propagated = 0;
+  kissat_reset_propagate (solver);
 
   clause *conflict;
   if (solver->probing)
-    conflict = kissat_probing_propagate (solver, 0);
+    conflict = kissat_probing_propagate (solver, 0, true);
   else
     conflict = kissat_search_propagate (solver);
+
+#ifndef NDEBUG
   if (conflict)
-    {
-      LOG ("conflict during propagation after resuming sparse mode");
-      solver->inconsistent = true;
-      CHECK_AND_ADD_EMPTY ();
-      ADD_EMPTY_TO_PROOF ();
-    }
-  else if (solver->unflushed)
-    kissat_flush_trail (solver);
+    assert (solver->inconsistent);
+  else
+    assert (kissat_trail_flushed (solver));
+#else
+  (void) conflict;
+#endif
 }

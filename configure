@@ -4,24 +4,29 @@ asan=no
 check=unknown
 check_all=no
 check_heap=no
+check_kitten=no
 check_queue=no
 check_vectors=no
+check_walk=no
 compact=no
 coverage=no
 debug=no
 default=no
 extreme=no
 embedded=unknown
+kitten=unknown
 logging=unknown
 metrics=unknown
 m32=no
 options=yes
 optimize=unknown
 pedantic=unknown
+pic=no
 profile=no
 proofs=yes
 quiet=no
 sat=no
+shared=no
 static=no
 statistics=unknown
 symbols=unknown
@@ -29,7 +34,10 @@ testdefault=unknown
 ultimate=no
 unsat=no
 
-passthrough=""
+passtocompiler=""
+passtolinker=""
+
+goals="libkissat.a kissat"
 
 usage () {
 cat <<EOF
@@ -81,12 +89,12 @@ We have compile time options which save memory and speed up the solver by
 limiting the size of formulas that can be handled, fix the default
 configuration, disable messages, profiling and certain statistics.
 
-  --compact         limit watcher stacks to 2^32 watchers in total
+  --compact         limit watcher stacks and clause arena size
   --no-options      fix all solver options to their default value
   --quiet           disable messages, built-in profiling and metrics
                    
-  --extreme         same as last three '--compact --no-options --quiet'
-  --competition     same as '--extreme' (configuration of SAT competition)
+  --competition     same as '--no-options --quiet' (competition configuration)
+  --extreme         same as '--compact --no-options --quiet'
                    
   --no-proofs       do not include code for proof generation
   --ultimate        all configurations above ('--extreme --no-proofs')
@@ -128,13 +136,22 @@ The default goal of the generated 'makefile' only builds the library
    --test           compile test program by default (default with '-g')
    --no-test        do not compile test program (default without '-g')
 
+The sub-solver 'kitten' used for extracting definitions has a stand-alone
+mode and for testing purposes can be compiled into a 'kitten' binary.
+
+   --kitten         generate 'kitten' binary too (default with '-g')
+   --no-kitten      do not generate 'kitten' binary (default without '-g')
+
 Enable (very) expensive low-level checkers for data structures:
 
    --check-all      check consistency of all data structures
    --check-heap     check consistency of binary heaps
+   --check-kitten   check consistencies in 'Kitten' sub-solver
    --check-queue    check consistency of the variable-move-to-front queue
    --check-vectors  check consistency of watch vectors
+   --check-walk     check consistency of local search
 
+Enabling any of these enforces assertion and online proof checking ('-c').
 We also allow an explicit choice of the C compiler.
 
   CC=<compiler>     default is 'gcc' (and we regularly test with 'CC=clang')
@@ -146,8 +163,9 @@ builds. Furthermore, in case of '-fsanitize=address' the macro '-DASAN' is
 defined, such that some tests incompatible with ASAN can be omitted.
        
   -m32              add '-m32' option to compile for 32-bit
-  -f...             add '-f...' options,('-fsanitize=address', '-fPIC' ...)
+  -f...             add '-f...' options,('-fsanitize=address', '-fpic' ...)
   -static           add '-static' linking flag
+  -shared           add '-fpic' compilation flag and produce shared library
 
 The default configuration builds optimized code with 'gcc' without symbols,
 an no checking, metrics, embedded options parsing nor logging code included.
@@ -201,8 +219,8 @@ do
     --compact) compact=yes;;
     --no-options) options=no;;
     --quiet) quiet=yes;;
-    --extreme) extreme=extreme;;
-    --competition) extreme=competition;;
+    --extreme) extreme=yes;;
+    --competition) options=no; quiet=yes;;
 
     --default) default=yes;;
     --sat) sat=yes;;
@@ -237,19 +255,27 @@ do
     --no-embedded) embedded=no;;
 
     -m32) m32=yes;;
-    -static) static=yes;;
+    -static|--static) static=yes;;
+    -shared|--shared) shared=yes;;
+    -fpic|-fPIC) passtocompiler="$passtocompiler $1"; pic=yes;;
     -f*)
       [ x"`echo $1|grep fsanitize=.*address`" = x ] || asan=yes
-      passthrough="$passthrough $1"
+      passtolinker="$passtolinker $1"
+      passtocompiler="$passtocompiler $1"
       ;;
 
-    --test) testdefault=yes;;
-    --no-test) testdefault=no;;
+    --test|-tests|--tests) testdefault=yes;;
+    --no-test|--no-tests) testdefault=no;;
+
+    --kitten) kitten=yes;;
+    --no-kitten) kitten=no;;
 
     --check-all) check_all=yes;;
     --check-heap) check_heap=yes;;
+    --check-kitten) check_kitten=yes;;
     --check-queue) check_queue=yes;;
     --check-vectors) check_vectors=yes;;
+    --check-walk) check_walk=yes;;
 
     CC=*) CC="`echo \"$1\"|sed -e s,^CC=,,`";;
 
@@ -284,7 +310,7 @@ fi
 cd "$BUILD" || exit 1
 
 BUILD="`pwd`"
-ROOT="`pwd|xargs dirname`"
+ROOT="`pwd|sed -e 's,/[^/]*$,,'`"
 
 cat <<EOF >../makefile
 all:
@@ -315,6 +341,9 @@ EOF
 [ $statistics = yes -a $metrics = yes ] && \
   die "redundant combination '--statistics' and '--metrics'"
 
+[ $shared = yes -a $static = yes ] && \
+  die "can not combine '--static' and '--shared'"
+
 if [ $debug = yes ]
 then
   [ $check = yes ] && die "can not combine '-g' and '-c'"
@@ -331,16 +360,16 @@ then
   [ $statistics = no ] && "can not combine '--quiet' and '--no-statistics'"
 fi
 
-if [ ! $extreme = no ]
+if [ $extreme = yes ]
 then
-  [ $compact = yes ] && die "can not combine '--$extreme' and '--compact'"
-  [ $embedded = yes ] && die "can not combine '--$extreme' and '--embedded'"
-  [ $logging = yes ] && die "can not combine '--$extreme' and '-l'"
-  [ $options = no ] && die "can not combine '--$extreme' and '--no-options'"
-  [ $quiet = yes ] && die "can not combine '--$extreme' and '--quiet'"
-  [ $ultimate = yes ] && die "can not combine '--$extreme' and '--ultimate'"
-  [ $metrics = no ] && "can not combine '--$extreme' and '--no-metrics'"
-  [ $statistics = no ] && "can not combine '--$extreme' and '--no-statistics'"
+  [ $compact = yes ] && die "can not combine '--extreme' and '--compact'"
+  [ $embedded = yes ] && die "can not combine '--extreme' and '--embedded'"
+  [ $logging = yes ] && die "can not combine '--extreme' and '-l'"
+  [ $options = no ] && die "can not combine '--extreme' and '--no-options'"
+  [ $quiet = yes ] && die "can not combine '--extreme' and '--quiet'"
+  [ $ultimate = yes ] && die "can not combine '--extreme' and '--ultimate'"
+  [ $metrics = no ] && "can not combine '--extreme' and '--no-metrics'"
+  [ $statistics = no ] && "can not combine '--extreme' and '--no-statistics'"
   compact=yes
   options=no
   quiet=yes
@@ -416,6 +445,20 @@ then
   die "can not combine '--metrics' and '-l'" 
 fi
 
+if [ $check_all = yes ]
+then
+  check_heap=yes
+  check_kitten=yes
+  check_queue=yes
+  check_vectors=yes
+  check_walk=yes
+fi
+[ $check_heap = yes ] && check=yes
+[ $check_kitten = yes ] && check=yes
+[ $check_queue = yes ] && check=yes
+[ $check_vectors = yes ] && check=yes
+[ $check_walk = yes ] && check=yes
+
 if [ $embedded = unknown ]
 then
   if [ $options = no ]
@@ -446,7 +489,8 @@ fi
 
 if [ $m32 = yes ]
 then
-  passthrough="$passthrough -m32"
+  passtolinker="$passtolinker -m32"
+  passtocompiler="$passtocompiler -m32"
 cat <<EOF > m32.c
 #include <stdio.h>
 int main (void) {
@@ -468,9 +512,11 @@ EOF
   fi
 fi
 
+CFLAGS=""
+
 case "$CC" in
   gcc*|*-gcc|clang*)
-    CFLAGS="-W -Wall"
+    CFLAGS="$CFLAGS -W -Wall"
     [ $pedantic = yes ] && \
       CFLAGS="$CFLAGS -Werror -std=c99 --pedantic"
     if [ $optimize = unknown ]
@@ -480,12 +526,19 @@ case "$CC" in
       CFLAGS="$CFLAGS -O$optimize"
     fi
     [ $symbols = yes ] && CFLAGS="$CFLAGS -ggdb3"
-    [ $profile = yes ] && CFLAGS="$CFLAGS -pg"
-    [ $coverage = yes ] && \
-      passthrough="$passthrough -ftest-coverage -fprofile-arcs"
+    if [ $profile = yes ]
+    then
+      CFLAGS="$CFLAGS -pg"
+      passtolinker="$passtolinker -pg"
+    fi
+    if [ $coverage = yes ]
+    then
+      passtocompiler="$passtocompiler -ftest-coverage -fprofile-arcs"
+      passtolinker="$passtolinker -ftest-coverage -fprofile-arcs"
+    fi
     ;;
   *)
-    CFLAGS="-W"
+    CFLAGS="$CFLAGS -W"
     if [ $optimize = unknown ]
     then
       [ $debug = no ] && CFLAGS="$CFLAGS -O"
@@ -493,54 +546,71 @@ case "$CC" in
       CFLAGS="$CFLAGS -O$optimize"
     fi
     [ $symbols = yes ] && CFLAGS="$CFLAGS -g"
-    [ $profile = yes ] && CFLAGS="$CFLAGS -p"
+    if [ $profile = yes ]
+    then
+      CFLAGS="$CFLAGS -p"
+      passtolinker="$passtolinker -p"
+    fi
     ;;
 esac
 
-if [ $check_all = yes ]
-then
-  check_heap=yes
-  check_queue=yes
-  check_vectors=yes
-fi
-[ $check_heap = yes ] && check=yes
-[ $check_queue = yes ] && check=yes
-[ $check_vectors = yes ] && check=yes
+case x"$CC" in
+  x*gcc*)
+    gccversion="`$CC --version|head -1|awk '{print \$NF}'`"
+    case x"$gccversion" in
+      x4*)
+        msg "GCC version $gccversion requires '-std=c99'"
+        CFLAGS="$CFLAGS -std=c99"
+        ;;
+      *)
+        msg "assuming GCC version $gccversion uses C99 by default"
+        ;;
+    esac
+    ;;
+esac
+
+
+[ $shared = yes -a $pic = no ] && passtocompiler="$passtocompiler -fpic"
 
 [ $asan = yes ] && CFLAGS="$CFLAGS -DASAN"
 [ $check_heap = yes ] && CFLAGS="$CFLAGS -DCHECK_HEAP"
+[ $check_kitten = yes ] && CFLAGS="$CFLAGS -DCHECK_KITTEN"
 [ $check_queue = yes ] && CFLAGS="$CFLAGS -DCHECK_QUEUE"
 [ $check_vectors = yes ] && CFLAGS="$CFLAGS -DCHECK_VECTORS"
+[ $check_walk = yes ] && CFLAGS="$CFLAGS -DCHECK_WALK"
+
 [ $compact = yes ] && CFLAGS="$CFLAGS -DCOMPACT"
+
 if [ $coverage = yes ]
 then
   case "$CC" in
     gcc*) CFLAGS="$CFLAGS -DCOVERAGE"
   esac
 fi
-[ $embedded = no ] && CFLAGS="$CFLAGS -DNEMBEDDED"
+
+[ $embedded = yes ] && CFLAGS="$CFLAGS -DEMBEDDED"
 [ $quiet = no -a $logging = yes ] && CFLAGS="$CFLAGS -DLOGGING"
 [ $check = no ] && CFLAGS="$CFLAGS -DNDEBUG"
-[ $metrics = no ] && CFLAGS="$CFLAGS -DNMETRICS"
+[ $metrics = yes ] && CFLAGS="$CFLAGS -DMETRICS"
 [ $options = no ] && CFLAGS="$CFLAGS -DNOPTIONS"
 [ $proofs = no ] && CFLAGS="$CFLAGS -DNPROOFS"
 [ $quiet = yes ] && CFLAGS="$CFLAGS -DQUIET"
 [ $sat = yes ] && CFLAGS="$CFLAGS -DSAT"
-[ $statistics = no ] && CFLAGS="$CFLAGS -DNSTATISTICS"
+[ $statistics = yes -a $metrics = no ] && CFLAGS="$CFLAGS -DSTATISTICS"
 [ $unsat = yes ] && CFLAGS="$CFLAGS -DUNSAT"
 
-CFLAGS="${CFLAGS}$passthrough"
+CFLAGS="${CFLAGS}$passtocompiler"
 
 msg "compiler '$CC $CFLAGS'"
 
-[ $static = yes ] && passthrough="$passthrough -static"
+[ $static = yes ] && passtolinker="$passtolinker -static"
 
-if [ "$passthrough" = "" ]
+if [ "$passtolinker" = "" ]
 then
   LD="${CC}"
   msg "linker '$LD' (no additional options)"
 else
-  LD="${CC}$passthrough"
+  LD="${CC}$passtolinker"
   msg "linker '$LD' (additional options)"
 fi
 
@@ -566,21 +636,52 @@ then
   fi
 fi
 
+testgoal="tissat"
 if [ $testdefault = yes ]
 then
-  TESTDEFAULT="tissat"
-  msg "adding '$TESTDEFAULT' to default makefile goal too"
-  TESTDEFAULT=" $TESTDEFAULT"
+  msg "adding '$testgoal' goal to default makefile goal too"
+  goals="$goals $testgoal"
 else
-  msg "no test programs added to default makefile goal"
-  TESTDEFAULT=""
+  msg "no '$testgoal' binary generated (without '--test')"
+fi
+
+sharedlibrary="libkissat.so"
+if [ $shared = yes ]
+then
+  msg "adding '$sharedlibrary' shared library to default makefile goal too"
+  goals="$goals $sharedlibrary"
+else
+  if [ -f $sharedlibrary ]
+  then
+    msg "removing stale dynamic library '$sharedlibrary' (without '-shared')"
+    rm -f $sharedlibrary || exit 1
+  fi
+  msg "no '$sharedlibrary' shared library generated (without '-shared')"
+fi
+
+[ $kitten = unknown ] && kitten=$debug
+
+kittengoal="kitten"
+if [ $kitten = yes ]
+then
+  msg "adding '$kittengoal' binary to default makefile goal too"
+  goals="$goals $kittengoal"
+  KITTEN=" -DKITTEN"
+else
+  if [ -f $kittengoal ]
+  then
+    msg "removing stale '$kittengoal' binary (without '--kitten')"
+    rm -f $kittengoal || exit 1
+  fi
+  msg "no '$kittengoal' binary generated (without '--kitten')"
+  KITTEN=""
 fi
 
 rm -f makefile
 sed \
-  -e "s#@CC@#$CC#" \
-  -e "s#@CFLAGS@#$CFLAGS#" \
+  -e "s#@CC@#$CC$CFLAGS#" \
+  -e "s#@KITTEN@#$KITTEN#" \
   -e "s#@LD@#$LD#" \
   -e "s#@AR@#$AR#" \
-  -e "s#@TESTDEFAULT@#$TESTDEFAULT#" \
+  -e "s#@GOALS@#$goals#" \
   ../makefile.in > makefile

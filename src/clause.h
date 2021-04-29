@@ -1,6 +1,7 @@
 #ifndef _clause_h_INCLUDED
 #define _clause_h_INCLUDED
 
+#include "arena.h"
 #include "literal.h"
 #include "reference.h"
 #include "utilities.h"
@@ -9,7 +10,7 @@
 
 typedef struct clause clause;
 
-#define LD_MAX_GLUE 22
+#define LD_MAX_GLUE 22u
 #define MAX_GLUE ((1u<<LD_MAX_GLUE)-1)
 
 struct clause
@@ -40,7 +41,7 @@ struct clause
 
 #define all_literals_in_clause(LIT,C) \
   unsigned LIT, * LIT ## _PTR = BEGIN_LITS (C), \
-                * LIT ## _END = END_LITS (C); \
+                * const LIT ## _END = END_LITS (C); \
   LIT ## _PTR != LIT ## _END && ((LIT = *LIT ## _PTR), true); \
   ++LIT ## _PTR
 
@@ -48,17 +49,17 @@ static inline size_t
 kissat_bytes_of_clause (unsigned size)
 {
   const size_t res = sizeof (clause) + (size - 3) * sizeof (unsigned);
-  return kissat_align_word (res);
+  return kissat_align_ward (res);
 }
 
 static inline size_t
 kissat_actual_bytes_of_clause (clause * c)
 {
-  const unsigned *p = END_LITS (c);
+  unsigned const *p = END_LITS (c);
   if (c->shrunken)
     while (*p++ != INVALID_LIT)
       ;
-  return kissat_align_word ((char *) p - (char *) c);
+  return kissat_align_ward ((char *) p - (char *) c);
 }
 
 static inline clause *

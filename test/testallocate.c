@@ -1,9 +1,9 @@
-#include "test.h"
-
 #include "../src/allocate.h"
 #include "../src/error.h"
 
 #include <string.h>
+
+#include "test.h"
 
 static void
 test_allocate_basic (void)
@@ -13,7 +13,7 @@ test_allocate_basic (void)
   int *p = kissat_malloc (solver, 1 << 30);
   assume (kissat_aligned_pointer (p));
   kissat_free (solver, p, 1 << 30);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
   assert (solver->statistics.allocated_max == 1u << 30);
 #endif
@@ -22,19 +22,20 @@ test_allocate_basic (void)
   for (unsigned i = 0; i < 28; i++)
     assert (!p[1u << i]);
   kissat_dealloc (solver, p, 1 << 28, 4);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
   assert (solver->statistics.allocated_max == 1u << 30);
 #endif
-  char *s = kissat_strdup (solver, "test");
-  assume (kissat_aligned_pointer (s));
-  assert (!strcmp (s, "test"));
-#ifndef NMETRICS
-  assert (solver->statistics.allocated_current == 5);
-#endif
-  kissat_delstr (solver, s);
-#ifndef NMETRICS
+  p = kissat_nalloc (solver, 1 << 22, 4 * sizeof *p);
+  assume (kissat_aligned_pointer (p));
+  for (unsigned i = 0; i < 24; i++)
+    p[1u << i] = 0x42424242;
+  for (unsigned i = 0; i < 24; i++)
+    assert (p[1u << i] == 0x42424242);
+  kissat_dealloc (solver, p, 1 << 22, 4 * sizeof *p);
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
+  assert (solver->statistics.allocated_max == 1u << 30);
 #endif
 }
 
@@ -82,12 +83,20 @@ static void
 test_allocate_error (void)
 {
   DECLARE_AND_INIT_SOLVER (solver);
+
   ALLOCATION_ERROR (kissat_malloc (solver, MAX_SIZE_T));
+
+  ALLOCATION_ERROR (kissat_nalloc (solver, MAX_SIZE_T, MAX_SIZE_T));
+  ALLOCATION_ERROR (kissat_nalloc (solver, 1, MAX_SIZE_T));
+  ALLOCATION_ERROR (kissat_nalloc (solver, MAX_SIZE_T, 1));
+
   ALLOCATION_ERROR (kissat_calloc (solver, MAX_SIZE_T, MAX_SIZE_T));
   ALLOCATION_ERROR (kissat_calloc (solver, 1, MAX_SIZE_T));
   ALLOCATION_ERROR (kissat_calloc (solver, MAX_SIZE_T, 1));
+
   ALLOCATION_ERROR (kissat_realloc (solver, 0, 0, MAX_SIZE_T));
   ALLOCATION_ERROR (kissat_nrealloc (solver, 0, 0, MAX_SIZE_T, MAX_SIZE_T));
+
   ALLOCATION_ERROR (kissat_dealloc (solver, 0, MAX_SIZE_T, MAX_SIZE_T));
 }
 

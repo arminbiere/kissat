@@ -10,12 +10,13 @@
 #else
 #define CHECK_RANKED(N,A,RANK) \
 do { \
+  assert (0 < (N)); \
   for (size_t I_CHECK_RANKED = 0; I_CHECK_RANKED < N-1; I_CHECK_RANKED++) \
     assert (RANK (A[I_CHECK_RANKED]) <= RANK (A[I_CHECK_RANKED + 1])); \
 } while (0)
 #endif
 
-#define RADIX(LENGTH,VTYPE,RTYPE,N,V,RANK) \
+#define RADIX_SORT(VTYPE,RTYPE,N,V,RANK) \
 do { \
   const size_t N_RADIX = (N); \
   if (N_RADIX <= 1) \
@@ -25,7 +26,7 @@ do { \
   \
   VTYPE * V_RADIX = (V); \
   \
-  const size_t LENGTH_RADIX = (LENGTH); \
+  const size_t LENGTH_RADIX = 8; \
   const size_t WIDTH_RADIX = (1 << LENGTH_RADIX); \
   const RTYPE MASK_RADIX = WIDTH_RADIX - 1; \
   \
@@ -41,32 +42,57 @@ do { \
   RTYPE MLOWER_RADIX = 0; \
   RTYPE MUPPER_RADIX = MASK_RADIX; \
   \
+  bool BOUNDED_RADIX = false; \
+  RTYPE UPPER_RADIX = 0; \
+  RTYPE LOWER_RADIX = ~UPPER_RADIX; \
+  RTYPE SHIFT_RADIX = MASK_RADIX; \
+  \
   for (size_t I_RADIX = 0; \
        I_RADIX < 8 * sizeof (RTYPE); \
-       I_RADIX += LENGTH_RADIX) \
+       I_RADIX += LENGTH_RADIX, \
+       SHIFT_RADIX <<= LENGTH_RADIX) \
     { \
+      if (BOUNDED_RADIX && \
+	  (LOWER_RADIX & SHIFT_RADIX) == (UPPER_RADIX & SHIFT_RADIX)) \
+	continue; \
+      \
       memset (COUNT_RADIX + MLOWER_RADIX, 0, \
               (MUPPER_RADIX - MLOWER_RADIX + 1) * sizeof *COUNT_RADIX); \
       \
       VTYPE * END_RADIX = C_RADIX + N_RADIX; \
-      RTYPE UPPER_RADIX = 0; \
-      RTYPE LOWER_RADIX = ~UPPER_RADIX; \
+      \
+      bool SORTED_RADIX = true; \
+      RTYPE LAST_RADIX = 0; \
       \
       for (VTYPE * P_RADIX = C_RADIX; P_RADIX != END_RADIX; P_RADIX++) \
 	{ \
 	  RTYPE R_RADIX = RANK (*P_RADIX); \
+	  if (!BOUNDED_RADIX) \
+	    { \
+	      LOWER_RADIX &= R_RADIX; \
+	      UPPER_RADIX |= R_RADIX; \
+	    } \
 	  RTYPE S_RADIX = R_RADIX >> I_RADIX; \
 	  RTYPE M_RADIX = S_RADIX & MASK_RADIX; \
-	  LOWER_RADIX &= S_RADIX; \
-	  UPPER_RADIX |= S_RADIX; \
+	  if (SORTED_RADIX && LAST_RADIX > M_RADIX) \
+	    SORTED_RADIX = false; \
+	  else \
+	    LAST_RADIX = M_RADIX; \
 	  COUNT_RADIX[M_RADIX]++; \
 	} \
       \
-      if (LOWER_RADIX == UPPER_RADIX) \
-	break; \
+      MLOWER_RADIX = (LOWER_RADIX >> I_RADIX) & MASK_RADIX; \
+      MUPPER_RADIX = (UPPER_RADIX >> I_RADIX) & MASK_RADIX; \
       \
-      MLOWER_RADIX = LOWER_RADIX & MASK_RADIX; \
-      MUPPER_RADIX = UPPER_RADIX & MASK_RADIX; \
+      if (!BOUNDED_RADIX) \
+	{ \
+	  BOUNDED_RADIX = true;  \
+	  if ((LOWER_RADIX & SHIFT_RADIX) == (UPPER_RADIX & SHIFT_RADIX)) \
+	    continue; \
+	} \
+      \
+      if (SORTED_RADIX) \
+	continue; \
       \
       size_t POS_RADIX = 0; \
       for (size_t J_RADIX = MLOWER_RADIX; J_RADIX <= MUPPER_RADIX; J_RADIX++) \
@@ -109,11 +135,11 @@ do { \
   STOP (radix); \
 } while (0)
 
-#define RADIX_STACK(LENGTH,VTYPE,RTYPE,S,RANK) \
+#define RADIX_STACK(VTYPE,RTYPE,S,RANK) \
 do { \
   const size_t N_RADIX_STACK = SIZE_STACK (S); \
   VTYPE * A_RADIX_STACK = BEGIN_STACK (S); \
-  RADIX(LENGTH,VTYPE,RTYPE,N_RADIX_STACK,A_RADIX_STACK,RANK); \
+  RADIX_SORT(VTYPE,RTYPE,N_RADIX_STACK,A_RADIX_STACK,RANK); \
 } while (0)
 
 #endif

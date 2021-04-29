@@ -1,24 +1,21 @@
-#define INLINE_ASSIGN
-
-#include "inline.h"
 #include "dominate.h"
+#include "fastassign.h"
 #include "prophyper.h"
 
-// Keep this 'inlined' file separate:
-
-#include "assign.c"
-
 static inline void
-watch_hyper_delayed (kissat * solver, unsigneds * delayed)
+watch_hyper_delayed (kissat * solver,
+		     watches * all_watches, unsigneds * delayed)
 {
-  const unsigned *end_delayed = END_STACK (*delayed);
-  const unsigned *d = BEGIN_STACK (*delayed);
-  watches *all_watches = solver->watches;
+  assert (all_watches == solver->watches);
+  assert (delayed == &solver->delayed);
+  const unsigned *const end_delayed = END_STACK (*delayed);
+  unsigned const *d = BEGIN_STACK (*delayed);
   while (d != end_delayed)
     {
       const unsigned lit = *d++;
       assert (d != end_delayed);
       const watch watch = {.raw = *d++ };
+      assert (lit < LITS);
       watches *lit_watches = all_watches + lit;
       if (watch.type.binary)
 	{
@@ -48,9 +45,24 @@ static inline void
 delay_watching_hyper (kissat * solver, unsigneds * delayed,
 		      unsigned lit, unsigned other)
 {
+  assert (delayed == &solver->delayed);
   const watch watch = kissat_binary_watch (other, true, true);
   PUSH_STACK (*delayed, lit);
   PUSH_STACK (*delayed, watch.raw);
+}
+
+static inline void
+kissat_assign_binary_at_level_one (kissat * solver,
+				   value * values, assigned * assigned,
+				   bool redundant, unsigned lit,
+				   unsigned other)
+{
+  assert (solver->probing);
+  assert (VALUE (other) < 0);
+  assert (solver->level == 1);
+  assert (LEVEL (other) == 1);
+  kissat_fast_binary_assign (solver, true, 1,
+			     values, assigned, redundant, lit, other);
 }
 
 #define HYPER_PROPAGATION
@@ -66,17 +78,25 @@ binary_propagate_literal (kissat * solver, unsigned lit)
   assert (solver->watching);
   assert (solver->level == 1);
 
+  const watches *const all_watches = solver->watches;
+  assigned *const assigned = solver->assigned;
+  value *const values = solver->values;
+
   LOG ("binary propagating %s", LOGLIT (lit));
   assert (VALUE (lit) > 0);
   const unsigned not_lit = NOT (lit);
 
-  watches *watches = &WATCHES (not_lit);
-  value *values = solver->values;
-  assigned *assigned = solver->assigned;
+  assert (not_lit < LITS);
 
-  const watch *begin = BEGIN_WATCHES (*watches);
-  const watch *end = END_WATCHES (*watches);
-  const watch *p = begin;
+  const watches *const watches = all_watches + not_lit;
+
+  const size_t size_watches = SIZE_WATCHES (*watches);
+  const uint64_t ticks = kissat_cache_lines (size_watches, sizeof (watch));
+  solver->ticks += ticks;
+
+  const watch *const begin = BEGIN_CONST_WATCHES (*watches);
+  const watch *const end = END_CONST_WATCHES (*watches);
+  watch const *p = begin;
 
   clause *res = 0;
 
@@ -100,8 +120,9 @@ binary_propagate_literal (kissat * solver, unsigned lit)
 	  break;
 	}
       assert (!other_value);
-      kissat_assign_binary (solver, values, assigned, redundant, other,
-			    not_lit);
+      kissat_assign_binary_at_level_one (solver,
+					 values, assigned,
+					 redundant, other, not_lit);
     }
   return res;
 }
@@ -112,24 +133,23 @@ hyper_propagate (kissat * solver, const clause * ignore)
   assert (solver->probing);
   assert (solver->watching);
   assert (solver->level == 1);
+
   clause *res = 0;
-  unsigned binary_propagated = solver->propagated;
-  while (!res && solver->propagated < SIZE_STACK (solver->trail))
+
+  unsigned *propagate_binary = solver->propagate;
+  unsigned *propagate_large = propagate_binary;
+  unsigned *end_trail;
+
+  while (!res && propagate_large != (end_trail = END_ARRAY (solver->trail)))
     {
-      assert (solver->propagated <= binary_propagated);
-      if (binary_propagated < SIZE_STACK (solver->trail))
-	{
-	  const unsigned lit = PEEK_STACK (solver->trail, binary_propagated);
-	  res = binary_propagate_literal (solver, lit);
-	  binary_propagated++;
-	}
+      if (propagate_binary != end_trail)
+	res = binary_propagate_literal (solver, *propagate_binary++);
       else
-	{
-	  const unsigned lit = PEEK_STACK (solver->trail, solver->propagated);
-	  res = large_propagate_literal (solver, ignore, lit);
-	  solver->propagated++;
-	}
+	res = large_propagate_literal (solver, ignore, *propagate_large++);
     }
+
+  solver->propagate = propagate_large;
+
   return res;
 }
 
@@ -145,9 +165,13 @@ kissat_hyper_propagate (kissat * solver, const clause * ignore)
   START (propagate);
 
   solver->ticks = 0;
-  const unsigned propagated = solver->propagated;
+  const unsigned *start = solver->propagate;
   clause *conflict = hyper_propagate (solver, ignore);
+  assert (start <= solver->propagate);
+  const unsigned propagated = solver->propagate - start;
   kissat_update_probing_propagation_statistics (solver, propagated);
+  ADD (hyper_propagations, propagated);
+  ADD (hyper_ticks, solver->ticks);
 
   STOP (propagate);
 

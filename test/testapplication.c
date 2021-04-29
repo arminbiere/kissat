@@ -1,11 +1,12 @@
-#include "test.h"
-
 #include "../src/application.h"
 #include "../src/file.h"
 
+#include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include "test.h"
 
 static char *
 copy_string (const char *begin, const char *end)

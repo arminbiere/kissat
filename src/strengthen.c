@@ -70,7 +70,7 @@ large_on_the_fly_strengthen (kissat * solver, clause * c, unsigned lit)
   {
     watches *watches = &WATCHES (lits[0]);
 #ifndef NDEBUG
-    const watch *end_of_watches = END_WATCHES (*watches);
+    const watch *const end_of_watches = END_WATCHES (*watches);
 #endif
     watch *p = BEGIN_WATCHES (*watches);
     assert (solver->watching);
@@ -180,7 +180,7 @@ kissat_on_the_fly_subsume (kissat * solver, clause * c, clause * d)
   if (c->size == 2)
     {
       assert (c == &solver->conflict);
-      const unsigned *lits = c->lits;
+      const unsigned *const lits = c->lits;
       LOGBINARY (lits[0], lits[1], "turned irredundant");
       for (unsigned i = 0; i < 2; i++)
 	{

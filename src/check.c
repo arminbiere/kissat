@@ -7,28 +7,38 @@
 #include "logging.h"
 #include "print.h"
 
-#include <stdio.h>
 #include <limits.h>
+#include <stdio.h>
+#include <string.h>
+
+#undef LOGPREFIX
+#define LOGPREFIX "CHECK"
 
 void
 kissat_check_satisfying_assignment (kissat * solver)
 {
   LOG ("checking satisfying assignment");
-  const int *begin = BEGIN_STACK (solver->original);
-  const int *end = END_STACK (solver->original), *q;
+  const int *const begin = BEGIN_STACK (solver->original);
+  const int *const end = END_STACK (solver->original);
 #ifdef LOGGING
   size_t count = 0;
 #endif
-  for (const int *p = begin; p != end; p = q + 1)
+  for (const int *p = begin, *q; p != end; p = q + 1)
     {
       bool satisfied = false;
-      int lit;
+      int lit, other;
       for (q = p; (lit = *q); q++)
 	if (!satisfied && kissat_value (solver, lit) == lit)
 	  satisfied = true;
 #ifdef LOGGING
       count++;
 #endif
+      if (satisfied)
+	continue;
+      for (q = p; (lit = *q); q++)
+	for (const int *r = q + 1; (other = *r); r++)
+	  if (lit == -other)
+	    satisfied = true;
       if (satisfied)
 	continue;
       kissat_fatal_message_start ();
@@ -47,17 +57,17 @@ kissat_check_satisfying_assignment (kissat * solver)
 #include "sort.h"
 
 typedef struct hash hash;
-typedef struct line line;
+typedef struct bucket bucket;
 
 // *INDENT-OFF*
 
-typedef STACK (line *) lines;
+typedef STACK (bucket*) buckets;
 
 // *INDENT-ON*
 
-struct line
+struct bucket
 {
-  line *next;
+  bucket *next;
   unsigned size;
   unsigned hash;
   unsigned lits[];
@@ -70,12 +80,12 @@ struct checker
   unsigned vars;
   unsigned size;
 
-  unsigned lines;
+  unsigned buckets;
   unsigned hashed;
 
-  line **table;
+  bucket **table;
 
-  lines *watches;
+  buckets *watches;
   bool *marks;
   signed char *values;
 
@@ -102,7 +112,7 @@ struct checker
                  BEGIN_STACK (checker->imported), __VA_ARGS__)
 
 #define LOGLINE3(...) \
-  LOGUNSIGNEDS3 (line->size, line->lits, __VA_ARGS__)
+  LOGUNSIGNEDS3 (bucket->size, bucket->lits, __VA_ARGS__)
 
 #define MAX_NONCES \
   (sizeof checker->nonces / sizeof *checker->nonces)
@@ -136,7 +146,7 @@ hash_line (checker * checker)
 static size_t
 bytes_line (unsigned size)
 {
-  return sizeof (line) + size * sizeof (unsigned);
+  return sizeof (bucket) + size * sizeof (unsigned);
 }
 
 static void
@@ -165,13 +175,13 @@ release_hash (kissat * solver, checker * checker)
 {
   for (unsigned h = 0; h < checker->hashed; h++)
     {
-      for (line * line = checker->table[h], *next; line; line = next)
+      for (bucket * bucket = checker->table[h], *next; bucket; bucket = next)
 	{
-	  next = line->next;
-	  kissat_free (solver, line, bytes_line (line->size));
+	  next = bucket->next;
+	  kissat_free (solver, bucket, bytes_line (bucket->size));
 	}
     }
-  kissat_dealloc (solver, checker->table, checker->hashed, sizeof (line *));
+  kissat_dealloc (solver, checker->table, checker->hashed, sizeof (bucket *));
 }
 
 static void
@@ -181,7 +191,7 @@ release_watches (kissat * solver, checker * checker)
   for (unsigned i = 0; i < lits; i++)
     RELEASE_STACK (checker->watches[i]);
   kissat_dealloc (solver, checker->watches, 2 * checker->size,
-		  sizeof (lines));
+		  sizeof (buckets));
 }
 
 void
@@ -253,27 +263,27 @@ resize_hash (kissat * solver, checker * checker)
   const unsigned old_hashed = checker->hashed;
   assert (old_hashed < MAX_SIZE);
   const unsigned new_hashed = old_hashed ? 2 * old_hashed : 1;
-  line **table = kissat_calloc (solver, new_hashed, sizeof (line *));
-  line **old_table = checker->table;
+  bucket **table = kissat_calloc (solver, new_hashed, sizeof (bucket *));
+  bucket **old_table = checker->table;
   for (unsigned i = 0; i < old_hashed; i++)
     {
-      for (line * line = old_table[i], *next; line; line = next)
+      for (bucket * bucket = old_table[i], *next; bucket; bucket = next)
 	{
-	  next = line->next;
-	  const unsigned reduced = reduce_hash (line->hash, new_hashed);
-	  line->next = table[reduced];
-	  table[reduced] = line;
+	  next = bucket->next;
+	  const unsigned reduced = reduce_hash (bucket->hash, new_hashed);
+	  bucket->next = table[reduced];
+	  table[reduced] = bucket;
 	}
     }
-  kissat_dealloc (solver, checker->table, old_hashed, sizeof (line *));
+  kissat_dealloc (solver, checker->table, old_hashed, sizeof (bucket *));
   checker->hashed = new_hashed;
   checker->table = table;
 }
 
-static line *
+static bucket *
 new_line (kissat * solver, checker * checker, unsigned size, unsigned hash)
 {
-  line *res = kissat_malloc (solver, bytes_line (size));
+  bucket *res = kissat_malloc (solver, bytes_line (size));
   res->next = 0;
   res->size = size;
   res->hash = hash;
@@ -285,21 +295,22 @@ new_line (kissat * solver, checker * checker, unsigned size, unsigned hash)
 #define CHECKER_LITS (2*(checker)->vars)
 #define VALID_CHECKER_LIT(LIT) ((LIT) < CHECKER_LITS)
 
-static line decision_line;
-static line unit_line;
+static bucket decision_line;
+static bucket unit_line;
 
 static void
-checker_assign (kissat * solver, checker * checker, unsigned lit, line * line)
+checker_assign (kissat * solver, checker * checker, unsigned lit,
+		bucket * bucket)
 {
 #ifdef LOGGING
-  if (line == &decision_line)
+  if (bucket == &decision_line)
     LOG3 ("checker assign %u (decision)", lit);
-  else if (line == &unit_line)
+  else if (bucket == &unit_line)
     LOG3 ("checker assign %u (unit)", lit);
   else
     LOGLINE3 ("checker assign %u reason", lit);
 #else
-  (void) line;
+  (void) bucket;
 #endif
   assert (VALID_CHECKER_LIT (lit));
   const unsigned not_lit = lit ^ 1;
@@ -311,7 +322,7 @@ checker_assign (kissat * solver, checker * checker, unsigned lit, line * line)
   PUSH_STACK (checker->trail, lit);
 }
 
-static lines *
+static buckets *
 checker_watches (checker * checker, unsigned lit)
 {
   assert (VALID_CHECKER_LIT (lit));
@@ -319,43 +330,43 @@ checker_watches (checker * checker, unsigned lit)
 }
 
 static void
-watch_checker_literal (kissat * solver, checker * checker, line * line,
+watch_checker_literal (kissat * solver, checker * checker, bucket * bucket,
 		       unsigned lit)
 {
   LOGLINE3 ("checker watches %u in", lit);
-  lines *lines = checker_watches (checker, lit);
-  PUSH_STACK (*lines, line);
+  buckets *buckets = checker_watches (checker, lit);
+  PUSH_STACK (*buckets, bucket);
 }
 
 static void
-unwatch_checker_literal (kissat * solver, checker * checker, line * line,
+unwatch_checker_literal (kissat * solver, checker * checker, bucket * bucket,
 			 unsigned lit)
 {
   LOGLINE3 ("checker unwatches %u in", lit);
-  lines *lines = checker_watches (checker, lit);
-  REMOVE_STACK (struct line *, *lines, line);
+  buckets *buckets = checker_watches (checker, lit);
+  REMOVE_STACK (struct bucket *, *buckets, bucket);
 #ifndef LOGGING
   (void) solver;
 #endif
 }
 
 static void
-unwatch_line (kissat * solver, checker * checker, line * line)
+unwatch_line (kissat * solver, checker * checker, bucket * bucket)
 {
-  assert (line->size > 1);
-  const unsigned *lits = line->lits;
-  unwatch_checker_literal (solver, checker, line, lits[0]);
-  unwatch_checker_literal (solver, checker, line, lits[1]);
+  assert (bucket->size > 1);
+  const unsigned *const lits = bucket->lits;
+  unwatch_checker_literal (solver, checker, bucket, lits[0]);
+  unwatch_checker_literal (solver, checker, bucket, lits[1]);
 }
 
 static bool
 satisfied_or_trivial_imported (kissat * solver, checker * checker)
 {
-  const unsigned *lits = BEGIN_STACK (checker->imported);
-  const unsigned *end_of_lits = END_STACK (checker->imported);
+  const unsigned *const lits = BEGIN_STACK (checker->imported);
+  const unsigned *const end_of_lits = END_STACK (checker->imported);
   const signed char *values = checker->values;
   bool *marks = checker->marks;
-  const unsigned *p;
+  unsigned const *p;
   bool res = false;
   for (p = lits; !res && p != end_of_lits; p++)
     {
@@ -414,7 +425,7 @@ simplify_imported (kissat * solver, checker * checker)
 #ifdef LOGGING
   unsigned num_false = 0;
 #endif
-  const unsigned *end_of_lits = END_STACK (checker->imported);
+  const unsigned *const end_of_lits = END_STACK (checker->imported);
   unsigned *lits = BEGIN_STACK (checker->imported);
   const signed char *values = checker->values;
   bool *marks = checker->marks;
@@ -488,21 +499,21 @@ insert_imported (kissat * solver, checker * checker, unsigned hash)
 {
   size_t size = SIZE_STACK (checker->imported);
   assert (size <= UINT_MAX);
-  if (checker->lines == checker->hashed)
+  if (checker->buckets == checker->hashed)
     resize_hash (solver, checker);
-  line *line = new_line (solver, checker, size, hash);
+  bucket *bucket = new_line (solver, checker, size, hash);
   const unsigned reduced = reduce_hash (hash, checker->hashed);
-  struct line **p = checker->table + reduced;
-  line->next = *p;
-  *p = line;
+  struct bucket **p = checker->table + reduced;
+  bucket->next = *p;
+  *p = bucket;
   LOGLINE3 ("inserted checker");
-  const unsigned *lits = BEGIN_STACK (checker->imported);
+  const unsigned *const lits = BEGIN_STACK (checker->imported);
   const signed char *values = checker->values;
   assert (!values[lits[0]]);
   assert (!values[lits[1]]);
-  watch_checker_literal (solver, checker, line, lits[0]);
-  watch_checker_literal (solver, checker, line, lits[1]);
-  checker->lines++;
+  watch_checker_literal (solver, checker, bucket, lits[0]);
+  watch_checker_literal (solver, checker, bucket, lits[1]);
+  checker->buckets++;
   checker->added++;
 }
 
@@ -516,17 +527,17 @@ insert_imported_if_not_simplified (kissat * solver, checker * checker)
 }
 
 static bool
-match_line (checker * checker, unsigned size, unsigned hash, line * line)
+match_line (checker * checker, unsigned size, unsigned hash, bucket * bucket)
 {
-  if (line->size != size)
+  if (bucket->size != size)
     return false;
-  if (line->hash != hash)
+  if (bucket->hash != hash)
     return false;
   if (!checker->marked)
     mark_line (checker);
-  const unsigned *lits = line->lits;
-  const unsigned *end_of_lits = lits + line->size;
-  const bool *marks = checker->marks;
+  const unsigned *const lits = bucket->lits;
+  const unsigned *const end_of_lits = lits + bucket->size;
+  const bool *const marks = checker->marks;
   for (const unsigned *p = lits; p != end_of_lits; p++)
     if (!marks[*p])
       return false;
@@ -600,7 +611,7 @@ export_checker (checker * checker, unsigned ilit)
   return (1 + (ilit >> 1)) * ((ilit & 1) ? -1 : 1);
 }
 
-static line *
+static bucket *
 find_line (kissat * solver, checker * checker, size_t size, bool remove)
 {
   if (!checker->hashed)
@@ -609,23 +620,23 @@ find_line (kissat * solver, checker * checker, size_t size, bool remove)
   checker->searches++;
   const unsigned hash = hash_line (checker);
   const unsigned reduced = reduce_hash (hash, checker->hashed);
-  struct line **p, *line;
+  struct bucket **p, *bucket;
   for (p = checker->table + reduced;
-       (line = *p) && !match_line (checker, size, hash, line);
-       p = &line->next)
+       (bucket = *p) && !match_line (checker, size, hash, bucket);
+       p = &bucket->next)
     checker->collisions++;
   if (checker->marked)
     unmark_line (checker);
-  if (line && remove)
-    *p = line->next;
-  return line;
+  if (bucket && remove)
+    *p = bucket->next;
+  return bucket;
 }
 
 static void
 remove_line (kissat * solver, checker * checker, size_t size)
 {
-  line *line = find_line (solver, checker, size, true);
-  if (!line)
+  bucket *bucket = find_line (solver, checker, size, true);
+  if (!bucket)
     {
       kissat_fatal_message_start ();
       fputs ("trying to remove non-existing clause:\n", stderr);
@@ -635,17 +646,17 @@ remove_line (kissat * solver, checker * checker, size_t size)
       fflush (stderr);
       kissat_abort ();
     }
-  unwatch_line (solver, checker, line);
+  unwatch_line (solver, checker, bucket);
   LOGLINE3 ("removed checker");
-  kissat_free (solver, line, bytes_line (size));
-  assert (checker->lines > 0);
-  checker->lines--;
+  kissat_free (solver, bucket, bytes_line (size));
+  assert (checker->buckets > 0);
+  checker->buckets--;
   checker->removed++;
 }
 
 static void
 import_external_literals (kissat * solver, checker * checker,
-			  size_t size, int *elits)
+			  size_t size, const int *elits)
 {
   if (size > UINT_MAX)
     kissat_fatal ("can not check handle original clause of size %zu", size);
@@ -716,20 +727,20 @@ checker_propagate (kissat * solver, checker * checker)
       assert (values[lit] > 0);
       assert (values[not_lit] < 0);
       propagated++;
-      lines *lines = checker_watches (checker, not_lit);
-      line **begin_of_line = BEGIN_STACK (*lines), **q = begin_of_line;
-      line *const *end_of_lines = END_STACK (*lines), *const *p = q;
+      buckets *buckets = checker_watches (checker, not_lit);
+      bucket **begin_of_line = BEGIN_STACK (*buckets), **q = begin_of_line;
+      bucket *const *end_of_lines = END_STACK (*buckets), *const *p = q;
       while (p != end_of_lines)
 	{
-	  line *line = *q++ = *p++;
+	  bucket *bucket = *q++ = *p++;
 	  if (!res)
 	    continue;
-	  unsigned *lits = line->lits;
+	  unsigned *lits = bucket->lits;
 	  const unsigned other = not_lit ^ lits[0] ^ lits[1];
 	  const signed char other_value = values[other];
 	  if (other_value > 0)
 	    continue;
-	  const unsigned *end_of_lits = lits + line->size;
+	  const unsigned *const end_of_lits = lits + bucket->size;
 	  unsigned replacement;
 	  signed char replacement_value = -1;
 	  unsigned *r;
@@ -750,7 +761,7 @@ checker_propagate (kissat * solver, checker * checker)
 	      lits[1] = replacement;
 	      *r = not_lit;
 	      LOGLINE3 ("checker unwatching %u in", not_lit);
-	      watch_checker_literal (solver, checker, line, replacement);
+	      watch_checker_literal (solver, checker, bucket, replacement);
 	      q--;
 	    }
 	  else if (other_value < 0)
@@ -759,9 +770,9 @@ checker_propagate (kissat * solver, checker * checker)
 	      res = false;
 	    }
 	  else
-	    checker_assign (solver, checker, other, line);
+	    checker_assign (solver, checker, other, bucket);
 	}
-      SET_END_OF_STACK (*lines, q);
+      SET_END_OF_STACK (*buckets, q);
     }
   checker->propagations += propagated - checker->propagated;
   checker->propagated = propagated;
@@ -769,7 +780,7 @@ checker_propagate (kissat * solver, checker * checker)
 }
 
 static bool
-line_redundant (kissat * solver, checker * checker, size_t size)
+bucket_redundant (kissat * solver, checker * checker, size_t size)
 {
   if (!checker_propagate (solver, checker))
     {
@@ -811,7 +822,7 @@ static void
 remove_line_if_not_redundant (kissat * solver, checker * checker)
 {
   size_t size = SIZE_STACK (checker->imported);
-  if (!line_redundant (solver, checker, size))
+  if (!bucket_redundant (solver, checker, size))
     remove_line (solver, checker, size);
 }
 
@@ -881,7 +892,7 @@ check_line (kissat * solver, checker * checker)
 }
 
 void
-kissat_add_unchecked_external (kissat * solver, size_t size, int *elits)
+kissat_add_unchecked_external (kissat * solver, size_t size, const int *elits)
 {
   LOGINTS3 (size, elits, "adding unchecked external checker");
   checker *checker = solver->checker;
@@ -893,7 +904,7 @@ kissat_add_unchecked_external (kissat * solver, size_t size, int *elits)
 void
 kissat_add_unchecked_internal (kissat * solver, size_t size, unsigned *lits)
 {
-  LOGLITS3 (size, lits, "adding unchecked internal checker");
+  LOGUNSIGNEDS3 (size, lits, "adding unchecked internal checker");
   checker *checker = solver->checker;
   checker->unchecked++;
   assert (size <= UINT_MAX);
@@ -934,9 +945,10 @@ kissat_check_and_add_empty (kissat * solver)
 }
 
 void
-kissat_check_and_add_internal (kissat * solver, size_t size, unsigned *lits)
+kissat_check_and_add_internal (kissat * solver,
+			       size_t size, const unsigned *lits)
 {
-  LOGLITS3 (size, lits, "checking and adding internal checker");
+  LOGUNSIGNEDS3 (size, lits, "checking and adding internal checker");
   checker *checker = solver->checker;
   import_internal_literals (solver, checker, size, lits);
   check_line (solver, checker);
@@ -961,7 +973,7 @@ kissat_check_shrink_clause (kissat * solver, clause * c,
   LOGCLS3 (c, "checking and shrinking by %u internal checker", remove);
   checker *checker = solver->checker;
   CLEAR_STACK (checker->imported);
-  const value *values = solver->values;
+  const value *const values = solver->values;
   for (all_literals_in_clause (ilit, c))
     {
       if (ilit == remove)
@@ -1004,13 +1016,14 @@ kissat_checker_contains_clause (kissat * solver, clause * clause)
   checker *checker = solver->checker;
   import_clause (solver, checker, clause);
   size_t size = SIZE_STACK (checker->imported);
-  if (line_redundant (solver, checker, size))
+  if (bucket_redundant (solver, checker, size))
     return true;
   return find_line (solver, checker, size, false);
 }
 
 void
-kissat_remove_checker_external (kissat * solver, size_t size, int *elits)
+kissat_remove_checker_external (kissat * solver,
+				size_t size, const int *elits)
 {
   LOGINTS3 (size, elits, "removing external checker");
   checker *checker = solver->checker;
@@ -1019,20 +1032,21 @@ kissat_remove_checker_external (kissat * solver, size_t size, int *elits)
 }
 
 void
-kissat_remove_checker_internal (kissat * solver, size_t size, unsigned *ilits)
+kissat_remove_checker_internal (kissat * solver,
+				size_t size, const unsigned *ilits)
 {
-  LOGLITS3 (size, ilits, "removing internal checker");
+  LOGUNSIGNEDS3 (size, ilits, "removing internal checker");
   checker *checker = solver->checker;
   import_internal_literals (solver, checker, size, ilits);
   remove_line_if_not_redundant (solver, checker);
 }
 
 void
-dump_line (line * line)
+dump_line (bucket * bucket)
 {
-  printf ("line[%p]", (void *) line);
-  for (unsigned i = 0; i < line->size; i++)
-    printf (" %u", line->lits[i]);
+  printf ("bucket[%p]", (void *) bucket);
+  for (unsigned i = 0; i < bucket->size; i++)
+    printf (" %u", bucket->lits[i]);
   fputc ('\n', stdout);
 }
 
@@ -1043,13 +1057,13 @@ dump_checker (kissat * solver)
   printf ("%s\n", checker->inconsistent ? "inconsistent" : "consistent");
   printf ("vars %u\n", checker->vars);
   printf ("size %u\n", checker->size);
-  printf ("lines %u\n", checker->lines);
+  printf ("buckets %u\n", checker->buckets);
   printf ("hashed %u\n", checker->hashed);
   for (unsigned i = 0; i < SIZE_STACK (checker->trail); i++)
     printf ("trail[%u] %u\n", i, PEEK_STACK (checker->trail, i));
   for (unsigned h = 0; h < checker->hashed; h++)
-    for (line * line = checker->table[h]; line; line = line->next)
-      dump_line (line);
+    for (bucket * bucket = checker->table[h]; bucket; bucket = bucket->next)
+      dump_line (bucket);
 }
 
 #else

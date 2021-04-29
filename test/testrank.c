@@ -1,8 +1,8 @@
-#include "test.h"
-
 #include "../src/allocate.h"
 #include "../src/rank.h"
 #include "../src/stack.h"
+
+#include "test.h"
 
 static unsigned
 rank_unsigned (unsigned a)
@@ -35,7 +35,7 @@ test_rank_unsigneds (void)
       printf ("\n");
       fflush (stdout);
 #endif
-      RADIX (9, unsigned, unsigned, N, A, rank_unsigned);
+      RADIX_SORT (unsigned, unsigned, N, A, rank_unsigned);
 #if 0
       printf ("after radix sorting");
       for (unsigned j = 0; j < N; j++)
@@ -56,7 +56,7 @@ test_rank_unsigneds (void)
 #ifndef QUIET
       RELEASE_STACK (solver->profiles.stack);
 #endif
-#ifndef NMETRICS
+#ifdef METRICS
       assert (!solver->statistics.allocated_current);
 #endif
 #undef N
@@ -105,7 +105,7 @@ test_rank_strings (void)
   for (unsigned i = 0; i < N; i++)
     printf ("A[%u] %s\n", i, A[i]);
   fflush (stdout);
-  RADIX (3, char *, uint64_t, N, A, rank_string);
+  RADIX_SORT (char *, uint64_t, N, A, rank_string);
   printf ("\nafter radix sorting:\n\n");
   for (unsigned i = 0; i < N; i++)
     printf ("A[%u] %s\n", i, A[i]);
@@ -115,7 +115,7 @@ test_rank_strings (void)
 #ifndef QUIET
   RELEASE_STACK (solver->profiles.stack);
 #endif
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }

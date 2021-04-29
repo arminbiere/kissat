@@ -9,18 +9,22 @@
 #include "trail.h"
 #include "weaken.h"
 
+#include <string.h>
+
+static uint64_t
+substitute_effort (kissat * solver)
+{
+  return 10 * CLAUSES;
+}
+
 static bool
-really_substitute (kissat * solver, bool first)
+really_substitute (kissat * solver)
 {
   if (!GET_OPTION (really))
     return true;
-  const uint64_t clauses = CLAUSES;
-  const uint64_t needed = 3 * clauses;	// 2 x watches + Tarjan visits
-  if (first && clauses > (unsigned) GET_OPTION (substitutelim))
-    return false;
-  statistics *statistics = &solver->statistics;
-  const uint64_t visits = statistics->search_ticks;
-  return needed < visits + GET_OPTION (substitutemineff);
+  const uint64_t needed = substitute_effort (solver);
+  const uint64_t search_ticks = solver->statistics.search_ticks;
+  return needed < search_ticks;
 }
 
 static void
@@ -37,22 +41,21 @@ assign_and_propagate_units (kissat * solver, unsigneds * units)
       if (value > 0)
 	{
 	  LOG ("skipping satisfied unit %s", LOGLIT (unit));
-	  continue;
 	}
-      if (!value)
+      else if (value < 0)
 	{
-	  kissat_assign_unit (solver, unit);
-	  INC (failed);
-	  if (!kissat_probing_propagate (solver, 0))
-	    continue;
-	  LOG ("propagation of unit failed");
+	  LOG ("inconsistent unit %s", LOGLIT (unit));
+	  CHECK_AND_ADD_EMPTY ();
+	  ADD_EMPTY_TO_PROOF ();
+	  solver->inconsistent = true;
 	}
       else
-	LOG ("inconsistent unit %s", LOGLIT (unit));
-      solver->inconsistent = true;
-
-      CHECK_AND_ADD_EMPTY ();
-      ADD_EMPTY_TO_PROOF ();
+	{
+	  kissat_learned_unit (solver, unit);
+	  INC (substitute_units);
+	  assert (!solver->level);
+	  (void) kissat_probing_propagate (solver, 0, false);
+	}
     }
 }
 
@@ -63,7 +66,7 @@ determine_representatives (kissat * solver, unsigned *repr)
   unsigned *mark = kissat_calloc (solver, LITS, sizeof *mark);
   unsigned *reach = kissat_malloc (solver, LITS * sizeof *reach);
   watches *all_watches = solver->watches;
-  const flags *flags = solver->flags;
+  const flags *const flags = solver->flags;
   unsigned reached = 0;
   unsigneds scc;
   unsigneds work;
@@ -73,9 +76,11 @@ determine_representatives (kissat * solver, unsigned *repr)
   INIT_STACK (units);
   unsigned trivial_sccs = 0;
   unsigned non_trivial_sccs = 0;
+  bool inconsistent = false;
+  uint64_t ticks = 0;
   for (all_literals (root))
     {
-      if (solver->inconsistent)
+      if (inconsistent)
 	break;
       if (mark[root])
 	continue;
@@ -87,7 +92,7 @@ determine_representatives (kissat * solver, unsigned *repr)
       PUSH_STACK (work, root);
       bool failed = false;
       const unsigned mark_root = reached + 1;
-      while (!solver->inconsistent && !EMPTY_STACK (work))
+      while (!inconsistent && !EMPTY_STACK (work))
 	{
 	  unsigned lit = TOP_STACK (work);
 	  if (lit == INVALID_LIT)
@@ -100,6 +105,8 @@ determine_representatives (kissat * solver, unsigned *repr)
 	      assert (reach_lit == mark_lit);
 	      assert (repr[lit] == INVALID_LIT);
 	      watches *watches = all_watches + not_lit;
+	      const size_t size_watches = SIZE_WATCHES (*watches);
+	      ticks += 1 + kissat_cache_lines (size_watches, sizeof (watch));
 	      for (all_binary_blocking_watches (watch, *watches))
 		{
 		  if (!watch.type.binary)
@@ -136,7 +143,7 @@ determine_representatives (kissat * solver, unsigned *repr)
 			min_lit = other;
 		    }
 		  non_trivial_sccs++;
-		  LOG ("size %u SCC entered trough %s representative %s",
+		  LOG ("size %zu SCC entered trough %s representative %s",
 		       size_scc, LOGLIT (lit), LOGLIT (min_lit));
 		}
 	      else
@@ -160,14 +167,8 @@ determine_representatives (kissat * solver, unsigned *repr)
 		    {
 		      LOG ("clashing literals %s and %s in same SCC",
 			   LOGLIT (other), LOGLIT (not_other));
-
-		      CHECK_AND_ADD_UNIT (min_lit);
-		      ADD_UNIT_TO_PROOF (min_lit);
-
-		      CHECK_AND_ADD_EMPTY ();
-		      ADD_EMPTY_TO_PROOF ();
-
-		      solver->inconsistent = true;
+		      PUSH_STACK (units, min_lit);
+		      inconsistent = true;
 		      break;
 		    }
 		  assert (NOT (min_lit) == repr_not_other);
@@ -182,13 +183,9 @@ determine_representatives (kissat * solver, unsigned *repr)
 		       LOGLIT (root), LOGLIT (other), LOGLIT (not_other));
 		  const unsigned unit = NOT (root);
 		  PUSH_STACK (units, unit);
-
-		  CHECK_AND_ADD_UNIT (unit);
-		  ADD_UNIT_TO_PROOF (unit);
-
 		  failed = true;
 		}
-	      if (solver->inconsistent)
+	      if (inconsistent)
 		break;
 	    }
 	  else if (!mark[lit])
@@ -199,6 +196,8 @@ determine_representatives (kissat * solver, unsigned *repr)
 	      LOG ("substitute mark[%s] = %u", LOGLIT (lit), reached);
 	      const unsigned not_lit = NOT (lit);
 	      watches *watches = all_watches + not_lit;
+	      const size_t size_watches = SIZE_WATCHES (*watches);
+	      ticks += 1 + kissat_cache_lines (size_watches, sizeof (watch));
 	      for (all_binary_blocking_watches (watch, *watches))
 		{
 		  if (!watch.type.binary)
@@ -217,11 +216,16 @@ determine_representatives (kissat * solver, unsigned *repr)
     }
   RELEASE_STACK (work);
   RELEASE_STACK (scc);
+  kissat_extremely_verbose (solver, "determining substitution "
+			    "representatives took %" PRIu64
+			    " 'substitute_ticks'", ticks);
+  ADD (substitute_ticks, ticks);
   LOG ("reached %u literals", reached);
   LOG ("found %u non-trivial SCCs", non_trivial_sccs);
   LOG ("found %u trivial SCCs", trivial_sccs);
   LOG ("found %zu units", SIZE_STACK (units));
   assign_and_propagate_units (solver, &units);
+  assert (!inconsistent || solver->inconsistent);
   RELEASE_STACK (units);
   kissat_free (solver, reach, bytes);
   kissat_free (solver, mark, bytes);
@@ -315,20 +319,26 @@ substitute_binaries (kissat * solver, unsigned *repr)
   if (solver->inconsistent)
     return;
   assert (sizeof (watch) == sizeof (unsigned));
-  statches *binaries = (statches *) & solver->delayed;
+  statches *delayed_watched = (statches *) & solver->delayed;
   watches *all_watches = solver->watches;
   size_t removed = 0;
   size_t substituted = 0;
   unsigneds units;
   INIT_STACK (units);
+  litwatches delayed_deleted;
+  INIT_STACK (delayed_deleted);
+#ifdef CHECKING_OR_PROVING
+  litpairs delayed_removed;
+  INIT_STACK (delayed_removed);
+#endif
   for (all_literals (lit))
     {
       const unsigned repr_lit = repr[lit];
       const unsigned not_repr_lit = NOT (repr_lit);
-      assert (EMPTY_STACK (*binaries));
+      assert (EMPTY_STACK (*delayed_watched));
       watches *watches = all_watches + lit;
       watch *begin = BEGIN_WATCHES (*watches), *q = begin;
-      const watch *end = END_WATCHES (*watches), *p = q;
+      const watch *const end = END_WATCHES (*watches), *p = q;
       while (p != end)
 	{
 	  const watch src = *p++;
@@ -337,15 +347,14 @@ substitute_binaries (kissat * solver, unsigned *repr)
 	  const unsigned other = src.binary.lit;
 	  const unsigned repr_other = repr[other];
 	  LOGBINARY (lit, other, "substituting");
+	  const litwatch litwatch = { lit, src };
 	  if (repr_other == not_repr_lit)
 	    {
 	      LOGBINARY (repr_other, repr_lit, "becomes tautological");
 	      if (lit < other)
 		{
 		  removed++;
-		  kissat_delete_binary (solver,
-					src.binary.redundant,
-					src.binary.hyper, lit, other);
+		  PUSH_STACK (delayed_deleted, litwatch);
 		}
 	    }
 	  else if (repr_other == repr_lit)
@@ -356,13 +365,7 @@ substitute_binaries (kissat * solver, unsigned *repr)
 		{
 		  removed++;
 		  PUSH_STACK (units, unit);
-
-		  CHECK_AND_ADD_UNIT (unit);
-		  ADD_UNIT_TO_PROOF (unit);
-
-		  kissat_delete_binary (solver,
-					src.binary.redundant,
-					src.binary.hyper, lit, other);
+		  PUSH_STACK (delayed_deleted, litwatch);
 		}
 	    }
 	  else
@@ -385,18 +388,18 @@ substitute_binaries (kissat * solver, unsigned *repr)
 		  else
 		    {
 		      LOGBINARY (repr_lit, repr_other, "delayed substituted");
-		      PUSH_STACK (*binaries, dst);
+		      PUSH_STACK (*delayed_watched, dst);
 		    }
 
 		  if (lit < other)
 		    {
 		      substituted++;
-
+#ifdef CHECKING_OR_PROVING
 		      ADD_BINARY_TO_PROOF (repr_lit, repr_other);
 		      CHECK_AND_ADD_BINARY (repr_lit, repr_other);
-
-		      DELETE_BINARY_FROM_PROOF (lit, other);
-		      REMOVE_CHECKER_BINARY (lit, other);
+		      const litpair litpair = { {lit, other} };
+		      PUSH_STACK (delayed_removed, litpair);
+#endif
 		    }
 		}
 	    }
@@ -405,14 +408,35 @@ substitute_binaries (kissat * solver, unsigned *repr)
       if (lit == repr_lit)
 	continue;
       watches = all_watches + repr_lit;
-      for (all_stack (watch, watch, *binaries))
+      for (all_stack (watch, watch, *delayed_watched))
 	PUSH_WATCHES (*watches, watch);
-      CLEAR_STACK (*binaries);
+      CLEAR_STACK (*delayed_watched);
     }
-  LOG ("substituted %zu binary clauses", substituted);
-  LOG ("removed %zu binary clauses", removed);
   assign_and_propagate_units (solver, &units);
   RELEASE_STACK (units);
+  for (all_stack (litwatch, litwatch, delayed_deleted))
+    {
+      const unsigned lit = litwatch.lit;
+      const watch watch = litwatch.watch;
+      assert (watch.type.binary);
+      const bool redundant = watch.binary.redundant;
+      const bool hyper = watch.binary.hyper;
+      const unsigned other = watch.binary.lit;
+      kissat_delete_binary (solver, redundant, hyper, lit, other);
+    }
+  RELEASE_STACK (delayed_deleted);
+#ifdef CHECKING_OR_PROVING
+  for (all_stack (litpair, litpair, delayed_removed))
+    {
+      const unsigned lit = litpair.lits[0];
+      const unsigned other = litpair.lits[1];
+      DELETE_BINARY_FROM_PROOF (lit, other);
+      REMOVE_CHECKER_BINARY (lit, other);
+    }
+  RELEASE_STACK (delayed_removed);
+#endif
+  LOG ("substituted %zu binary clauses", substituted);
+  LOG ("removed %zu binary clauses", removed);
 }
 
 static void
@@ -420,18 +444,20 @@ substitute_clauses (kissat * solver, unsigned *repr)
 {
   if (solver->inconsistent)
     return;
-  const value *values = solver->values;
+  const value *const values = solver->values;
   value *marks = solver->marks;
   size_t substituted = 0;
   size_t removed = 0;
   unsigneds units;
   INIT_STACK (units);
+  references delayed_garbage;
+  INIT_STACK (delayed_garbage);
   for (all_clauses (c))
     {
       if (c->garbage)
 	continue;
       LOGCLS (c, "substituting");
-      assert (EMPTY_STACK (solver->clause.lits));
+      assert (EMPTY_STACK (solver->clause));
       bool shrink = false;
       bool satisfied = false;
       bool substitute = false;
@@ -492,7 +518,7 @@ substitute_clauses (kissat * solver, unsigned *repr)
 	      break;
 	    }
 	  marks[repr_lit] = true;
-	  PUSH_STACK (solver->clause.lits, repr_lit);
+	  PUSH_STACK (solver->clause, repr_lit);
 	}
       if (satisfied || tautological)
 	{
@@ -501,7 +527,7 @@ substitute_clauses (kissat * solver, unsigned *repr)
 	}
       else if (substitute || shrink)
 	{
-	  const unsigned size = SIZE_STACK (solver->clause.lits);
+	  const unsigned size = SIZE_STACK (solver->clause);
 	  if (!size)
 	    {
 	      LOG ("simplifies to empty clause");
@@ -516,21 +542,18 @@ substitute_clauses (kissat * solver, unsigned *repr)
 	    {
 	      assert (shrink);
 	      removed++;
-	      const unsigned unit = PEEK_STACK (solver->clause.lits, 0);
+	      const unsigned unit = PEEK_STACK (solver->clause, 0);
 	      LOGCLS (c, "simplifies to unit %s", LOGLIT (unit));
 	      PUSH_STACK (units, unit);
-
-	      CHECK_AND_ADD_UNIT (unit);
-	      ADD_UNIT_TO_PROOF (unit);
-
-	      kissat_mark_clause_as_garbage (solver, c);
+	      const reference ref = kissat_reference_clause (solver, c);
+	      PUSH_STACK (delayed_garbage, ref);
 	    }
 	  else if (size == 2)
 	    {
 	      assert (shrink);
 	      substituted++;
-	      const unsigned first = PEEK_STACK (solver->clause.lits, 0);
-	      const unsigned second = PEEK_STACK (solver->clause.lits, 1);
+	      const unsigned first = PEEK_STACK (solver->clause, 0);
+	      const unsigned second = PEEK_STACK (solver->clause, 1);
 	      LOGCLS (c, "unsubstituted");
 	      const bool redundant = c->redundant;
 	      LOGBINARY (first, second, "substituted %s",
@@ -543,8 +566,8 @@ substitute_clauses (kissat * solver, unsigned *repr)
 	      substituted++;
 	      LOGCLS (c, "unsubstituted");
 
-	      const unsigned new_size = SIZE_STACK (solver->clause.lits);
-	      unsigned *new_lits = BEGIN_STACK (solver->clause.lits);
+	      const unsigned new_size = SIZE_STACK (solver->clause);
+	      unsigned *new_lits = BEGIN_STACK (solver->clause);
 
 	      ADD_LITS_TO_PROOF (new_size, new_lits);
 	      CHECK_AND_ADD_LITS (new_size, new_lits);
@@ -574,13 +597,19 @@ substitute_clauses (kissat * solver, unsigned *repr)
 	}
       else
 	LOGCLS (c, "unchanged");
-      for (all_stack (unsigned, lit, solver->clause.lits))
+      for (all_stack (unsigned, lit, solver->clause))
 	  marks[lit] = 0;
-      CLEAR_STACK (solver->clause.lits);
+      CLEAR_STACK (solver->clause);
     }
-  LOG ("removed %zu substituted large clauses", removed);
   assign_and_propagate_units (solver, &units);
   RELEASE_STACK (units);
+  for (all_stack (reference, ref, delayed_garbage))
+    {
+      clause *c = kissat_dereference_clause (solver, ref);
+      kissat_mark_clause_as_garbage (solver, c);
+    }
+  RELEASE_STACK (delayed_garbage);
+  LOG ("removed %zu substituted large clauses", removed);
 }
 
 static bool
@@ -614,42 +643,55 @@ substitute_rounds (kissat * solver)
 {
   START (substitute);
   INC (substitutions);
-  unsigned maxrounds = GET_OPTION (substituterounds);
-  if (CLAUSES > (unsigned) GET_OPTION (substitutelim))
-    maxrounds = 1;
+  const unsigned maxrounds = GET_OPTION (substituterounds);
   for (unsigned round = 1; round <= maxrounds; round++)
-    if (!substitute_round (solver, round))
-      break;
+    {
+      const uint64_t before = solver->statistics.substitute_ticks;
+      if (!substitute_round (solver, round))
+	break;
+      const uint64_t after = solver->statistics.substitute_ticks;
+      const uint64_t ticks = after - before;
+      const uint64_t reference = solver->statistics.search_ticks -
+	solver->last.probe;
+      const double fraction = GET_OPTION (substituteeffort) * 1e-3;
+      const uint64_t limit = fraction * reference;
+      if (ticks > limit)
+	{
+	  kissat_extremely_verbose (solver,
+				    "last substitute round took %" PRIu64
+				    " 'substitute_ticks' " "> limit %" PRIu64
+				    " = %g * %" PRIu64 " 'search_ticks'",
+				    ticks, limit, fraction, reference);
+	  break;
+	}
+    }
   if (!solver->inconsistent)
     {
       kissat_watch_large_clauses (solver);
-      solver->propagated = 0;
-      if (kissat_probing_propagate (solver, 0))
-	{
-	  LOG ("unit propagation after substitution results in conflict");
-	  CHECK_AND_ADD_EMPTY ();
-	  ADD_EMPTY_TO_PROOF ();
-	  solver->inconsistent = true;
-	}
-      else if (solver->unflushed)
-	kissat_flush_trail (solver);
+      LOG ("now all large clauses are watched after binary clauses");
+      solver->large_clauses_watched_after_binary_clauses = true;
+      kissat_reset_propagate (solver);
+      assert (!solver->level);
+      (void) kissat_probing_propagate (solver, 0, true);
     }
   STOP (substitute);
 }
 
 void
-kissat_substitute (kissat * solver, bool first)
+kissat_substitute (kissat * solver)
 {
   if (solver->inconsistent)
     return;
   assert (solver->probing);
   assert (solver->watching);
   assert (!solver->level);
+  LOG ("assuming not all large clauses watched after binary clauses");
+  solver->large_clauses_watched_after_binary_clauses = false;
   if (!GET_OPTION (substitute))
     return;
-  if (TERMINATED (12))
+  if (TERMINATED (substitute_terminated_1))
     return;
-  if (!really_substitute (solver, first))
+  if (!really_substitute (solver))
     return;
   substitute_rounds (solver);
 }

@@ -8,11 +8,14 @@ typedef struct flags flags;
 struct flags
 {
   bool active:1;
+  bool backbone0:1;
+  bool backbone1:1;
   bool eliminate:1;
   bool eliminated:1;
   bool fixed:1;
   bool probe:1;
   bool subsume:1;
+  bool transitive:1;
 };
 
 #define FLAGS(IDX) \

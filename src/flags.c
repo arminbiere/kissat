@@ -1,6 +1,8 @@
 #include "inline.h"
+#include "inlineheap.h"
+#include "inlinequeue.h"
 
-static void
+static inline void
 activate_literal (kissat * solver, unsigned lit)
 {
   const unsigned idx = IDX (lit);
@@ -8,12 +10,15 @@ activate_literal (kissat * solver, unsigned lit)
   if (f->active)
     return;
   lit = STRIP (lit);
-  LOG ("activating variable %u", idx);
+  LOG ("activating %s", LOGVAR (idx));
   f->active = true;
   assert (!f->fixed);
   assert (!f->eliminated);
   solver->active++;
+  INC (variables_activated);
   kissat_enqueue (solver, idx);
+  const double score = 1.0 - 1.0 / solver->statistics.variables_activated;
+  kissat_update_heap (solver, &solver->scores, idx, score);
   kissat_push_heap (solver, &solver->scores, idx);
   assert (solver->unassigned < UINT_MAX);
   solver->unassigned++;
@@ -26,11 +31,11 @@ activate_literal (kissat * solver, unsigned lit)
   assert (!BEST (idx));
 }
 
-static void
+static inline void
 deactivate_variable (kissat * solver, flags * f, unsigned idx)
 {
   assert (solver->flags + idx == f);
-  LOG ("deactivating variable %u", idx);
+  LOG ("deactivating %s", LOGVAR (idx));
   assert (f->active);
   assert (f->eliminated || f->fixed);
   f->active = false;
@@ -59,7 +64,7 @@ kissat_mark_fixed_literal (kissat * solver, unsigned lit)
 {
   assert (VALUE (lit) > 0);
   const unsigned idx = IDX (lit);
-  LOG ("marking internal variable %u as fixed", idx);
+  LOG ("marking internal %s as fixed", LOGVAR (idx));
   flags *f = FLAGS (idx);
   assert (f->active);
   assert (!f->eliminated);
@@ -78,7 +83,7 @@ kissat_mark_eliminated_variable (kissat * solver, unsigned idx)
 {
   const unsigned lit = LIT (idx);
   assert (!VALUE (lit));
-  LOG ("marking internal variable %u as eliminated", idx);
+  LOG ("marking internal %s as eliminated", LOGVAR (idx));
   flags *f = FLAGS (idx);
   assert (f->active);
   assert (!f->eliminated);

@@ -24,12 +24,17 @@ struct queue
   } search;
 };
 
-void kissat_init_queue (queue *);
-void kissat_enqueue (struct kissat *, unsigned idx);
-void kissat_dequeue (struct kissat *, unsigned idx);
-void kissat_move_to_front (struct kissat *, unsigned idx);
+void kissat_init_queue (struct kissat *);
+void kissat_reset_queue (struct kissat *);
+void kissat_reassign_queue_stamps (struct kissat *);
 
 #define LINK(IDX) \
   (solver->links[assert ((IDX) < VARS), (IDX)])
+
+#if defined(CHECK_QUEUE) && !defined(NDEBUG)
+void kissat_check_queue (struct kissat *);
+#else
+#define kissat_check_queue(...) do { } while (0)
+#endif
 
 #endif

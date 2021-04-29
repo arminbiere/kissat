@@ -1,5 +1,3 @@
-#include "test.h"
-
 #include "../src/handle.h"
 
 #include <signal.h>
@@ -7,12 +5,14 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include "test.h"
+
 static void
 test_main_version (void)
 {
   const size_t len = strlen (tissat_root) + 32;
   char *cmd = malloc (len);
-  sprintf (cmd, "%s/kissat --banner", tissat_root);
+  sprintf (cmd, "\"%s/kissat\" --banner", tissat_root);
   tissat_verbose ("executing 'system (\"%s\")':", cmd);
   tissat_verbose ("");
   int wstatus = system (cmd);

@@ -1,17 +1,22 @@
-#include "test.h"
+#define TEST_VECTOR
 
 #include "../src/allocate.h"
 #include "../src/error.h"
 
 #include <inttypes.h>
 
+#include "test.h"
+
 static void
 test_vector_basics (void)
 {
   DECLARE_AND_INIT_SOLVER (solver);
 #define N 10
+  assert (!(N & 1));
   unsigned count[N];
   vector vector[N];
+  solver->size = solver->vars = N / 2;
+  solver->watches = vector;
   memset (count, 0, sizeof count);
   memset (vector, 0, sizeof vector);
   srand (42);
@@ -22,7 +27,7 @@ test_vector_basics (void)
     {
       if (!(i % (2 * N)))
 	{
-	  kissat_defrag_vectors (solver, vectors, N, vector);
+	  kissat_defrag_vectors (solver, N, vector);
 	  defrags++;
 	}
       else
@@ -31,23 +36,22 @@ test_vector_basics (void)
 	  if (rand () % 3)
 	    {
 	      printf ("%u: push %u\n", i, j);
-	      kissat_push_vectors (solver, vectors, &vector[j], j);
+	      kissat_push_vectors (solver, &vector[j], j);
 	      assert (count[j] < UINT_MAX);
 	      count[j]++;
 	      pushed++;
 	    }
-	  else if (vector[j].size)
+	  else if (!kissat_empty_vector (vector + j))
 	    {
 	      printf ("%u: pop %u\n", i, j);
 	      assert (count[j] > 0);
-	      unsigned tmp =
-		*kissat_last_vector_pointer (vectors, &vector[j]);
-	      kissat_pop_vector (vectors, &vector[j]);
+	      unsigned tmp = *kissat_last_vector_pointer (solver, &vector[j]);
+	      kissat_pop_vector (solver, &vector[j]);
 	      assert (tmp == j);
 	      count[j]--;
 	      popped++;
 	    }
-	  assert (count[j] == vector[j].size);
+	  assert (count[j] == kissat_size_vector (vector + j));
 	}
 
       if (pushed)
@@ -66,15 +70,16 @@ test_vector_basics (void)
 	    printf (" %u", e);
 	}
       printf ("\nfree %u\n", free);
-      printf ("usable %" SECTOR_FORMAT "\n", solver->vectors.usable);
+      printf ("usable %zu\n", solver->vectors.usable);
       assert (free == solver->vectors.usable);
 
       for (unsigned k = 0; k < N; k++)
 	{
-	  printf ("vector(%u) %" SECTOR_FORMAT "[%" SECTOR_FORMAT "]",
-		  k, vector[k].offset, vector[k].size);
+	  size_t offset = kissat_offset_vector (solver, vector + k);
+	  size_t size = kissat_size_vector (vector + k);
+	  printf ("vector(%u) %zu[%zu]", k, offset, size);
 	  unsigned c = 0;
-	  for (all_vector (u, vector[k], vectors))
+	  for (all_vector (u, vector[k]))
 	    {
 	      printf (" %u", u);
 	      if (u != k)
@@ -95,7 +100,7 @@ test_vector_basics (void)
   RELEASE_STACK (solver->profiles.stack);
 #endif
   RELEASE_STACK (*stack);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }
@@ -125,14 +130,14 @@ test_vector_fatal (void)
     {
       {
 	DECLARE_AND_INIT_SOLVER (solver);
-	vectors vectors;
-	memset (&vectors, 0, sizeof vectors);
-	vectors.stack.end = vectors.stack.begin + MAX_VECTORS;
-	vectors.stack.allocated = vectors.stack.end;
-	assert (CAPACITY_STACK (vectors.stack) == MAX_VECTORS);
-	assert (SIZE_STACK (vectors.stack) == MAX_VECTORS);
-	vector vector = {.offset = 0,.size = 0 };
-	kissat_enlarge_vector (solver, &vectors, &vector);
+	vectors *vectors = &solver->vectors;;
+	vectors->stack.end = vectors->stack.begin + MAX_VECTORS;
+	vectors->stack.allocated = vectors->stack.end;
+	assert (CAPACITY_STACK (vectors->stack) == MAX_VECTORS);
+	assert (SIZE_STACK (vectors->stack) == MAX_VECTORS);
+	vector vector;
+	memset (&vector, 0, sizeof vector);
+	kissat_enlarge_vector (solver, &vector);
       }
       kissat_call_function_instead_of_abort (0);
       FATAL ("long jump not taken");

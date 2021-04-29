@@ -1,0 +1,16 @@
+c status 20
+c --probeinit=0
+c --vivify=0
+c --failed=0
+c --substitute=0
+c --backbone=0
+c --transitive=0
+p cnf 4 8
+-1 2 0
+-1 3 0
+-2 -3 1 0
+-4 2 0
+-4 3 0
+-2 -3 4 0
+1 4 0
+-1 -4 0

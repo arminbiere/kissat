@@ -1,8 +1,8 @@
-#include "test.h"
-
-#include "../src/endianess.h"
+#include "../src/endianness.h"
 
 #include <stdbool.h>
+
+#include "test.h"
 
 struct first
 {
@@ -30,7 +30,7 @@ do { \
 } while (0)
 
 static void
-test_endianess (void)
+test_endianness (void)
 {
   assert (sizeof (struct first) == 4);
   assert (sizeof (struct last) == 4);
@@ -61,12 +61,12 @@ test_endianess (void)
     FATAL ("unexpected big endian");
 #endif
   else
-    FATAL ("could not determine endianess");
+    FATAL ("could not determine endianness");
   // *INDENT-ON*
 }
 
 void
-tissat_schedule_endianess (void)
+tissat_schedule_endianness (void)
 {
-  SCHEDULE_FUNCTION (test_endianess);
+  SCHEDULE_FUNCTION (test_endianness);
 }

@@ -2,34 +2,11 @@
 #include "logging.h"
 #include "promote.h"
 
-unsigned
-kissat_recompute_glue (kissat * solver, clause * c)
-{
-  assert (EMPTY_STACK (solver->promote));
-  for (all_literals_in_clause (lit, c))
-    {
-      assert (VALUE (lit));
-      const unsigned level = LEVEL (lit);
-      frame *frame = &FRAME (level);
-      if (frame->promote)
-	continue;
-      frame->promote = true;
-      PUSH_STACK (solver->promote, level);
-    }
-  for (all_stack (unsigned, level, solver->promote))
-    {
-      frame *frame = &FRAME (level);
-      assert (frame->promote);
-      frame->promote = false;
-    }
-  unsigned res = SIZE_STACK (solver->promote);
-  CLEAR_STACK (solver->promote);
-  return res;
-}
-
 void
 kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
 {
+  if (!GET_OPTION (promote))
+    return;
   assert (!c->keep);
   assert (c->redundant);
   const unsigned old_glue = c->glue;

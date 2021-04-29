@@ -6,8 +6,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define NUM_FORMAT_STRINGS 4
-#define FORMAT_STRING_SIZE 64
+#define NUM_FORMAT_STRINGS 8
+#define FORMAT_STRING_SIZE 128
 
 typedef struct format format;
 
@@ -19,12 +19,12 @@ struct format
 
 char *kissat_next_format_string (format *);
 
-const char *kissat_format_bytes (format *, uint64_t bytes);
-const char *kissat_format_count (format *, uint64_t);
-const char *kissat_format_ordinal (format *, uint64_t);
-const char *kissat_format_signs (format *, unsigned size, word);
-const char *kissat_format_time (format *, uint64_t seconds);
-const char *kissat_format_value (format *, bool boolean, int value);
+char const *kissat_format_bytes (format *, uint64_t bytes);
+char const *kissat_format_count (format *, uint64_t);
+char const *kissat_format_ordinal (format *, uint64_t);
+char const *kissat_format_signs (format *, unsigned size, word);
+char const *kissat_format_time (format *, double seconds);
+char const *kissat_format_value (format *, bool boolean, int value);
 
 #define FORMAT_BYTES(BYTES) \
   kissat_format_bytes (&solver->format, BYTES)

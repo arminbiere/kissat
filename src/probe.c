@@ -1,3 +1,4 @@
+#include "backbone.h"
 #include "backtrack.h"
 #include "failed.h"
 #include "internal.h"
@@ -30,17 +31,15 @@ probe (kissat * solver)
   kissat_phase (solver, "probe", GET (probings),
 		"probing limit hit after %" PRIu64 " conflicts",
 		solver->limits.probe.conflicts);
-  assert (!solver->probing);
-  solver->probing = true;
   const changes before = kissat_changes (solver);
-  kissat_substitute (solver, true);
+  kissat_substitute (solver);
+  kissat_binary_clauses_backbone (solver);
   kissat_ternary (solver);
   kissat_transitive_reduction (solver);
-  kissat_failed_literal_probing (solver);
+  kissat_failed_literal_computation (solver);
   kissat_vivify (solver);
-  kissat_substitute (solver, false);
-  assert (solver->probing);
-  solver->probing = false;
+  kissat_substitute (solver);
+  kissat_binary_clauses_backbone (solver);
   const changes after = kissat_changes (solver);
   const bool changed = kissat_changed (before, after);
   UPDATE_DELAY (changed, probe);
@@ -52,8 +51,13 @@ kissat_probe (kissat * solver)
 {
   assert (!solver->inconsistent);
   INC (probings);
+  assert (!solver->probing);
+  solver->probing = true;
   probe (solver);
   UPDATE_CONFLICT_LIMIT (probe, probings, NLOGN, true);
   solver->waiting.probe.reduce = solver->statistics.reductions + 1;
+  solver->last.probe = solver->statistics.search_ticks;
+  assert (solver->probing);
+  solver->probing = false;
   return solver->inconsistent ? 20 : 0;
 }

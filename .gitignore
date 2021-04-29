@@ -1,0 +1,12 @@
+build
+*.o
+*.a
+makefile
+build.h
+kissat
+tissat
+*.gcno
+*.gcda
+*.gcov
+gmon.out
+*~

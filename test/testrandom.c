@@ -1,6 +1,6 @@
-#include "test.h"
-
 #include "../src/random.h"
+
+#include "test.h"
 
 static void
 test_random_range (void)

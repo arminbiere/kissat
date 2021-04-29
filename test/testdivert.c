@@ -1,9 +1,9 @@
-#include "test.h"
-
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "test.h"
 
 static int dev_null = -1;
 static int saved[3] = { -1, -1, -1 };

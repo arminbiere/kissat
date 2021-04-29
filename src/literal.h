@@ -3,7 +3,7 @@
 
 #include <limits.h>
 
-#define LD_MAX_VAR 28
+#define LD_MAX_VAR 28u
 
 #define EXTERNAL_MAX_VAR ((1<<LD_MAX_VAR) - 1)
 #define INTERNAL_MAX_VAR ((1u<<LD_MAX_VAR) - 2)
@@ -15,6 +15,9 @@
 #define INVALID_IDX UINT_MAX
 #define INVALID_LIT UINT_MAX
 
+#define VALID_INTERNAL_INDEX(IDX) \
+  ((IDX) < VARS)
+
 #define VALID_INTERNAL_LITERAL(LIT) \
   ((LIT) < LITS)
 
@@ -25,7 +28,7 @@
   (assert (VALID_INTERNAL_LITERAL (LIT)), (((unsigned)(LIT)) >> 1))
 
 #define LIT(IDX) \
-  (assert ((IDX) < VARS), ((IDX) << 1))
+  (assert (VALID_INTERNAL_INDEX (IDX)), ((IDX) << 1))
 
 #define NOT(LIT) \
    (assert (VALID_INTERNAL_LITERAL (LIT)), ((LIT) ^ 1u))

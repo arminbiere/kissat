@@ -1,10 +1,10 @@
-#include "test.h"
-
 #include <string.h>
 #include <strings.h>
 
 #include "../src/arena.h"
 #include "../src/vector.h"
+
+#include "test.h"
 
 static void
 test_format (void)

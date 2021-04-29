@@ -3,6 +3,6 @@
 
 struct kissat;
 
-void kissat_failed_literal_probing (struct kissat *);
+void kissat_failed_literal_computation (struct kissat *);
 
 #endif

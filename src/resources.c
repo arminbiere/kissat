@@ -71,7 +71,7 @@ kissat_print_resources (kissat * solver)
 	  "MB\n",
 	  "maximum-resident-set-size:",
 	  rss, "bytes", rss / (double) (1 << 20));
-#ifndef NMETRICS
+#ifdef METRICS
   statistics *statistics = &solver->statistics;
   uint64_t max_allocated = statistics->allocated_max + sizeof (kissat);
   printf ("c "

@@ -1,8 +1,8 @@
-#include "test.h"
-
 #include "../src/import.h"
 #include "../src/resize.h"
 #include "../src/resources.h"
+
+#include "test.h"
 
 static kissat *
 new_solver (void)

@@ -1,5 +1,3 @@
-#include "test.h"
-
 #include "../src/file.h"
 
 #include <inttypes.h>
@@ -7,6 +5,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "test.h"
 
 static bool
 can_open_dev_null (void)
@@ -92,7 +92,8 @@ do { \
   WRITABLE (true, "../test/file/non-existing");
   WRITABLE (false, "/kissat-test-file-writable");
   WRITABLE (false, "non-existing-directory/file-in-non-existing-directory");
-  WRITABLE (false, "/etc/passwd");
+  if (kissat_file_exists ("/etc/passwd"))
+    WRITABLE (false, "/etc/passwd");
 #undef WRITABLE
 }
 

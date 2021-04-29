@@ -1,11 +1,6 @@
-#define INLINE_ASSIGN
-
-#include "inline.h"
+#include "fastassign.h"
 #include "propsearch.h"
-
-// Keep this 'inlined' file separate:
-
-#include "assign.c"
+#include "trail.h"
 
 #define PROPAGATE_LITERAL search_propagate_literal
 #define PROPAGATION_TYPE "search"
@@ -14,12 +9,12 @@
 
 static inline void
 update_search_propagation_statistics (kissat * solver,
-				      unsigned previous_propagated_level)
+				      const unsigned *saved_propagate)
 {
-  assert (previous_propagated_level <= solver->propagated);
-  const unsigned propagated = solver->propagated - previous_propagated_level;
+  assert (saved_propagate <= solver->propagate);
+  const unsigned propagated = solver->propagate - saved_propagate;
 
-  LOG ("propagation took %" PRIu64 " propagations", propagated);
+  LOG ("propagated %u literals", propagated);
   LOG ("propagation took %" PRIu64 " ticks", solver->ticks);
 
   ADD (propagations, propagated);
@@ -40,30 +35,14 @@ update_search_propagation_statistics (kissat * solver,
     }
 }
 
-static inline void
-update_consistently_assigned (kissat * solver)
-{
-  const unsigned assigned = kissat_assigned (solver);
-  if (assigned != solver->consistently_assigned)
-    {
-      LOG ("updating consistently assigned from %u to %u",
-	   solver->consistently_assigned, assigned);
-      solver->consistently_assigned = assigned;
-    }
-  else
-    LOG ("keeping consistently assigned %u", assigned);
-}
-
 static clause *
 search_propagate (kissat * solver)
 {
   clause *res = 0;
-  while (!res && solver->propagated < SIZE_STACK (solver->trail))
-    {
-      const unsigned lit = PEEK_STACK (solver->trail, solver->propagated);
-      res = search_propagate_literal (solver, lit);
-      solver->propagated++;
-    }
+  unsigned *propagate = solver->propagate;
+  while (!res && propagate != END_ARRAY (solver->trail))
+    res = search_propagate_literal (solver, *propagate++);
+  solver->propagate = propagate;
   return res;
 }
 
@@ -77,12 +56,10 @@ kissat_search_propagate (kissat * solver)
   START (propagate);
 
   solver->ticks = 0;
-  const unsigned propagated = solver->propagated;
+  const unsigned *saved_propagate = solver->propagate;
   clause *conflict = search_propagate (solver);
-  update_search_propagation_statistics (solver, propagated);
-  update_consistently_assigned (solver);
-  if (conflict)
-    INC (conflicts);
+  update_search_propagation_statistics (solver, saved_propagate);
+  kissat_update_conflicts_and_trail (solver, conflict, true);
 
   STOP (propagate);
 

@@ -19,18 +19,20 @@ void kissat_print_proof_statistics (struct kissat *, bool verbose);
 #endif
 
 void kissat_add_binary_to_proof (struct kissat *, unsigned, unsigned);
-void kissat_add_clause_to_proof (struct kissat *, struct clause *c);
+void kissat_add_clause_to_proof (struct kissat *, const struct clause *c);
 void kissat_add_empty_to_proof (struct kissat *);
-void kissat_add_lits_to_proof (struct kissat *, size_t, unsigned *);
+void kissat_add_lits_to_proof (struct kissat *, size_t, const unsigned *);
 void kissat_add_unit_to_proof (struct kissat *, unsigned);
 
-void kissat_shrink_clause_in_proof (struct kissat *, struct clause *,
+void kissat_shrink_clause_in_proof (struct kissat *, const struct clause *,
 				    unsigned remove, unsigned keep);
 
 void kissat_delete_binary_from_proof (struct kissat *, unsigned, unsigned);
-void kissat_delete_clause_from_proof (struct kissat *, struct clause *c);
-void kissat_delete_external_from_proof (struct kissat *, size_t, int *);
-void kissat_delete_internal_from_proof (struct kissat *, size_t, unsigned *);
+void kissat_delete_clause_from_proof (struct kissat *,
+				      const struct clause *c);
+void kissat_delete_external_from_proof (struct kissat *, size_t, const int *);
+void kissat_delete_internal_from_proof (struct kissat *, size_t,
+					const unsigned *);
 
 #define ADD_BINARY_TO_PROOF(A,B) \
 do { \
@@ -83,6 +85,12 @@ do { \
     kissat_delete_clause_from_proof (solver, (CLAUSE)); \
 } while (0)
 
+#define DELETE_LITS_FROM_PROOF(SIZE,LITS)\
+do { \
+  if (solver->proof) \
+    kissat_delete_internal_from_proof (solver, (SIZE), (LITS)); \
+} while (0)
+
 #define DELETE_STACK_FROM_PROOF(S)\
 do { \
   if (solver->proof) \
@@ -98,9 +106,12 @@ do { \
 #define ADD_EMPTY_TO_PROOF(...) do { } while (0)
 #define ADD_STACK_TO_PROOF(...) do { } while (0)
 #define ADD_UNIT_TO_PROOF(...) do { } while (0)
+
 #define SHRINK_CLAUSE_IN_PROOF(...) do { } while (0)
+
 #define DELETE_BINARY_FROM_PROOF(...) do { } while (0)
 #define DELETE_CLAUSE_FROM_PROOF(...) do { } while (0)
+#define DELETE_LITS_FROM_PROOF(...) do { } while (0)
 #define DELETE_STACK_FROM_PROOF(...) do { } while (0)
 
 #endif

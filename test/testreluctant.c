@@ -1,6 +1,6 @@
-#include "test.h"
-
 #include "../src/reluctant.h"
+
+#include "test.h"
 
 static void
 test_reluctant (void)

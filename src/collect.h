@@ -3,8 +3,14 @@
 
 #include "internal.h"
 
-void kissat_dense_collect (struct kissat *);
-void kissat_sparse_collect (struct kissat *, bool compact, reference start);
+void kissat_dense_collect (kissat *);
+void kissat_sparse_collect (kissat *, bool compact, reference start);
+
+static inline void
+kissat_defrag_watches (kissat * solver)
+{
+  kissat_defrag_vectors (solver, LITS, solver->watches);
+}
 
 static inline void
 kissat_defrag_watches_if_needed (kissat * solver)
@@ -20,7 +26,7 @@ kissat_defrag_watches_if_needed (kissat * solver)
     return;
 
   INC (vectors_defrags_needed);
-  kissat_defrag_vectors (solver, &solver->vectors, LITS, solver->watches);
+  kissat_defrag_watches (solver);
 }
 
 #endif

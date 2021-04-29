@@ -1,32 +1,37 @@
 #include "eliminate.h"
 #include "gates.h"
 #include "inline.h"
+#include "inlinescore.h"
+#include "print.h"
 #include "resolve.h"
 
 #include <inttypes.h>
+#include <string.h>
 
-static unsigned
+static inline unsigned
 occurrences_literal (kissat * solver, unsigned lit, bool * update)
 {
   assert (!solver->watching);
 
   watches *watches = &WATCHES (lit);
-  LOG ("literal %s has %u watches", LOGLIT (lit), watches->size);
-
+#ifdef LOGGING
+  const size_t size_watches = SIZE_WATCHES (*watches);
+  LOG ("literal %s has %zu watches", LOGLIT (lit), size_watches);
+#endif
   const unsigned clslim = solver->bounds.eliminate.clause_size;
 
-  watch *begin = BEGIN_WATCHES (*watches), *q = begin;
-  const watch *end = END_WATCHES (*watches), *p = q;
+  watch *const begin = BEGIN_WATCHES (*watches), *q = begin;
+  const watch *const end = END_WATCHES (*watches), *p = q;
 
-  const value *values = solver->values;
-  const word *arena = BEGIN_STACK (solver->arena);
+  const value *const values = solver->values;
+  ward *const arena = BEGIN_STACK (solver->arena);
 
   bool failed = false;
   unsigned res = 0;
 
   while (p != end)
     {
-      watch head = *q++ = *p++;
+      const watch head = *q++ = *p++;
       if (head.type.binary)
 	{
 	  const unsigned other = head.binary.lit;
@@ -44,7 +49,7 @@ occurrences_literal (kissat * solver, unsigned lit, bool * update)
 	{
 	  const reference ref = head.large.ref;
 	  assert (ref < SIZE_STACK (solver->arena));
-	  clause *c = (struct clause *) (arena + ref);
+	  clause *const c = (struct clause *) (arena + ref);
 	  if (c->garbage)
 	    q--;
 	  else if (c->size > clslim)
@@ -63,7 +68,7 @@ occurrences_literal (kissat * solver, unsigned lit, bool * update)
   SET_END_OF_WATCHES (*watches, q);
   if (failed)
     return UINT_MAX;
-  if (res != watches->size)
+  if (q != end)
     {
       *update = true;
       LOG ("literal %s actually occurs only %u times", LOGLIT (lit), res);
@@ -72,15 +77,13 @@ occurrences_literal (kissat * solver, unsigned lit, bool * update)
 }
 
 static inline clause *
-watch_to_clause (kissat * solver,
-		 const value * values, const word * arena,
-		 clause * tmp, unsigned lit, watch watch)
+watch_to_clause (kissat * solver, ward * const arena,
+		 clause * const tmp, unsigned lit, watch watch)
 {
   clause *res;
   if (watch.type.binary)
     {
       const unsigned other = watch.binary.lit;
-      assert (!values[other]);
       tmp->lits[0] = lit;
       tmp->lits[1] = other;
       res = tmp;
@@ -90,19 +93,17 @@ watch_to_clause (kissat * solver,
       const reference ref = watch.large.ref;
       assert (ref < SIZE_STACK (solver->arena));
       res = (struct clause *) (arena + ref);
-      assert (!res->garbage);
     }
 #ifdef NDEBUG
   (void) solver;
-  (void) values;
 #endif
   return res;
 }
 
 static bool
 generate_resolvents (kissat * solver, unsigned lit,
-		     statches * watches0, statches * watches1,
-		     uint64_t * resolved_ptr, uint64_t limit)
+		     statches * const watches0, statches * const watches1,
+		     uint64_t * const resolved_ptr, uint64_t limit)
 {
   const unsigned not_lit = NOT (lit);
   unsigned resolved = *resolved_ptr;
@@ -113,15 +114,42 @@ generate_resolvents (kissat * solver, unsigned lit,
   memset (&tmp1, 0, sizeof tmp1);
   tmp0.size = tmp1.size = 2;
 
-  const word *arena = BEGIN_STACK (solver->arena);
-  const value *values = solver->values;
-  value *marks = solver->marks;
+  ward *const arena = BEGIN_STACK (solver->arena);
+  const value *const values = solver->values;
+  value *const marks = solver->marks;
 
   const unsigned clslim = solver->bounds.eliminate.clause_size;
 
   for (all_stack (watch, watch0, *watches0))
     {
-      clause *c = watch_to_clause (solver, values, arena, &tmp0, lit, watch0);
+      clause *const c = watch_to_clause (solver, arena, &tmp0, lit, watch0);
+
+      if (c->garbage)
+	{
+	  assert (c != &tmp0);
+	  continue;
+	}
+
+      bool first_antecedent_satisfied = false;
+
+      for (all_literals_in_clause (other, c))
+	{
+	  if (other == lit)
+	    continue;
+	  const value value = values[other];
+	  if (value < 0)
+	    continue;
+	  if (value > 0)
+	    {
+	      first_antecedent_satisfied = true;
+	      if (c != &tmp0)
+		kissat_eliminate_clause (solver, c, other);
+	      break;
+	    }
+	}
+
+      if (first_antecedent_satisfied)
+	continue;
 
       for (all_literals_in_clause (other, c))
 	{
@@ -133,21 +161,40 @@ generate_resolvents (kissat * solver, unsigned lit,
 
       for (all_stack (watch, watch1, *watches1))
 	{
-	  clause *d =
-	    watch_to_clause (solver, values, arena, &tmp1, not_lit, watch1);
+	  clause *const d =
+	    watch_to_clause (solver, arena, &tmp1, not_lit, watch1);
+
+	  if (d->garbage)
+	    {
+	      assert (d != &tmp1);
+	      continue;
+	    }
 
 	  LOGCLS (c, "first %s antecedent", LOGLIT (lit));
 	  LOGCLS (d, "second %s antecedent", LOGLIT (not_lit));
 
-	  bool satisfied_or_tautological = false;
-	  size_t saved = SIZE_STACK (solver->resolvents);
+	  bool resolvent_satisfied_or_tautological = false;
+	  const size_t saved = SIZE_STACK (solver->resolvents);
 
-	  INC (resolutions);
+	  INC (eliminate_resolutions);
 
 	  for (all_literals_in_clause (other, d))
 	    {
 	      if (other == not_lit)
 		continue;
+	      const value value = values[other];
+	      if (value < 0)
+		{
+		  LOG2 ("dropping falsified literal %s", LOGLIT (other));
+		  continue;
+		}
+	      if (value > 0)
+		{
+		  if (d != &tmp1)
+		    kissat_eliminate_clause (solver, d, other);
+		  resolvent_satisfied_or_tautological = true;
+		  break;
+		}
 	      if (marks[other])
 		{
 		  LOG2 ("dropping repeated %s literal", LOGLIT (other));
@@ -160,21 +207,14 @@ generate_resolvents (kissat * solver, unsigned lit,
 		       "with second %s antecedent",
 		       LOGLIT (NOT (other)), LOGLIT (other),
 		       LOGLIT (not_lit));
-		  satisfied_or_tautological = true;
+		  resolvent_satisfied_or_tautological = true;
 		  break;
 		}
-	      const value value = values[other];
-	      if (value < 0)
-		{
-		  LOG2 ("dropping falsified literal %s", LOGLIT (other));
-		  continue;
-		}
-	      assert (!value);
 	      LOG2 ("including unassigned literal %s", LOGLIT (other));
 	      PUSH_STACK (solver->resolvents, other);
 	    }
 
-	  if (satisfied_or_tautological)
+	  if (resolvent_satisfied_or_tautological)
 	    {
 	      RESIZE_STACK (solver->resolvents, saved);
 	      continue;
@@ -182,7 +222,7 @@ generate_resolvents (kissat * solver, unsigned lit,
 
 	  if (++resolved > limit)
 	    {
-	      LOG ("limit of %u resolvent exceeded", limit);
+	      LOG ("limit of %" PRIu64 " resolvent exceeded", limit);
 	      failed = true;
 	      break;
 	    }
@@ -191,7 +231,7 @@ generate_resolvents (kissat * solver, unsigned lit,
 	    {
 	      if (other == lit)
 		continue;
-	      const value value = values[lit];
+	      const value value = values[other];
 	      assert (value <= 0);
 	      if (value < 0)
 		{
@@ -204,6 +244,30 @@ generate_resolvents (kissat * solver, unsigned lit,
 	  size_t size_resolvent = SIZE_STACK (solver->resolvents) - saved;
 	  LOGLITS (size_resolvent,
 		   BEGIN_STACK (solver->resolvents) + saved, "resolvent");
+
+	  if (!size_resolvent)
+	    {
+	      assert (!solver->inconsistent);
+	      solver->inconsistent = true;
+	      LOG ("resolved empty clause");
+	      CHECK_AND_ADD_EMPTY ();
+	      ADD_EMPTY_TO_PROOF ();
+	      failed = true;
+	      break;
+	    }
+
+	  if (size_resolvent == 1)
+	    {
+	      const unsigned unit = PEEK_STACK (solver->resolvents, saved);
+	      INC (eliminate_units);
+	      kissat_learned_unit (solver, unit);
+	      RESIZE_STACK (solver->resolvents, saved);
+	      if (marks[unit] <= 0)
+		continue;
+	      LOGCLS (c, "first antecedent becomes satisfied");
+	      first_antecedent_satisfied = true;
+	      break;
+	    }
 
 	  if (size_resolvent > clslim)
 	    {
@@ -239,6 +303,7 @@ kissat_generate_resolvents (kissat * solver, unsigned idx, unsigned *lit_ptr)
   unsigned not_lit = NOT (lit);
 
   bool update = false;
+  bool pure = false;
   uint64_t limit;
 
   {
@@ -254,30 +319,53 @@ kissat_generate_resolvents (kissat * solver, unsigned idx, unsigned *lit_ptr)
     const unsigned occlim = solver->bounds.eliminate.occurrences;
     if (pos_count && neg_count > occlim)
       {
-	LOG ("not elimination of variable %u since limit hit", idx);
+	LOG ("no elimination of variable %u "
+	     "since its literal %s has %u > %u occurrences",
+	     idx, LOGLIT (not_lit), neg_count, occlim);
 	return false;
       }
 
     limit = pos_count + (uint64_t) neg_count;
     if (pos_count)
       {
-	limit += solver->bounds.eliminate.additional_clauses;
-	LOG ("trying elimination of variable %u limit %" PRIu64, idx, limit);
+	const uint64_t bound = solver->bounds.eliminate.additional_clauses;
+	limit += bound;
+	LOG ("trying to eliminate %s "
+	     "limit %" PRIu64 " bound %" PRIu64, LOGVAR (idx), limit, bound);
       }
     else
-      LOG ("eliminating pure literal %u (variable %u)", lit, idx);
+      {
+	LOG ("eliminating pure literal %s thus its variable %u",
+	     LOGLIT (lit), idx);
+	pure = true;
+      }
   }
 
-  const bool gates = kissat_find_gates (solver, lit);
-  kissat_get_antecedents (solver, lit);
+  *lit_ptr = lit;
 
-  uint64_t resolved = 0;
+  INC (eliminate_attempted);
+  if (pure)
+    return true;
+
+  const bool gates = !pure && kissat_find_gates (solver, lit);
+
+  statches *const gates0 = &solver->gates[0];
+  statches *const gates1 = &solver->gates[1];
+
+  if (solver->values[lit])
+    {
+      kissat_extremely_verbose (solver, "definition produced unit");
+      CLEAR_STACK (*gates0);
+      CLEAR_STACK (*gates1);
+      return false;
+    }
+
   bool failed = false;
+  uint64_t resolved = 0;
 
-  statches *gates0 = &solver->gates[0];
-  statches *gates1 = &solver->gates[1];
-  statches *antecedents0 = &solver->antecedents[0];
-  statches *antecedents1 = &solver->antecedents[1];
+  kissat_get_antecedents (solver, lit);
+  statches *const antecedents0 = &solver->antecedents[0];
+  statches *const antecedents1 = &solver->antecedents[1];
 
   if (gates)
     {
@@ -290,7 +378,9 @@ kissat_generate_resolvents (kissat * solver, unsigned idx, unsigned *lit_ptr)
 	  LOG ("resolving gates[1] against antecedents[0] clauses");
 	  if (!generate_resolvents (solver, not_lit,
 				    gates1, antecedents0, &resolved, limit))
-	    failed = true;
+	    {
+	      failed = true;
+	    }
 	  else if (solver->resolve_gate)
 	    {
 	      LOG ("need to resolved gates[0] against gates[1] too");
@@ -308,23 +398,22 @@ kissat_generate_resolvents (kissat * solver, unsigned idx, unsigned *lit_ptr)
 	failed = true;
     }
 
-  CLEAR_STACK (*gates0);
-  CLEAR_STACK (*gates1);
   CLEAR_STACK (*antecedents0);
   CLEAR_STACK (*antecedents1);
 
   if (failed)
     {
       const unsigned idx = IDX (lit);
-      LOG ("elimination of variable %u failed", idx);
+      LOG ("elimination of %s failed", LOGVAR (idx));
       CLEAR_STACK (solver->resolvents);
       if (update)
 	kissat_update_variable_score (solver, &solver->schedule, idx);
-      return false;
     }
 
   LOG ("resolved %" PRIu64 " resolvents", resolved);
-  *lit_ptr = lit;
 
-  return true;
+  CLEAR_STACK (*gates0);
+  CLEAR_STACK (*gates1);
+
+  return !failed;
 }

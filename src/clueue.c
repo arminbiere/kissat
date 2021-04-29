@@ -3,7 +3,7 @@
 #include "internal.h"
 #include "logging.h"
 
-#include <strings.h>
+#include <string.h>
 
 void
 kissat_clear_clueue (kissat * solver, clueue * clueue)
@@ -54,15 +54,15 @@ kissat_eager_subsume (kissat * solver)
     return;
   LOGTMP ("eagerly subsuming");
   value *marks = solver->marks;
-  for (all_stack (unsigned, lit, solver->clause.lits))
+  for (all_stack (unsigned, lit, solver->clause))
     {
       assert (!marks[lit]);
       marks[lit] = 1;
     }
-  const unsigned size = SIZE_STACK (solver->clause.lits);
+  const unsigned size = SIZE_STACK (solver->clause);
   assert (size > 1);
   const unsigned bound = size - 1;
-  word *arena = BEGIN_STACK (solver->arena);
+  ward *arena = BEGIN_STACK (solver->arena);
   for (all_clueue (ref, solver->clueue))
     {
       if (ref == INVALID_REF)
@@ -88,7 +88,7 @@ kissat_eager_subsume (kissat * solver)
     REMOVE:
       *ref_PTR = INVALID_REF;
     }
-  for (all_stack (unsigned, lit, solver->clause.lits))
+  for (all_stack (unsigned, lit, solver->clause))
     {
       assert (marks[lit]);
       marks[lit] = 0;

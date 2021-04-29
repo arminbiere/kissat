@@ -13,7 +13,7 @@ void kissat_get_antecedents (struct kissat *, unsigned lit);
 size_t kissat_mark_binaries (struct kissat *, unsigned lit);
 void kissat_unmark_binaries (struct kissat *, unsigned lit);
 
-#ifdef NMETRICS
+#ifndef METRICS
 #define GATE_ELIMINATED(...) true
 #else
 #define GATE_ELIMINATED(NAME) (&solver->statistics.NAME ## _eliminated)

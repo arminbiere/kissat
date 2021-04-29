@@ -4,28 +4,43 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define STATISTICS \
+#define METRICS_COUNTERS_AND_STATISTICS \
 \
 METRIC( allocated_collected, 2, PCNT_RESIDENT_SET, "%", "resident set") \
 METRIC( allocated_current, 2, PCNT_RESIDENT_SET, "%", "resident set") \
 METRIC( allocated_max, 2, PCNT_RESIDENT_SET, "%", "resident set") \
 METRIC( ands_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( ands_extracted, 1, PCNT_EXTRACTED, "%", "extracted") \
 METRIC( arena_enlarged, 1, PCNT_ARENA_RESIZED, "%", "resize") \
 METRIC( arena_garbage, 1, PCNT_RESIDENT_SET, "%", "resident set") \
 METRIC( arena_resized, 1, CONF_INT, "", "interval") \
 METRIC( arena_shrunken, 1, PCNT_ARENA_RESIZED, "%", "resize") \
-STATISTIC( autarky, 1, PCNT_VARIABLES, "%", "variables") \
+STATISTIC( autarky_eliminated, 1, PCNT_VARIABLES, "%", "variables") \
 METRIC( autarky_determined, 1, CONF_INT, "", "interval") \
+COUNTER( backbone_computations, 2, CONF_INT, 0, "interval") \
+METRIC( backbone_implied, 1, PER_BACKBONE_UNIT, 0, "per unit") \
+METRIC( backbone_probes, 2, PER_VARIABLE, "", "per variable") \
+METRIC( backbone_propagations, 2, PCNT_PROPS, "%", "propagations") \
+METRIC( backbone_rounds, 2, PER_BACKBONE, 0, "per backbone") \
+COUNTER( backbone_ticks, 2, PCNT_TICKS, "%", "ticks") \
+STATISTIC( backbone_units, 1, PCNT_VARIABLES, "%", "variables") \
+METRIC( backward_checks, 1, NO_SECONDARY, 0, 0) \
+METRIC( backward_steps, 1, PER_BACKWARD_CHECK, "", "per check") \
 METRIC( backward_strengthened, 1, PCNT_STR, "%", "strengthened") \
 METRIC( backward_subsumed, 1, PCNT_SUB, "%", "subsumed") \
-METRIC( chronological, 1, PCNT_CONFLICTS, "%", "conflicts") \
-METRIC( chronological_reused_trails, 1, PCNT_CONFLICTS, "%", "conflicts") \
+METRIC( best_saved, 1, CONF_INT, "", "interval") \
+METRIC( cache_inserted, 1, PCNT_WALKS, "%", "walks") \
+METRIC( cache_released, 1, PCNT_CACHE_INSERTED, "%", "inserted") \
+METRIC( cache_reused, 1, PER_CACHE_INSERTED, "", "per inserted") \
+METRIC( cache_updated, 1, PER_CACHE_INSERTED, "", "per inserted") \
+STATISTIC( chronological, 1, PCNT_CONFLICTS, "%", "conflicts") \
 METRIC( clauses_added, 2, PCNT_CLS_ADDED, "%", "added") \
 METRIC( clauses_deleted, 2, PCNT_CLS_ADDED, "%", "added") \
 METRIC( clauses_improved, 2, PCNT_CLS_ADDED, "%", "added") \
 COUNTER( clauses_irredundant, 2, NO_SECONDARY, 0, 0) \
 METRIC( clauses_kept2, 2, PCNT_CLS_ADDED, "%", "added") \
 METRIC( clauses_kept3, 2, PCNT_CLS_ADDED, "%", "added") \
+COUNTER( clauses_learned, 1, PCNT_CONFLICTS, "%", "conflicts") \
 METRIC( clauses_original, 2, PCNT_CLS_ADDED, "%", "added") \
 METRIC( clauses_promoted1, 2, PCNT_CLS_ADDED, "%", "added") \
 METRIC( clauses_promoted2, 2, PCNT_CLS_ADDED, "%", "added") \
@@ -34,6 +49,10 @@ COUNTER( clauses_redundant, 2, NO_SECONDARY, 0, 0) \
 METRIC( compacted, 1, PCNT_REDUCTIONS, "%", "reductions") \
 COUNTER( conflicts, 0, PER_SECOND, 0, "per second") \
 COUNTER( decisions, 0, PER_CONFLICT, 0, "per conflict") \
+METRIC( definitions_checked, 1, PCNT_ELIM_ATTEMPTS, "%", "attempts") \
+METRIC( definitions_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( definitions_extracted, 1, PCNT_EXTRACTED, "%", "extracted") \
+STATISTIC( definition_units, 1, PCNT_VARIABLES, "%", "variables") \
 METRIC( defragmentations, 1, CONF_INT, "", "interval") \
 METRIC( dense_garbage_collections, 2, PCNT_COLLECTIONS, "%", "collections") \
 METRIC( dense_propagations, 1, PCNT_PROPS, "%", "propagations") \
@@ -42,21 +61,36 @@ METRIC( duplicated, 1, PCNT_CLS_ADDED, "%", "added") \
 METRIC( eager_subsumed, 1, PCNT_SUB, "%", "subsumed") \
 STATISTIC( eliminated, 1, PCNT_VARIABLES, "%", "variables") \
 COUNTER( eliminations, 2, CONF_INT, "", "interval") \
+METRIC( eliminate_attempted, 1, PER_VARIABLE, 0, "per variable") \
+COUNTER( eliminate_resolutions, 2, PER_SECOND, 0, "per second") \
+STATISTIC( eliminate_units, 1, PCNT_VARIABLES, "%", "variables") \
 METRIC( equivalences_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( equivalences_extracted, 1, PCNT_EXTRACTED, "%", "extracted") \
 METRIC( extensions, 1, PCNT_SEARCHES, "%", "searches") \
-METRIC( failed, 2, PCNT_VARIABLES, "%", "variables") \
-METRIC( failed_literal_probings, 1, CONF_INT, "", "interval") \
+METRIC( failed_computations, 1, CONF_INT, "", "interval") \
+METRIC( failed_probes, 1, PER_VARIABLE, "", "variable") \
+METRIC( failed_propagations, 2, PCNT_PROPS, "%", "propagations") \
+METRIC( failed_ticks, 2, PCNT_TICKS, "%", "ticks") \
+STATISTIC( failed_units, 1, PCNT_VARIABLES, "%", "variables") \
 STATISTIC( flipped, 1, PER_WALKS, 0, "per walk") \
+METRIC( flushed, 2, PER_FIXED, 0, "per fixed") \
+METRIC( focused_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
 METRIC( focused_modes, 1, CONF_INT, "", "interval") \
 METRIC( focused_propagations, 1, PCNT_PROPS, "%", "propagations") \
+METRIC( focused_restarts, 1, PCNT_RESTARTS, "%", "restarts") \
 METRIC( focused_ticks, 1, PCNT_TICKS, "%", "ticks") \
+COUNTER( forward_checks, 2, NO_SECONDARY, 0, 0) \
+COUNTER( forward_steps, 2, PER_FORWARD_CHECK, "", "per check") \
 METRIC( forward_strengthened, 1, PCNT_STR, "%", "strengthened") \
 METRIC( forward_subsumed, 1, PCNT_SUB, "%", "subsumed") \
 METRIC( forward_subsumptions, 1, CONF_INT, "", "interval") \
 METRIC( garbage_collections, 2, CONF_INT, "", "interval") \
-STATISTIC( gates, 1, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( gates_checked, 1, PCNT_ELIM_ATTEMPTS, "%", "attempts") \
+METRIC( gates_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( gates_extracted, 1, PCNT_ELIM_ATTEMPTS, "%", "attempts") \
 METRIC( hyper_binaries, 2, PCNT_REDUNDANT_CLAUSES, "%", "redundant") \
 METRIC( hyper_binary_resolved, 1, NO_SECONDARY, 0, 0) \
+METRIC( hyper_propagations, 2, PCNT_PROPS, "%", "propagations") \
 METRIC( hyper_ternaries, 2, PCNT_REDUNDANT_CLAUSES, "%", "redundant") \
 METRIC( hyper_ternary2_resolved, 2, PCNT_TRN_RESOLVED, "%", "resolved") \
 METRIC( hyper_ternary3_resolved, 2, PCNT_TRN_RESOLVED, "%", "resolved") \
@@ -64,13 +98,23 @@ METRIC( hyper_ternary_phases, 1, CONF_INT, "", "interval") \
 METRIC( hyper_ternary_resolutions, 2, PCNT_TRN_RESOLVED, "", "per resolved") \
 METRIC( hyper_ternary_resolved, 1, NO_SECONDARY, 0, 0) \
 COUNTER( hyper_ternary_steps, 2, PER_TRN_RESOLVED, 0, "resolved") \
+METRIC( hyper_ticks, 2, PCNT_TICKS, "%", "ticks") \
 METRIC( if_then_else_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( if_then_else_extracted, 1, PCNT_EXTRACTED, "%", "extracted") \
 METRIC( initial_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
-STATISTIC( learned, 1, PCNT_CONFLICTS, "%", "conflicts") \
-METRIC( literals_deduced, 2, PER_CLS_LEARNED, 0, "per clause") \
-METRIC( literals_flushed, 2, PER_FIXED, 0, "per fixed") \
-METRIC( literals_learned, 2, PER_CLS_LEARNED, 0, "per clause") \
-METRIC( minimized, 1, PCNT_LITERALS_DEDUCED, "%", "deduced") \
+METRIC( kitten_conflicts, 1, PER_KITTEN_SOLVED, 0, "per solved") \
+METRIC( kitten_decisions, 1, PER_KITTEN_SOLVED, 0, "per solved") \
+METRIC( kitten_propagations, 1, PER_KITTEN_SOLVED, 0, "per solved") \
+METRIC( kitten_sat, 1, PCNT_KITTEN_SOLVED, "%", "solved") \
+METRIC( kitten_solved, 1, NO_SECONDARY, 0, 0) \
+METRIC( kitten_unsat, 1, PCNT_KITTEN_SOLVED, "%", "solved") \
+STATISTIC( learned_units, 1, PCNT_VARIABLES, "%", "variables") \
+METRIC ( literals_bumped, 0, PER_CLS_LEARNED, 0, "per clause") \
+METRIC ( literals_deduced, 0, PER_CLS_LEARNED, 0, "per clause") \
+METRIC ( literals_learned, 0, PER_CLS_LEARNED, 0, "per clause") \
+METRIC ( literals_minimized, 0, PCNT_LITS_DEDUCED, "%", "deduced") \
+METRIC ( literals_minimize_shrunken, 0, PCNT_LITS_SHRUNKEN, "%", "shrunken") \
+METRIC ( literals_shrunken, 0, PCNT_LITS_DEDUCED, "%", "deduced") \
 METRIC( moved, 1, PCNT_REDUCTIONS, "%", "reductions") \
 METRIC( on_the_fly_strengthened, 1, PCNT_CONFLICTS, "%", "of conflicts") \
 METRIC( on_the_fly_subsumed, 1, PCNT_CONFLICTS, "%", "of conflicts") \
@@ -80,41 +124,54 @@ COUNTER( probing_ticks, 2, PCNT_TICKS, "%", "ticks") \
 COUNTER( propagations, 0, PER_SECOND, "", "per second") \
 COUNTER( reductions, 1, CONF_INT, "", "interval") \
 COUNTER( rephased, 1, CONF_INT, "", "interval") \
+METRIC( rephased_best, 1, PCNT_REPHASED, "%", "rephased") \
+METRIC( rephased_inverted, 1, PCNT_REPHASED, "%", "rephased") \
+METRIC( rephased_original, 1, PCNT_REPHASED, "%", "rephased") \
+METRIC( rephased_walking, 1, PCNT_REPHASED, "%", "rephased") \
 METRIC( rescaled, 2, CONF_INT, "", "interval") \
-COUNTER( resolutions, 2, PER_SECOND, 0, "per second") \
 COUNTER( restarts, 1, CONF_INT, 0, "interval") \
 METRIC( restarts_reused_trails, 1, PCNT_RESTARTS, "%", "restarts") \
 METRIC( reused_levels, 2, PER_REUSED_TRAIL, 0, "per reused") \
-METRIC( saved_decisions, 0, PCNT_DECISIONS, "%", "decisions") \
+METRIC( saved_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
 COUNTER( searches, 2, CONF_INT, "", "interval") \
 METRIC( search_propagations, 2, PCNT_PROPS, "%", "propagations") \
 COUNTER( search_ticks, 2, PCNT_TICKS, "%", "ticks") \
 METRIC( sparse_garbage_collections, 2, PCNT_COLLECTIONS, "%", "collections") \
-COUNTER( stable_modes, 2, CONF_INT, "", "interval") \
+METRIC( stable_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
+METRIC( stable_modes, 2, CONF_INT, "", "interval") \
 METRIC( stable_propagations, 1, PCNT_PROPS, "%", "propagations") \
+METRIC( stable_restarts, 1, PCNT_RESTARTS, "%", "restarts") \
 METRIC( stable_ticks, 2, PCNT_TICKS, "%", "ticks") \
-METRIC( strengthened, 1, PCNT_SUBSUMPTION_CHECK, "%", "checks") \
-STATISTIC( substituted, 1, PCNT_VARIABLES, "%", "variables") \
+COUNTER( strengthened, 1, PCNT_SUBSUMPTION_CHECK, "%", "checks") \
+COUNTER( substituted, 1, PCNT_VARIABLES, "%", "variables") \
+COUNTER( substitute_ticks, 2, PCNT_TICKS, "%", "ticks") \
+COUNTER( subsumption_checks, 1, NO_SECONDARY, 0, 0) \
+STATISTIC( substitute_units, 1, PCNT_VARIABLES, "%", "variables") \
 STATISTIC( substitutions, 2, CONF_INT, "", "interval") \
-METRIC( subsumed, 1, PCNT_SUBSUMPTION_CHECK, "%", "checks") \
-COUNTER( subsumption_checks, 2, NO_SECONDARY, 0, 0) \
-STATISTIC( switched_modes, 2, CONF_INT, "", "interval") \
+COUNTER( subsumed, 1, PCNT_SUBSUMPTION_CHECK, "%", "checks") \
+COUNTER( switched_modes, 2, CONF_INT, "", "interval") \
 METRIC( target_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
+METRIC( target_saved, 1, CONF_INT, "", "interval") \
 STATISTIC( ticks, 2, PER_PROPAGATION, 0, "per prop") \
-METRIC( transitive_propagations, 2, PCNT_PROPS, "%", "propagations") \
+COUNTER( transitive_probes, 2, PER_VARIABLE, "", "per variable") \
+COUNTER( transitive_propagations, 2, PCNT_PROPS, "%", "propagations") \
 METRIC( transitive_reduced, 1, PCNT_CLS_ADDED, "%", "added") \
+METRIC( transitive_reductions, 1, CONF_INT, "", "interval") \
 COUNTER( transitive_ticks, 2, PCNT_TICKS, "%", "ticks") \
+STATISTIC( transitive_units, 1, PCNT_VARIABLES, "%", "variables") \
 COUNTER( units, 2, PCNT_VARIABLES, "%", "variables") \
+COUNTER( variables_activated, 2, PER_VARIABLE, 0, "per variable") \
 COUNTER( variables_added, 2, PER_VARIABLE, 0, "per variable") \
 COUNTER( variables_removed, 2, PER_VARIABLE, 0, "variables") \
 METRIC( vectors_defrags_needed, 1, PCNT_DEFRAGS, "%", "defrags") \
 METRIC( vectors_enlarged, 2, CONF_INT, "", "interval") \
-STATISTIC( vivification_checks, 2, NO_SECONDARY, 0, 0) \
-METRIC( vivified, 1, PCNT_VIVIFICATION_CHECK, "%", "checks") \
-METRIC( vivify_assumed, 1, PCNT_VIVIFY_PROBES, "%", "probes") \
+STATISTIC( vivifications, 2, CONF_INT, "", "interval") \
+METRIC( vivified, 1, PCNT_VIVIFY_CHECK, "%", "checks") \
+STATISTIC( vivify_checks, 2, PER_VIVIFICATION, "", "per vivify") \
 METRIC( vivify_implied, 1, PCNT_VIVIFIED, "%", "vivified") \
 METRIC( vivify_irredundant, 1, PCNT_VIVIFIED, "%", "vivified") \
-METRIC( vivify_probes, 1, PER_VIVIFICATION_CHECK, "", "checks") \
+METRIC( vivify_probes, 1, PER_VIVIFY_CHECK, "", "checks") \
+METRIC( vivify_propagations, 2, PCNT_PROPS, "%", "propagations") \
 METRIC( vivify_redundant, 1, PCNT_VIVIFIED, "%", "vivified") \
 METRIC( vivify_reused, 1, PCNT_VIVIFY_PROBES, "%", "probes") \
 METRIC( vivify_strengthened, 1, PCNT_STR, "%", "strengthened") \
@@ -123,27 +180,36 @@ METRIC( vivify_str_red, 1, PCNT_VIVIFY_STR, "%", "strengthened") \
 METRIC( vivify_sub_irr, 1, PCNT_VIVIFY_SUB, "%", "subsumed") \
 METRIC( vivify_sub_red, 1, PCNT_VIVIFY_SUB, "%", "subsumed") \
 METRIC( vivify_subsumed, 1, PCNT_SUB, "%", "subsumed") \
+METRIC( vivify_ticks, 2, PCNT_TICKS, "%", "ticks") \
+STATISTIC( vivify_units, 1, PCNT_VARIABLES, "%", "variables") \
+METRIC( walk_decisions, 1, PCNT_WALKS, "%", "walks") \
 METRIC( walk_improved, 1, PCNT_WALKS, "%", "walks") \
-STATISTIC( walks, 1, CONF_INT, "", "interval") \
+METRIC( walk_previous, 1, PCNT_WALKS, "%", "walks") \
+COUNTER( walks, 1, CONF_INT, "", "interval") \
 COUNTER( walk_steps, 2, PER_FLIPPED, 0, "per flipped") \
 METRIC( weakened, 1, PCNT_CLS_ADDED, "%", "added") \
-METRIC( xors_eliminated, 0, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( xors_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
+METRIC( xors_extracted, 1, PCNT_EXTRACTED, "%", "extracted") \
 
 /*------------------------------------------------------------------------*/
-#ifdef NSTATISTICS
+#ifdef METRICS
 
-#define METRIC IGNORE
-#define STATISTIC IGNORE
+#define METRIC COUNTER
+#define STATISTIC COUNTER
 
-#elif NMETRICS
+#ifndef STATISTICS
+#define STATISTICS
+#endif
+
+#elif STATISTICS
 
 #define METRIC IGNORE
 #define STATISTIC COUNTER
 
 #else
 
-#define METRIC COUNTER
-#define STATISTIC COUNTER
+#define METRIC IGNORE
+#define STATISTIC IGNORE
 
 #endif
 /*------------------------------------------------------------------------*/
@@ -157,7 +223,7 @@ struct statistics
   uint64_t NAME;
 #define IGNORE(...)
 
-  STATISTICS
+  METRICS_COUNTERS_AND_STATISTICS
 
 #undef COUNTER
 #undef IGNORE
@@ -168,6 +234,7 @@ struct statistics
 
 #define CLAUSES (IRREDUNDANT_CLAUSES + REDUNDANT_CLAUSES)
 #define CONFLICTS (solver->statistics.conflicts)
+#define DECISIONS (solver->statistics.decisions)
 #define IRREDUNDANT_CLAUSES (solver->statistics.clauses_irredundant)
 #define LEARNED_CLAUSES (solver->statistics.learned)
 #define REDUNDANT_CLAUSES (solver->statistics.clauses_redundant)
@@ -249,7 +316,7 @@ kissat_get_ ## NAME (statistics * statistics) \
 /*------------------------------------------------------------------------*/
 // *INDENT-OFF*
 
-STATISTICS
+METRICS_COUNTERS_AND_STATISTICS
 
 #undef COUNTER
 #undef IGNORE

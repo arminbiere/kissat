@@ -2,8 +2,10 @@
 #define _internal_h_INCLUDED
 
 #include "arena.h"
+#include "array.h"
 #include "assign.h"
 #include "averages.h"
+#include "cache.h"
 #include "check.h"
 #include "clause.h"
 #include "clueue.h"
@@ -18,12 +20,14 @@
 #include "limits.h"
 #include "literal.h"
 #include "mode.h"
+#include "nonces.h"
 #include "options.h"
 #include "phases.h"
 #include "profile.h"
 #include "proof.h"
 #include "queue.h"
 #include "random.h"
+#include "reap.h"
 #include "reluctant.h"
 #include "rephase.h"
 #include "stack.h"
@@ -33,21 +37,11 @@
 #include "vector.h"
 #include "watch.h"
 
-typedef struct temporary temporary;
+typedef struct datarank datarank;
 
-struct temporary
+struct datarank
 {
-  bool satisfied;
-  bool shrink;
-  bool trivial;
-  unsigneds lits;
-};
-
-typedef struct idxrank idxrank;
-
-struct idxrank
-{
-  unsigned idx;
+  unsigned data;
   unsigned rank;
 };
 
@@ -60,22 +54,43 @@ struct import
   bool eliminated:1;
 };
 
+typedef struct termination termination;
+
+struct termination
+{
+#ifdef COVERAGE
+  volatile uint64_t flagged;
+#else
+  volatile bool flagged;
+#endif
+  volatile void *state;
+  int (*volatile terminate) (void *);
+};
+
 // *INDENT-OFF*
 
 typedef STACK (value) eliminated;
 typedef STACK (import) imports;
-typedef STACK (idxrank) idxranks;
+typedef STACK (datarank) dataranks;
 typedef STACK (watch) statches;
 typedef STACK (watch *) patches;
 
 // *INDENT-ON*
 
+struct kitten;
+
 struct kissat
 {
+#if !defined(NDEBUG) || defined(METRICS)
+  bool backbone_computing;
+#endif
 #ifdef LOGGING
   bool compacting;
 #endif
   bool extended;
+#if !defined(NDEBUG) || defined(METRICS)
+  bool failed_probing;
+#endif
   bool inconsistent;
   bool iterating;
   bool probing;
@@ -83,12 +98,15 @@ struct kissat
   bool sectioned;
 #endif
   bool stable;
-  bool watching;
-#ifdef COVERAGE
-  volatile unsigned terminate;
-#else
-  volatile bool terminate;
+#if !defined(NDEBUG) || defined(METRICS)
+  bool transitive_reducing;
+  bool vivifying;
 #endif
+  bool watching;
+
+  bool large_clauses_watched_after_binary_clauses;
+
+  termination termination;
 
   unsigned vars;
   unsigned size;
@@ -106,7 +124,9 @@ struct kissat
   mark *marks;
 
   value *values;
-  phase *phases;
+  phases phases;
+  cache cache;
+  nonces nonces;
 
   eliminated eliminated;
   unsigneds etrail;
@@ -124,11 +144,10 @@ struct kissat
   unsigned level;
   frames frames;
 
-  unsigneds trail;
-  unsigned propagated;
+  unsigned_array trail;
+  unsigned *propagate;
 
   unsigned best_assigned;
-  unsigned consistently_assigned;
   unsigned target_assigned;
   unsigned unflushed;
   unsigned unassigned;
@@ -136,24 +155,31 @@ struct kissat
   unsigneds delayed;
 
 #if defined(LOGGING) || !defined(NDEBUG)
-  unsigneds resolvent_lits;
+  unsigneds resolvent;
 #endif
   unsigned resolvent_size;
   unsigned antecedent_size;
 
-  unsigned transitive;
+  dataranks ranks;
 
   unsigneds analyzed;
-  idxranks bump;
   unsigneds levels;
   unsigneds minimize;
   unsigneds poisoned;
   unsigneds promote;
   unsigneds removable;
+  unsigneds shrinkable;
+
+  reap reap;
 
   clause conflict;
 
-  temporary clause;
+  bool clause_satisfied;
+  bool clause_shrink;
+  bool clause_trivial;
+
+  unsigneds clause;
+  unsigneds shadow;
 
   arena arena;
   clueue clueue;
@@ -171,9 +197,11 @@ struct kissat
   bounds bounds;
   delays delays;
   enabled enabled;
+  effort last;
   limited limited;
   limits limits;
   waiting waiting;
+  unsigned walked;
 
   statistics statistics;
   mode mode;
@@ -188,7 +216,10 @@ struct kissat
   unsigneds resolvents;
   bool resolve_gate;
 
-#ifndef NMETRICS
+  struct kitten *kitten;
+  unsigned *map;
+
+#ifdef METRICS
   uint64_t *gate_eliminated;
 #else
   bool gate_eliminated;
@@ -232,16 +263,20 @@ kissat_assigned (kissat * solver)
 }
 
 #define all_variables(IDX) \
-  unsigned IDX = 0, IDX_END = solver->vars; IDX != IDX_END; ++IDX
+  unsigned IDX = 0, IDX ## _END = solver->vars; \
+  IDX != IDX ## _END; \
+  ++IDX
 
 #define all_literals(LIT) \
-  unsigned LIT = 0, LIT_END = LITS; LIT != LIT_END; ++LIT
+  unsigned LIT = 0, LIT ## _END = LITS; \
+  LIT != LIT ## _END; \
+  ++LIT
 
 #define all_clauses(C) \
-  clause * C     = (clause*) BEGIN_STACK (solver->arena), \
-         * C_END = (clause*) END_STACK (solver->arena), \
-	 * C_NEXT; \
-  C != C_END && (C_NEXT = kissat_next_clause (C), true); \
-  C = C_NEXT
+  clause *       C         = (clause*) BEGIN_STACK (solver->arena), \
+         * const C ## _END = (clause*) END_STACK (solver->arena), \
+	 * C ## _NEXT; \
+  C != C ## _END && (C ## _NEXT = kissat_next_clause (C), true); \
+  C = C ## _NEXT
 
 #endif

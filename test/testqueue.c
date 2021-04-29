@@ -1,3 +1,5 @@
+#include "../src/inlinequeue.h"
+
 #include "test.h"
 
 static void
@@ -45,7 +47,7 @@ test_queue (void)
   solver.links = links;
   solver.vars = size;
   queue *queue = &solver.queue;
-  kissat_init_queue (queue);
+  kissat_init_queue (&solver);
   for (int i = 0; i < size; i++)
     kissat_enqueue (&solver, i);
   int c = 0;
