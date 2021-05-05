@@ -6,21 +6,33 @@
 #include <stdio.h>
 
 const char *
+kissat_signature (void)
+{
+  return "kissat-" VERSION;
+}
+
+const char *
 kissat_id (void)
 {
   return ID;
 }
 
 const char *
-kissat_version (void)
-{
-  return VERSION;
-}
-
-const char *
 kissat_compiler (void)
 {
   return COMPILER;
+}
+
+const char *
+kissat_copyright (void)
+{
+  return "Copyright (c) 2019-2021 Armin Biere JKU Linz";
+}
+
+const char *
+kissat_version (void)
+{
+  return VERSION;
 }
 
 #define PREFIX(COLORS) \
@@ -37,25 +49,11 @@ do { \
 } while (0)
 
 void
-kissat_banner (const char *prefix, const char *name)
+kissat_build (const char *prefix)
 {
   TERMINAL (stdout, 1);
   if (!prefix)
     connected_to_terminal = false;
-
-  PREFIX (BOLD MAGENTA);
-  printf ("%s", name);
-  NL ();
-
-  PREFIX (BOLD MAGENTA);
-  printf ("Copyright (c) 2019-2020 Armin Biere JKU Linz");
-  NL ();
-
-  if (prefix)
-    {
-      PREFIX ("");
-      NL ();
-    }
 
   PREFIX (MAGENTA);
   if (ID)
@@ -71,6 +69,28 @@ kissat_banner (const char *prefix, const char *name)
   PREFIX (MAGENTA);
   printf ("%s", BUILD);
   NL ();
+}
 
-  fflush (stdout);
+void
+kissat_banner (const char *prefix, const char *name)
+{
+  TERMINAL (stdout, 1);
+  if (!prefix)
+    connected_to_terminal = false;
+
+  PREFIX (BOLD MAGENTA);
+  printf ("%s", name);
+  NL ();
+
+  PREFIX (BOLD MAGENTA);
+  fputs (kissat_copyright (), stdout);
+  NL ();
+
+  if (prefix)
+    {
+      PREFIX ("");
+      NL ();
+    }
+
+  kissat_build (prefix);
 }

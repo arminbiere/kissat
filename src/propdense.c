@@ -1,40 +1,27 @@
-#define INLINE_ASSIGN
-
-#include "inline.h"
+#include "fastassign.h"
 #include "propdense.h"
 
-// Keep this 'inlined' file separate:
-
-#include "assign.c"
-
 static inline bool
-non_watching_propagate_literal (kissat * solver,
-				unsigned lit, unsigned ignore)
+non_watching_propagate_literal (kissat * solver, unsigned lit)
 {
-  assert (IDX (lit) != ignore);
-
   assert (!solver->watching);
   LOG ("propagating %s", LOGLIT (lit));
   assert (VALUE (lit) > 0);
   const unsigned not_lit = NOT (lit);
 
   watches *watches = &WATCHES (not_lit);
-  unsigned ticks = 1 + kissat_cache_lines (watches->size, sizeof (watch));
+  const size_t size_watches = SIZE_WATCHES (*watches);
+  unsigned ticks = 1 + kissat_cache_lines (size_watches, sizeof (watch));
 
-  const word *arena = BEGIN_STACK (solver->arena);
+  ward *const arena = BEGIN_STACK (solver->arena);
   assigned *assigned = solver->assigned;
   value *values = solver->values;
-
-  const unsigned level = solver->level;
 
   for (all_binary_large_watches (watch, *watches))
     {
       if (watch.type.binary)
 	{
 	  const unsigned other = watch.binary.lit;
-	  const unsigned other_idx = IDX (other);
-	  if (other_idx == ignore)
-	    continue;
 	  assert (VALID_INTERNAL_LITERAL (other));
 	  const value other_value = values[other];
 	  if (other_value > 0)
@@ -45,8 +32,11 @@ non_watching_propagate_literal (kissat * solver,
 	      return false;
 	    }
 	  const bool redundant = watch.binary.redundant;
-	  kissat_assign_binary (solver, values, assigned, redundant, other,
-				not_lit);
+	  assert (!solver->level);
+	  kissat_fast_binary_assign (solver,
+				     solver->probing, 0,
+				     values, assigned,
+				     redundant, other, not_lit);
 	}
       else
 	{
@@ -61,17 +51,10 @@ non_watching_propagate_literal (kissat * solver,
 	  unsigned non_false = 0;
 	  unsigned unit = INVALID_LIT;
 	  bool satisfied = false;
-	  bool ignored = false;
 	  for (all_literals_in_clause (other, c))
 	    {
 	      if (other == not_lit)
 		continue;
-	      const unsigned other_idx = IDX (other);
-	      if (other_idx == ignore)
-		{
-		  ignored = true;
-		  break;
-		}
 	      assert (VALID_INTERNAL_LITERAL (other));
 	      const value other_value = values[other];
 	      if (other_value < 0)
@@ -79,11 +62,9 @@ non_watching_propagate_literal (kissat * solver,
 	      if (other_value > 0)
 		{
 		  satisfied = true;
-		  if (!level)
-		    {
-		      LOGCLS (c, "%s satisfied", LOGLIT (other));
-		      kissat_mark_clause_as_garbage (solver, c);
-		    }
+		  assert (!solver->level);
+		  LOGCLS (c, "%s satisfied", LOGLIT (other));
+		  kissat_mark_clause_as_garbage (solver, c);
 		  break;
 		}
 	      if (!non_false++)
@@ -91,8 +72,6 @@ non_watching_propagate_literal (kissat * solver,
 	      else if (non_false > 1)
 		break;
 	    }
-	  if (ignored)
-	    continue;
 	  if (satisfied)
 	    continue;
 	  if (!non_false)
@@ -101,7 +80,8 @@ non_watching_propagate_literal (kissat * solver,
 	      return false;
 	    }
 	  if (non_false == 1)
-	    kissat_assign_reference (solver, values, assigned, unit, ref, c);
+	    kissat_fast_assign_reference (solver,
+					  values, assigned, unit, ref, c);
 	}
     }
 
@@ -112,35 +92,28 @@ non_watching_propagate_literal (kissat * solver,
 }
 
 bool
-kissat_dense_propagate (kissat * solver, unsigned limit, unsigned ignore_idx)
+kissat_dense_propagate (kissat * solver)
 {
-  assert (!solver->probing);
+  assert (!solver->level);
   assert (!solver->watching);
   assert (!solver->inconsistent);
   START (propagate);
-  unsigned end_of_last_generation = SIZE_STACK (solver->trail);
-  unsigned generations = 0;
-  unsigned propagated = 0;
+  unsigned *propagate = solver->propagate;
   bool res = true;
-  while (res && generations < limit &&
-	 solver->propagated < SIZE_STACK (solver->trail))
-    {
-      const unsigned lit = PEEK_STACK (solver->trail, solver->propagated);
-      res = non_watching_propagate_literal (solver, lit, ignore_idx);
-      if (++solver->propagated == end_of_last_generation)
-	{
-	  LOG ("propagated generation %u", generations);
-	  end_of_last_generation = SIZE_STACK (solver->trail);
-	  generations++;
-	}
-      propagated++;
-    }
-  LOG ("%s %u literals in %u generations %s conflict",
-       (solver->propagated == SIZE_STACK (solver->trail)) ?
-       "completely propagated" : "incomplete propagation of",
-       propagated, generations, res ? "without" : "with");
+  while (res && propagate != END_ARRAY (solver->trail))
+    res = non_watching_propagate_literal (solver, *propagate++);
+  const unsigned propagated = propagate - solver->propagate;
+  solver->propagate = propagate;
   ADD (dense_propagations, propagated);
   ADD (propagations, propagated);
+  if (!res)
+    {
+      assert (!solver->inconsistent);
+      LOG ("inconsistent root propagation");
+      CHECK_AND_ADD_EMPTY ();
+      ADD_EMPTY_TO_PROOF ();
+      solver->inconsistent = true;
+    }
   STOP (propagate);
   return res;
 }

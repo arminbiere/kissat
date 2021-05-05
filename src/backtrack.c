@@ -1,8 +1,12 @@
 #include "analyze.h"
 #include "backtrack.h"
 #include "inline.h"
+#include "inlineheap.h"
+#include "inlinescore.h"
+#include "inlinequeue.h"
+#include "print.h"
+#include "proprobe.h"
 #include "propsearch.h"
-#include "report.h"
 #include "trail.h"
 
 static inline void
@@ -37,76 +41,78 @@ add_unassigned_variable_back_to_heap (kissat * solver,
 }
 
 static void
-update_phases (kissat * solver)
+kissat_update_target_and_best_phases (kissat * solver)
 {
-  const char type = solver->rephased.type;
-  const bool reset = (type && CONFLICTS > solver->rephased.last);
+  if (solver->probing)
+    return;
 
-  if (!solver->probing)
+  if (!solver->stable)
+    return;
+
+  const unsigned assigned = kissat_assigned (solver);
+#ifdef LOGGING
+  LOG ("updating target and best phases");
+  LOG ("currently %u variables assigned", assigned);
+#endif
+
+  if (solver->target_assigned < assigned)
     {
-      if (reset)
-	kissat_reset_target_assigned (solver);
-
-      if (solver->target_assigned < solver->consistently_assigned)
-	{
-	  LOG ("updating target assigned from %u to %u",
-	       solver->target_assigned, solver->consistently_assigned);
-	  solver->target_assigned = solver->consistently_assigned;
-	  kissat_save_target_phases (solver);
-	}
-
-      if (solver->best_assigned < solver->consistently_assigned)
-	{
-	  LOG ("updating best assigned from %u to %u",
-	       solver->best_assigned, solver->consistently_assigned);
-	  solver->best_assigned = solver->consistently_assigned;
-	  kissat_save_best_phases (solver);
-	}
-
-      kissat_reset_consistently_assigned (solver);
+      kissat_extremely_verbose (solver, "updating target assigned "
+				"trail height from %u to %u",
+				solver->target_assigned, assigned);
+      solver->target_assigned = assigned;
+      kissat_save_target_phases (solver);
+      INC (target_saved);
     }
 
-  if (reset)
+  if (solver->best_assigned < assigned)
     {
-      REPORT (0, type);
-      solver->rephased.type = 0;
+      kissat_extremely_verbose (solver, "updating best assigned "
+				"trail height from %u to %u",
+				solver->best_assigned, assigned);
+      solver->best_assigned = assigned;
+      kissat_save_best_phases (solver);
+      INC (best_saved);
     }
 }
 
 void
-kissat_backtrack (kissat * solver, unsigned new_level)
+kissat_backtrack_without_updating_phases (kissat * solver, unsigned new_level)
 {
   assert (solver->level >= new_level);
   if (solver->level == new_level)
     return;
 
-  update_phases (solver);
   LOG ("backtracking to decision level %u", new_level);
 
   frame *new_frame = &FRAME (new_level + 1);
-  const unsigned new_size = new_frame->trail;
   SET_END_OF_STACK (solver->frames, new_frame);
 
   value *values = solver->values;
-  unsigned *trail = BEGIN_STACK (solver->trail);
+  unsigned *trail = BEGIN_ARRAY (solver->trail);
+  unsigned *new_end = trail + new_frame->trail;
   assigned *assigned = solver->assigned;
 
-  const unsigned old_size = SIZE_STACK (solver->trail);
+  unsigned *old_end = END_ARRAY (solver->trail);
   unsigned unassigned = 0, reassigned = 0;
 
-  unsigned j = new_size;
+  unsigned *q = new_end;
   if (solver->stable)
     {
       heap *scores = &solver->scores;
-      for (unsigned i = j; i != old_size; i++)
+      for (const unsigned *p = q; p != old_end; p++)
 	{
-	  const unsigned lit = trail[i];
+	  const unsigned lit = *p;
 	  const unsigned idx = IDX (lit);
 	  assert (idx < VARS);
-	  const unsigned level = assigned[idx].level;
+	  struct assigned *a = assigned + idx;
+	  const unsigned level = a->level;
 	  if (level <= new_level)
 	    {
-	      trail[j++] = lit;
+	      const unsigned new_trail = q - trail;
+	      assert (new_trail <= a->trail);
+	      a->trail = new_trail;
+	      *q++ = lit;
 	      LOG ("reassign %s", LOGLIT (lit));
 	      reassigned++;
 	    }
@@ -121,15 +127,19 @@ kissat_backtrack (kissat * solver, unsigned new_level)
   else
     {
       links *links = solver->links;
-      for (unsigned i = j; i != old_size; i++)
+      for (const unsigned *p = q; p != old_end; p++)
 	{
-	  const unsigned lit = trail[i];
+	  const unsigned lit = *p;
 	  const unsigned idx = IDX (lit);
 	  assert (idx < VARS);
-	  const unsigned level = assigned[idx].level;
+	  struct assigned *a = assigned + idx;
+	  const unsigned level = a->level;
 	  if (level <= new_level)
 	    {
-	      trail[j++] = lit;
+	      const unsigned new_trail = q - trail;
+	      assert (new_trail <= a->trail);
+	      a->trail = new_trail;
+	      *q++ = lit;
 	      LOG ("reassign %s", LOGLIT (lit));
 	      reassigned++;
 	    }
@@ -141,19 +151,39 @@ kissat_backtrack (kissat * solver, unsigned new_level)
 	    }
 	}
     }
-  RESIZE_STACK (solver->trail, j);
+  SET_END_OF_ARRAY (solver->trail, q);
 
   solver->level = new_level;
   LOG ("unassigned %u literals", unassigned);
   LOG ("reassigned %u literals", reassigned);
   (void) unassigned, (void) reassigned;
 
-  assert (new_size <= SIZE_STACK (solver->trail));
-  LOG ("propagation will resume at trail position %u", new_size);
-  solver->propagated = new_size;
+  assert (new_end <= END_ARRAY (solver->trail));
+  LOG ("propagation will resume at trail position %zu",
+       (size_t) (new_end - trail));
+  solver->propagate = new_end;
 
   assert (!solver->extended);
 }
+
+void
+kissat_backtrack_in_consistent_state (kissat * solver, unsigned new_level)
+{
+  kissat_update_target_and_best_phases (solver);
+  kissat_backtrack_without_updating_phases (solver, new_level);
+}
+
+void
+kissat_backtrack_after_conflict (kissat * solver, unsigned new_level)
+{
+  if (solver->level)
+    kissat_backtrack_without_updating_phases (solver, solver->level - 1);
+  kissat_update_target_and_best_phases (solver);
+  kissat_backtrack_without_updating_phases (solver, new_level);
+}
+
+// TODO check whether this can be merged with
+// 'kissat_restart_and_flush_trail'.
 
 void
 kissat_backtrack_propagate_and_flush_trail (kissat * solver)
@@ -162,15 +192,16 @@ kissat_backtrack_propagate_and_flush_trail (kissat * solver)
     {
       assert (solver->watching);
       assert (solver->level > 0);
-      kissat_backtrack (solver, 0);
+      kissat_backtrack_in_consistent_state (solver, 0);
 #ifndef NDEBUG
       clause *conflict =
 #endif
+	solver->probing ?
+	kissat_probing_propagate (solver, 0, true) :
 	kissat_search_propagate (solver);
       assert (!conflict);
     }
-  else
-    assert (kissat_propagated (solver));
-  if (solver->unflushed)
-    kissat_flush_trail (solver);
+
+  assert (kissat_propagated (solver));
+  assert (kissat_trail_flushed (solver));
 }

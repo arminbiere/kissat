@@ -8,9 +8,8 @@ typedef struct rephased rephased;
 
 struct rephased
 {
-  char type;
   uint64_t count;
-  uint64_t last;
+  char last;
 };
 
 struct kissat;
@@ -20,7 +19,13 @@ void kissat_rephase (struct kissat *);
 char kissat_rephase_best (struct kissat *);
 
 void kissat_reset_rephased (struct kissat *);
+void kissat_reset_best_assigned (struct kissat *);
 void kissat_reset_target_assigned (struct kissat *);
-void kissat_reset_consistently_assigned (struct kissat *);
+
+#define REPHASES \
+REPHASE (best, 'B', 0) \
+REPHASE (inverted, 'I', 1) \
+REPHASE (original, 'O', 2) \
+REPHASE (walking, 'W', 3)
 
 #endif

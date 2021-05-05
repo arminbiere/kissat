@@ -1,24 +1,73 @@
 #include "inline.h"
 #include "minimize.h"
 
-static bool minimize_literal (kissat *, assigned *, unsigned lit, int depth);
+static inline int
+minimized_index (kissat * solver, bool minimizing, assigned * a,
+		 unsigned lit, unsigned idx, unsigned depth)
+{
+#if !defined(LOGGING) && defined(NDEBUG)
+  (void) lit;
+#endif
+#ifdef NDEBUG
+  (void) idx;
+#endif
+  assert (IDX (lit) == idx);
+  assert (solver->assigned + idx == a);
+  if (!a->level)
+    {
+      LOG2 ("skipping root level literal %s", LOGLIT (lit));
+      return 1;
+    }
+  if (a->removable && depth)
+    {
+      LOG2 ("skipping removable literal %s", LOGLIT (lit));
+      return 1;
+    }
+  assert (a->reason != UNIT_REASON);
+  if (a->reason == DECISION_REASON)
+    {
+      LOG2 ("can not remove decision literal %s", LOGLIT (lit));
+      return -1;
+    }
+  if (a->poisoned)
+    {
+      LOG2 ("can not remove poisoned literal %s", LOGLIT (lit));
+      return -1;
+    }
+  if (minimizing || !depth)
+    {
+      frame *frame = &FRAME (a->level);
+      if (frame->used <= 1)
+	{
+	  LOG2 ("can not remove singleton frame literal %s", LOGLIT (lit));
+	  return -1;
+	}
+    }
+  return 0;
+}
+
+static bool minimize_literal (kissat *, bool, assigned *,
+			      unsigned lit, unsigned depth);
 
 static inline bool
-minimize_reference (kissat * solver, assigned * assigned,
-		    reference ref, unsigned lit, int depth)
+minimize_reference (kissat * solver, bool minimizing, assigned * assigned,
+		    reference ref, unsigned lit, unsigned depth)
 {
+  const unsigned next_depth = (depth == UINT_MAX) ? depth : depth + 1;
   const unsigned not_lit = NOT (lit);
   clause *c = kissat_dereference_clause (solver, ref);
+  if (GET_OPTION (minimizeticks))
+    INC (search_ticks);
   for (all_literals_in_clause (other, c))
     if (other != not_lit &&
-	!minimize_literal (solver, assigned, other, depth))
+	!minimize_literal (solver, minimizing, assigned, other, next_depth))
       return false;
   return true;
 }
 
 static inline bool
-minimize_binary (kissat * solver, assigned * assigned,
-		 unsigned lit, int depth)
+minimize_binary (kissat * solver, bool minimizing, assigned * assigned,
+		 unsigned lit, unsigned depth)
 {
   const size_t saved = SIZE_STACK (solver->minimize);
   bool res;
@@ -26,113 +75,101 @@ minimize_binary (kissat * solver, assigned * assigned,
     {
       const unsigned next_idx = IDX (next);
       struct assigned *a = assigned + next_idx;
-      if (a->analyzed == REMOVABLE)
+      int tmp = minimized_index (solver, minimizing, a, next, next_idx, 1);
+      if (tmp)
 	{
-	  res = true;
-	  break;
-	}
-      if (a->reason == DECISION || a->analyzed == POISONED)
-	{
-	  res = false;
+	  res = (tmp > 0);
 	  break;
 	}
       PUSH_STACK (solver->minimize, next_idx);
       if (!a->binary)
 	{
-	  res = minimize_reference (solver, assigned,
-				    a->reason, next, depth + 1);
+	  const unsigned next_depth = (depth == UINT_MAX) ? depth : depth + 1;
+	  res = minimize_reference (solver, minimizing, assigned,
+				    a->reason, next, next_depth);
 	  break;
 	}
       next = a->reason;
     }
   unsigned *begin = BEGIN_STACK (solver->minimize) + saved;
-  const unsigned *end = END_STACK (solver->minimize);
+  const unsigned *const end = END_STACK (solver->minimize);
   assert (begin <= end);
   if (res)
-    {
-      for (const unsigned *p = begin; p != end; p++)
-	{
-	  const unsigned other_idx = *p;
-	  LOG ("removable variable %u", other_idx);
-	  PUSH_STACK (solver->removable, other_idx);
-	  struct assigned *a = assigned + other_idx;
-	  a->analyzed = REMOVABLE;
-	}
-    }
+    for (const unsigned *p = begin; p != end; p++)
+      kissat_push_removable (solver, assigned, *p);
   else
-    {
-      for (const unsigned *p = begin; p != end; p++)
-	{
-	  const unsigned other_idx = *p;
-	  LOG ("poisoned variable %u", other_idx);
-	  PUSH_STACK (solver->poisoned, other_idx);
-	  struct assigned *a = assigned + other_idx;
-	  a->analyzed = POISONED;
-	}
-    }
+    for (const unsigned *p = begin; p != end; p++)
+      kissat_push_poisoned (solver, assigned, *p);
   SET_END_OF_STACK (solver->minimize, begin);
   return res;
 }
 
 static bool
-minimize_literal (kissat * solver, assigned * assigned,
-		  unsigned lit, int depth)
+minimize_literal (kissat * solver, bool minimizing,
+		  assigned * assigned, unsigned lit, unsigned depth)
 {
+  LOG ("trying to minimize literal %s at recursion depth %d",
+       LOGLIT (lit), depth);
   assert (VALUE (lit) < 0);
-  if (depth >= GET_OPTION (minimizedepth))
+  assert (depth || EMPTY_STACK (solver->minimize));
+  assert (GET_OPTION (minimizedepth) > 0);
+  if (depth >= (unsigned) GET_OPTION (minimizedepth))
     return false;
   const unsigned idx = IDX (lit);
   struct assigned *a = assigned + idx;
-  if (!a->level)
+  int tmp = minimized_index (solver, minimizing, a, lit, idx, depth);
+  if (tmp > 0)
     return true;
-  if (a->analyzed == REMOVABLE && depth)
-    return true;
-  assert (a->reason != UNIT);
-  if (a->reason == DECISION)
+  if (tmp < 0)
     return false;
-  if (a->analyzed == POISONED)
-    return false;
-  frame *frame = &FRAME (a->level);
-  if (frame->used <= 1)
-    return false;
-  bool res = true;
+#ifdef LOGGING
+  const unsigned not_lit = NOT (lit);
+#endif
+  bool res;
   if (a->binary)
-    res = minimize_binary (solver, assigned, a->reason, depth);
+    {
+      const unsigned other = a->reason;
+      LOGBINARY2 (not_lit, other,
+		  "minimizing along %s reason", LOGLIT (not_lit));
+      res = minimize_binary (solver, minimizing, assigned, other, depth);
+    }
   else
-    res = minimize_reference (solver, assigned, a->reason, lit, depth + 1);
+    {
+      const reference ref = a->reason;
+      LOGREF2 (ref, "minimizing along %s reason", LOGLIT (not_lit));
+      res =
+	minimize_reference (solver, minimizing, assigned, ref, lit, depth);
+    }
   if (!depth)
-    assert (a->analyzed == REMOVABLE);
-  else if (res)
-    {
-      LOG ("removable variable %u", idx);
-      PUSH_STACK (solver->removable, idx);
-      a->analyzed = REMOVABLE;
-    }
-  else
-    {
-      LOG ("poisoned variable %u", idx);
-      PUSH_STACK (solver->poisoned, idx);
-      a->analyzed = POISONED;
-    }
+    return res;
+  if (!res)
+    kissat_push_poisoned (solver, assigned, idx);
+  else if (!a->removable)
+    kissat_push_removable (solver, assigned, idx);
   return res;
 }
 
-static void
-reset_minimize (kissat * solver)
+bool
+kissat_minimize_literal (kissat * solver, unsigned lit, bool lit_in_clause)
 {
-  LOG ("unmarking %zu poisoned variables", SIZE_STACK (solver->poisoned));
-  for (all_stack (unsigned, idx, solver->poisoned))
-      solver->assigned[idx].analyzed = 0;
+  assert (EMPTY_STACK (solver->minimize));
+  return minimize_literal (solver, false,
+			   solver->assigned, lit, !lit_in_clause);
+}
 
+void
+kissat_reset_poisoned (kissat * solver)
+{
   LOG ("reset %zu poisoned variables", SIZE_STACK (solver->poisoned));
+  assigned *assigned = solver->assigned;
+  for (all_stack (unsigned, idx, solver->poisoned))
+    {
+      assert (idx < VARS);
+      struct assigned *a = assigned + idx;
+      assert (a->poisoned);
+      a->poisoned = false;
+    }
   CLEAR_STACK (solver->poisoned);
-
-  LOG ("unmarking %zu removable variables", SIZE_STACK (solver->removable));
-  for (all_stack (unsigned, idx, solver->removable))
-      solver->assigned[idx].analyzed = 0;
-
-  LOG ("reset %zu removable variables", SIZE_STACK (solver->removable));
-  CLEAR_STACK (solver->removable);
 }
 
 void
@@ -143,38 +180,59 @@ kissat_minimize_clause (kissat * solver)
   assert (EMPTY_STACK (solver->minimize));
   assert (EMPTY_STACK (solver->removable));
   assert (EMPTY_STACK (solver->poisoned));
-  assert (!EMPTY_STACK (solver->clause.lits));
+  assert (!EMPTY_STACK (solver->clause));
 
-  unsigned *lits = BEGIN_STACK (solver->clause.lits);
-  const unsigned *end = END_STACK (solver->clause.lits);
-  unsigned *q = lits + 1;
+  unsigned *lits = BEGIN_STACK (solver->clause);
+  unsigned *end = END_STACK (solver->clause);
+
+  assigned *assigned = solver->assigned;
+#ifndef NDEBUG
+  assert (lits < end);
+  const unsigned not_uip = lits[0];
+  assert (assigned[IDX (not_uip)].level == solver->level);
+#endif
+  for (const unsigned *p = lits; p != end; p++)
+    kissat_push_removable (solver, assigned, IDX (*p));
+
+  if (GET_OPTION (shrink) > 2)
+    {
+      STOP (minimize);
+      return;
+    }
 
   unsigned minimized = 0;
 
-  assigned *assigned = solver->assigned;
-
-  for (const unsigned *p = q; p != end; p++)
+  for (unsigned *p = end; --p > lits;)
     {
       const unsigned lit = *p;
-      if (minimize_literal (solver, assigned, lit, 0))
+      assert (lit != not_uip);
+      if (minimize_literal (solver, true, assigned, lit, 0))
 	{
 	  LOG ("minimized literal %s", LOGLIT (lit));
+	  *p = INVALID_LIT;
 	  minimized++;
 	}
       else
-	{
-	  LOG ("keeping literal %s", LOGLIT (lit));
-	  *q++ = lit;
-	}
+	LOG ("keeping literal %s", LOGLIT (lit));
     }
-  SET_END_OF_STACK (solver->clause.lits, q);
+
+  unsigned *q = lits;
+  for (const unsigned *p = lits; p != end; p++)
+    {
+      const unsigned lit = *p;
+      if (lit != INVALID_LIT)
+	*q++ = lit;
+    }
+  assert (q + minimized == end);
+  SET_END_OF_STACK (solver->clause, q);
   LOG ("clause minimization removed %u literals", minimized);
 
-  if (!solver->probing)
-    ADD (minimized, minimized);
+  assert (!solver->probing);
+  ADD (literals_minimized, minimized);
 
   LOGTMP ("minimized learned");
 
-  reset_minimize (solver);
+  kissat_reset_poisoned (solver);
+
   STOP (minimize);
 }

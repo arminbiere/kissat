@@ -1,5 +1,3 @@
-#include "test.h"
-
 #include "../src/error.h"
 #include "../src/handle.h"
 
@@ -7,6 +5,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include "test.h"
 
 static void
 test_real_fatal_error (void)

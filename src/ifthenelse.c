@@ -10,7 +10,7 @@ get_ternary_clause (kissat * solver, reference ref,
   clause *clause = kissat_dereference_clause (solver, ref);
   if (clause->garbage)
     return false;
-  const value *values = solver->values;
+  const value *const values = solver->values;
   unsigned a = INVALID_LIT, b = INVALID_LIT, c = INVALID_LIT;
   unsigned found = 0;
   for (all_literals_in_clause (other, clause))
@@ -48,7 +48,9 @@ match_ternary_ref (kissat * solver, reference ref,
 		   unsigned a, unsigned b, unsigned c)
 {
   clause *clause = kissat_dereference_clause (solver, ref);
-  const value *values = solver->values;
+  if (clause->garbage)
+    return false;
+  const value *const values = solver->values;
   unsigned found = 0;
   for (all_literals_in_clause (other, clause))
     {
@@ -89,13 +91,13 @@ match_ternary_watch (kissat * solver, watch watch,
     }
 }
 
-static const watch *
+static inline const watch *
 find_ternary_clause (kissat * solver, uint64_t * steps,
 		     unsigned a, unsigned b, unsigned c)
 {
   watches *watches = &WATCHES (a);
-  const watch *begin = BEGIN_WATCHES (*watches);
-  const watch *end = END_WATCHES (*watches);
+  const watch *const begin = BEGIN_WATCHES (*watches);
+  const watch *const end = END_WATCHES (*watches);
   for (const watch * p = begin; p != end; p++)
     {
       *steps += 1;
@@ -112,8 +114,8 @@ kissat_find_if_then_else_gate (kissat * solver,
   if (!GET_OPTION (ifthenelse))
     return false;
   watches *watches = &WATCHES (lit);
-  const watch *begin = BEGIN_WATCHES (*watches);
-  const watch *end = END_WATCHES (*watches);
+  const watch *const begin = BEGIN_WATCHES (*watches);
+  const watch *const end = END_WATCHES (*watches);
   if (begin == end)
     return false;
   uint64_t large_clauses = 0;
@@ -123,7 +125,7 @@ kissat_find_if_then_else_gate (kissat * solver,
   const uint64_t limit = solver->bounds.eliminate.occurrences;
   if (large_clauses * large_clauses > limit)
     return false;
-  const watch *last = end - 1;
+  const watch *const last = end - 1;
   uint64_t steps = 0;
   for (const watch * p1 = begin; steps < limit && p1 != last; p1++)
     {
@@ -161,12 +163,12 @@ kissat_find_if_then_else_gate (kissat * solver,
 	  solver->resolve_gate = false;
 	  const unsigned not_lit = NOT (lit);
 	  const unsigned not_c1 = NOT (c1);
-	  const watch *p3 =
+	  const watch *const p3 =
 	    find_ternary_clause (solver, &steps, not_lit, b1, not_c1);
 	  if (!p3)
 	    continue;
 	  const unsigned not_c2 = NOT (c2);
-	  const watch *p4 =
+	  const watch *const p4 =
 	    find_ternary_clause (solver, &steps, not_lit, b2, not_c2);
 	  if (!p4)
 	    continue;
@@ -184,6 +186,7 @@ kissat_find_if_then_else_gate (kissat * solver,
 	  PUSH_STACK (solver->gates[negative], w2);
 	  PUSH_STACK (solver->gates[!negative], w3);
 	  PUSH_STACK (solver->gates[!negative], w4);
+	  INC (if_then_else_extracted);
 	  return true;
 	}
     }

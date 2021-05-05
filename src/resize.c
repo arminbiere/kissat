@@ -4,6 +4,7 @@
 #include "resize.h"
 
 #include <limits.h>
+#include <string.h>
 
 #define NREALLOC_GENERIC(TYPE, NAME, ELEMENTS_PER_BLOCK) \
 do { \
@@ -40,6 +41,14 @@ do { \
 #define CREALLOC_LITERAL_INDEXED(TYPE, NAME) \
   CREALLOC_GENERIC (TYPE, NAME, 2)
 
+static void
+reallocate_trail (kissat * solver, unsigned old_size, unsigned new_size)
+{
+  unsigned propagated = solver->propagate - BEGIN_ARRAY (solver->trail);
+  REALLOCATE_ARRAY (solver->trail, old_size, new_size);
+  solver->propagate = BEGIN_ARRAY (solver->trail) + propagated;
+}
+
 void
 kissat_increase_size (kissat * solver, unsigned new_size)
 {
@@ -48,25 +57,27 @@ kissat_increase_size (kissat * solver, unsigned new_size)
   if (old_size >= new_size)
     return;
 
-#ifndef NMETRICS
+#ifdef METRICS
   LOG ("%s before increasing size from %u to %u",
        FORMAT_BYTES (kissat_allocated (solver)), old_size, new_size);
 #endif
   CREALLOC_VARIABLE_INDEXED (assigned, assigned);
   CREALLOC_VARIABLE_INDEXED (flags, flags);
   NREALLOC_VARIABLE_INDEXED (links, links);
-  CREALLOC_VARIABLE_INDEXED (phase, phases);
 
   CREALLOC_LITERAL_INDEXED (mark, marks);
   CREALLOC_LITERAL_INDEXED (value, values);
   CREALLOC_LITERAL_INDEXED (watches, watches);
 
+  reallocate_trail (solver, old_size, new_size);
+
   kissat_resize_heap (solver, &solver->scores, new_size);
+  kissat_increase_phases (solver, new_size);
 
   solver->size = new_size;
 
-#ifndef NMETRICS
-  LOG ("%s after increasing size from %zu to %zu",
+#ifdef METRICS
+  LOG ("%s after increasing size from %u to %u",
        FORMAT_BYTES (kissat_allocated (solver)), old_size, new_size);
 #endif
 }
@@ -77,7 +88,7 @@ kissat_decrease_size (kissat * solver)
   const unsigned old_size = solver->size;
   const unsigned new_size = solver->vars;
 
-#ifndef NMETRICS
+#ifdef METRICS
   LOG ("%s before decreasing size from %u to %u",
        FORMAT_BYTES (kissat_allocated (solver)), old_size, new_size);
 #endif
@@ -85,18 +96,20 @@ kissat_decrease_size (kissat * solver)
   NREALLOC_VARIABLE_INDEXED (assigned, assigned);
   NREALLOC_VARIABLE_INDEXED (flags, flags);
   NREALLOC_VARIABLE_INDEXED (links, links);
-  NREALLOC_VARIABLE_INDEXED (phase, phases);
 
   NREALLOC_LITERAL_INDEXED (mark, marks);
   NREALLOC_LITERAL_INDEXED (value, values);
   NREALLOC_LITERAL_INDEXED (watches, watches);
 
+  reallocate_trail (solver, old_size, new_size);
+
   kissat_resize_heap (solver, &solver->scores, new_size);
+  kissat_decrease_phases (solver, new_size);
 
   solver->size = new_size;
 
-#ifndef NMETRICS
-  LOG ("%s after decreasing size from %zu to %zu",
+#ifdef METRICS
+  LOG ("%s after decreasing size from %u to %u",
        FORMAT_BYTES (kissat_allocated (solver)), old_size, new_size);
 #endif
 }
@@ -137,4 +150,5 @@ kissat_enlarge_variables (kissat * solver, unsigned new_vars)
       kissat_increase_size (solver, new_size);
     }
   solver->vars = new_vars;
+  kissat_invalidate_cache (solver);
 }

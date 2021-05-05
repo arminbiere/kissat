@@ -1,11 +1,6 @@
-#define INLINE_ASSIGN
-
-#include "inline.h"
+#include "fastassign.h"
 #include "proprobe.h"
-
-// Keep this 'inlined' file separate:
-
-#include "assign.c"
+#include "trail.h"
 
 #define PROPAGATE_LITERAL probing_propagate_literal
 #define PROPAGATION_TYPE "probing"
@@ -13,21 +8,8 @@
 
 #include "proplit.h"
 
-static clause *
-probing_propagate (kissat * solver, clause * ignore)
-{
-  clause *res = 0;
-  while (!res && solver->propagated < SIZE_STACK (solver->trail))
-    {
-      const unsigned lit = PEEK_STACK (solver->trail, solver->propagated);
-      res = probing_propagate_literal (solver, ignore, lit);
-      solver->propagated++;
-    }
-  return res;
-}
-
 clause *
-kissat_probing_propagate (kissat * solver, clause * ignore)
+kissat_probing_propagate (kissat * solver, clause * ignore, bool flush)
 {
   assert (solver->probing);
   assert (solver->watching);
@@ -35,10 +17,19 @@ kissat_probing_propagate (kissat * solver, clause * ignore)
 
   START (propagate);
 
+  clause *conflict = 0;
+  unsigned *propagate = solver->propagate;
   solver->ticks = 0;
-  const unsigned propagated = solver->propagated;
-  clause *conflict = probing_propagate (solver, ignore);
+  while (!conflict && propagate != END_ARRAY (solver->trail))
+    {
+      const unsigned lit = *propagate++;
+      conflict = probing_propagate_literal (solver, ignore, lit);
+    }
+
+  const unsigned propagated = propagate - solver->propagate;
+  solver->propagate = propagate;
   kissat_update_probing_propagation_statistics (solver, propagated);
+  kissat_update_conflicts_and_trail (solver, conflict, flush);
 
   STOP (propagate);
 

@@ -1,4 +1,6 @@
 #include "inline.h"
+#include "inlineheap.h"
+#include "inlinequeue.h"
 #include "print.h"
 #include "reluctant.h"
 #include "rephase.h"
@@ -18,39 +20,31 @@ new_mode_limit (kissat * solver)
 
   assert (GET_OPTION (stable) == 1);
 
-  if (solver->stable)
+  if (limits->mode.conflicts)
     {
-      assert (solver->mode.ticks <= statistics->search_ticks);
-      uint64_t ticks = statistics->search_ticks - solver->mode.ticks;
-
-      const double bias = GET_OPTION (stablebias) * 1e-2;
-      ticks *= bias;
-
-      limits->mode.ticks = statistics->search_ticks + ticks;
-      kissat_phase (solver, "stable", GET (stable_modes),
-		    "new focused mode switching limit of %s "
-		    "after %s search ticks bias %.0f%%",
-		    FORMAT_COUNT (limits->mode.ticks),
-		    FORMAT_COUNT (ticks), 100 * bias);
-    }
-  else
-    {
-      const uint64_t interval = GET_OPTION (modeint);
-      const uint64_t count = statistics->stable_modes;
-      const uint64_t delta = interval * (kissat_quadratic (count) + 1);
-      limits->mode.conflicts = CONFLICTS + delta;
-      kissat_phase (solver, "focus", GET (focused_modes),
-		    "new stable mode switching limit of %s "
-		    "after %s conflicts",
-		    FORMAT_COUNT (limits->mode.conflicts),
-		    FORMAT_COUNT (delta));
+      assert (solver->stable);
+      limits->mode.interval = statistics->search_ticks;
+      limits->mode.conflicts = 0;
     }
 
+  const uint64_t interval = limits->mode.interval;
+  assert (interval > 0);
 
-  kissat_reset_rephased (solver);
+  const uint64_t count = (statistics->switched_modes + 1) / 2;
+  const uint64_t scaled = interval * kissat_quadratic (count);
+  limits->mode.ticks = statistics->search_ticks + scaled;
 #ifndef QUIET
+  if (solver->stable)
+    kissat_phase (solver, "stable", GET (stable_modes),
+		  "new focused mode switching limit of %s after %s ticks",
+		  FORMAT_COUNT (limits->mode.ticks), FORMAT_COUNT (scaled));
+  else
+    kissat_phase (solver, "focus", GET (focused_modes),
+		  "new stable mode switching limit of %s after %s ticks",
+		  FORMAT_COUNT (limits->mode.ticks), FORMAT_COUNT (scaled));
+
   solver->mode.conflicts = statistics->conflicts;
-#ifndef NMETRICS
+#ifdef METRICS
   solver->mode.propagations = statistics->search_propagations;
 #endif
 #endif
@@ -73,7 +67,7 @@ report_switching_from_mode (kissat * solver)
     statistics->conflicts - solver->mode.conflicts;
 
   const uint64_t delta_ticks = statistics->search_ticks - solver->mode.ticks;
-#ifndef NMETRICS
+#ifdef METRICS
   const uint64_t delta_propagations =
     statistics->search_propagations - solver->mode.propagations;
 #endif
@@ -81,14 +75,14 @@ report_switching_from_mode (kissat * solver)
 
   // *INDENT-OFF*
   kissat_very_verbose (solver, "%s mode took %.2f seconds "
-    "(%" PRIu64 " conflicts, %" PRIu64 " ticks"
-#ifndef NMETRICS
-    ", %" PRIu64 " propagations"
+    "(%s conflicts, %s ticks"
+#ifdef METRICS
+    ", %s propagations"
 #endif
     ")", solver->stable ? "stable" : "focused",
-    delta_time, delta_conflicts, delta_ticks
-#ifndef NMETRICS
-    , delta_propagations
+    delta_time, FORMAT_COUNT (delta_conflicts), FORMAT_COUNT (delta_ticks)
+#ifdef METRICS
+    , FORMAT_COUNT (delta_propagations)
 #endif
     );
   // *INDENT-ON*
@@ -106,15 +100,13 @@ switch_to_focused_mode (kissat * solver)
   STOP (stable);
   INC (focused_modes);
   kissat_phase (solver, "focus", GET (focused_modes),
-		"switching to focused mode after %" PRIu64
-		" conflicts", CONFLICTS);
+		"switching to focused mode after %s conflicts",
+		FORMAT_COUNT (CONFLICTS));
   solver->stable = false;
   new_mode_limit (solver);
   START (focused);
   REPORT (0, '{');
-  const unsigned last = solver->queue.last;
-  assert (!DISCONNECTED (last));
-  kissat_update_queue (solver, solver->links, last);
+  kissat_reset_queue (solver);
   kissat_new_focused_restart_limit (solver);
 }
 
@@ -146,26 +138,32 @@ switch_to_stable_mode (kissat * solver)
   kissat_update_scores (solver);
 }
 
-void
-kissat_switch_search_mode (kissat * solver)
+bool
+kissat_switching_search_mode (kissat * solver)
 {
   assert (!solver->inconsistent);
-  if (solver->rephased.type)
-    return;
 
   if (GET_OPTION (stable) != 1)
-    return;
+    return false;
 
   limits *limits = &solver->limits;
   statistics *statistics = &solver->statistics;
 
-  if (solver->stable)
+  if (limits->mode.conflicts)
     {
-      if (statistics->search_ticks < limits->mode.ticks)
-	return;
+      assert (!solver->stable);
+      assert (!statistics->switched_modes);
+      if (statistics->conflicts >= limits->mode.conflicts)
+	return true;
     }
-  else if (statistics->conflicts < limits->mode.conflicts)
-    return;
+
+  return statistics->search_ticks >= limits->mode.ticks;
+}
+
+void
+kissat_switch_search_mode (kissat * solver)
+{
+  assert (kissat_switching_search_mode (solver));
 
   INC (switched_modes);
 
@@ -173,4 +171,8 @@ kissat_switch_search_mode (kissat * solver)
     switch_to_focused_mode (solver);
   else
     switch_to_stable_mode (solver);
+
+  assert (!solver->limits.mode.conflicts);
+
+  solver->averages[solver->stable].saved_decisions = DECISIONS;
 }

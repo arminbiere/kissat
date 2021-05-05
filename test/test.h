@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 extern bool tissat_big;
 extern bool tissat_found_test_directory;

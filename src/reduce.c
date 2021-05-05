@@ -42,9 +42,9 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 {
   assert (start_ref != INVALID_REF);
   assert (start_ref <= SIZE_STACK (solver->arena));
-  const word *arena = BEGIN_STACK (solver->arena);
+  ward *const arena = BEGIN_STACK (solver->arena);
   clause *start = (clause *) (arena + start_ref);
-  const clause *end = (clause *) END_STACK (solver->arena);
+  const clause *const end = (clause *) END_STACK (solver->arena);
   assert (start < end);
   while (start != end && (!start->redundant || start->keep))
     start = kissat_next_clause (start);
@@ -54,7 +54,7 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       LOG ("no reducible clause candidate left");
       return false;
     }
-  const reference redundant = (word *) start - arena;
+  const reference redundant = (ward *) start - arena;
 #ifdef LOGGING
   if (redundant < solver->first_reducible)
     LOG ("updating redundant clauses start from %zu to %zu",
@@ -107,10 +107,10 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       assert (!c->garbage);
       assert (kissat_clause_in_arena (solver, c));
       reducible red;
-      const uint64_t negative_size = (1u << LD_MAX_VAR) - c->size;
-      const uint64_t negative_glue = (1u << LD_MAX_GLUE) - c->glue;
-      red.rank = negative_size | (negative_glue << LD_MAX_VAR);
-      red.ref = (word *) c - arena;
+      const uint64_t negative_size = ~c->size;
+      const uint64_t negative_glue = ~c->glue;
+      red.rank = negative_size | (negative_glue << 32);
+      red.ref = (ward *) c - arena;
       PUSH_STACK (*reds, red);
     }
 #ifndef QUIET
@@ -135,13 +135,11 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 }
 
 #define USEFULNESS RANK_REDUCIBLE
-#define RADIX_SORT_REDUCE_LENGTH 16
 
 static void
 sort_reducibles (kissat * solver, reducibles * reds)
 {
-  RADIX_STACK (RADIX_SORT_REDUCE_LENGTH,
-	       reducible, uint64_t, *reds, USEFULNESS);
+  RADIX_STACK (reducible, uint64_t, *reds, USEFULNESS);
 }
 
 static void
@@ -161,9 +159,9 @@ mark_less_useful_clauses_as_garbage (kissat * solver, reducibles * reds)
 		size, kissat_percent (size, clauses));
 #endif
   unsigned reduced = 0;
-  word *arena = BEGIN_STACK (solver->arena);
-  const reducible *begin = BEGIN_STACK (*reds);
-  const reducible *end = END_STACK (*reds);
+  ward *arena = BEGIN_STACK (solver->arena);
+  const reducible *const begin = BEGIN_STACK (*reds);
+  const reducible *const end = END_STACK (*reds);
   for (const reducible * p = begin; p != end && target--; p++)
     {
       clause *c = (clause *) (arena + p->ref);
@@ -222,9 +220,10 @@ kissat_reduce (kissat * solver)
       size_t words_to_sweep = arena_size - start;
       size_t bytes_to_sweep = sizeof (word) * words_to_sweep;
       kissat_phase (solver, "reduce", GET (reductions),
-		    "reducing clauses after offset %zu in arena", start);
+		    "reducing clauses after offset %"
+		    REFERENCE_FORMAT " in arena", start);
       kissat_phase (solver, "reduce", GET (reductions),
-		    "sweeping %zu words %s %.0f%%",
+		    "reducing %zu words %s %.0f%%",
 		    words_to_sweep, FORMAT_BYTES (bytes_to_sweep),
 		    kissat_percent (words_to_sweep, arena_size));
 #endif
@@ -249,7 +248,7 @@ kissat_reduce (kissat * solver)
     }
   else
     kissat_phase (solver, "reduce", GET (reductions), "nothing to reduce");
-  UPDATE_CONFLICT_LIMIT (reduce, reductions, NDIVLOGN, false);
+  UPDATE_CONFLICT_LIMIT (reduce, reductions, SQRT, false);
   REPORT (0, '-');
   STOP (reduce);
   return solver->inconsistent ? 20 : 0;

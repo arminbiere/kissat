@@ -64,10 +64,10 @@ kissat_extend (kissat * solver)
   value *evalues = BEGIN_STACK (solver->eliminated);
   value *ivalues = solver->values;
 
-  const import *imports = BEGIN_STACK (solver->import);
+  const import *const imports = BEGIN_STACK (solver->import);
 
-  const extension *begin = BEGIN_STACK (solver->extend);
-  const extension *p = END_STACK (solver->extend);
+  const extension *const begin = BEGIN_STACK (solver->extend);
+  extension const *p = END_STACK (solver->extend);
 
 #ifdef LOGGING
   size_t assigned = 0;
@@ -101,7 +101,7 @@ kissat_extend (kissat * solver)
 	  assert (elit != INT_MIN);
 	  const unsigned eidx = ABS (elit);
 	  assert (eidx < SIZE_STACK (solver->import));
-	  const import *import = imports + eidx;
+	  const import *const import = imports + eidx;
 	  assert (import->imported);
 
 	  if (import->eliminated)

@@ -4,6 +4,7 @@
 #include "search.h"
 #include "import.h"
 #include "inline.h"
+#include "inlineframes.h"
 #include "print.h"
 #include "propsearch.h"
 #include "require.h"
@@ -29,14 +30,17 @@ kissat_init (void)
   kissat_init_profiles (&solver->profiles);
 #endif
   START (total);
-  kissat_init_queue (&solver->queue);
-  kissat_push_frame (solver, INVALID_LIT);
+  kissat_init_queue (solver);
+  assert (INTERNAL_MAX_LIT < UINT_MAX);
+  kissat_push_frame (solver, UINT_MAX);
+  kissat_init_reap (solver, &solver->reap);
   solver->watching = true;
   solver->conflict.size = 2;
   solver->conflict.keep = true;
   solver->scinc = 1.0;
   solver->first_reducible = INVALID_REF;
   solver->last_irredundant = INVALID_REF;
+  solver->rephased.last = 'O';
 #ifndef NDEBUG
   kissat_init_checker (solver);
 #endif
@@ -77,6 +81,11 @@ kissat_release (kissat * solver)
   kissat_release_heap (solver, &solver->schedule);
 
   kissat_release_clueue (solver, &solver->clueue);
+  kissat_release_reap (solver, &solver->reap);
+
+  kissat_release_phases (solver);
+  kissat_release_cache (solver);
+  RELEASE_STACK (solver->nonces);
 
   RELEASE_STACK (solver->export);
   RELEASE_STACK (solver->import);
@@ -84,7 +93,6 @@ kissat_release (kissat * solver)
   DEALLOC_VARIABLE_INDEXED (assigned);
   DEALLOC_VARIABLE_INDEXED (flags);
   DEALLOC_VARIABLE_INDEXED (links);
-  DEALLOC_VARIABLE_INDEXED (phases);
 
   DEALLOC_LITERAL_INDEXED (marks);
   DEALLOC_LITERAL_INDEXED (values);
@@ -99,9 +107,10 @@ kissat_release (kissat * solver)
   RELEASE_STACK (solver->vectors.stack);
   RELEASE_STACK (solver->delayed);
 
-  RELEASE_STACK (solver->clause.lits);
+  RELEASE_STACK (solver->clause);
+  RELEASE_STACK (solver->shadow);
 #if defined(LOGGING) || !defined(NDEBUG)
-  RELEASE_STACK (solver->resolvent_lits);
+  RELEASE_STACK (solver->resolvent);
 #endif
 
   RELEASE_STACK (solver->arena);
@@ -109,7 +118,8 @@ kissat_release (kissat * solver)
   RELEASE_STACK (solver->units);
   RELEASE_STACK (solver->frames);
   RELEASE_STACK (solver->sorter);
-  RELEASE_STACK (solver->trail);
+
+  RELEASE_ARRAY (solver->trail, solver->size);
 
   RELEASE_STACK (solver->analyzed);
   RELEASE_STACK (solver->levels);
@@ -117,10 +127,11 @@ kissat_release (kissat * solver)
   RELEASE_STACK (solver->poisoned);
   RELEASE_STACK (solver->promote);
   RELEASE_STACK (solver->removable);
+  RELEASE_STACK (solver->shrinkable);
   RELEASE_STACK (solver->xorted[0]);
   RELEASE_STACK (solver->xorted[1]);
 
-  RELEASE_STACK (solver->bump);
+  RELEASE_STACK (solver->ranks);
 
   RELEASE_STACK (solver->antecedents[0]);
   RELEASE_STACK (solver->antecedents[1]);
@@ -144,7 +155,7 @@ kissat_release (kissat * solver)
 #ifndef NDEBUG
   kissat_release_checker (solver);
 #endif
-#if !defined(NDEBUG) && !defined(NMETRICS)
+#if !defined(NDEBUG) && defined(METRICS)
   uint64_t leaked = solver->statistics.allocated_current;
   if (leaked)
     if (!getenv ("LEAK"))
@@ -285,20 +296,20 @@ kissat_add (kissat * solver, int elit)
 	  const value value = kissat_fixed (solver, ilit);
 	  if (value > 0)
 	    {
-	      if (!solver->clause.satisfied)
+	      if (!solver->clause_satisfied)
 		{
 		  LOG ("adding root level satisfied literal %u(%d)@0=1",
 		       ilit, elit);
-		  solver->clause.satisfied = true;
+		  solver->clause_satisfied = true;
 		}
 	    }
 	  else if (value < 0)
 	    {
 	      LOG ("adding root level falsified literal %u(%d)@0=-1",
 		   ilit, elit);
-	      if (!solver->clause.shrink)
+	      if (!solver->clause_shrink)
 		{
-		  solver->clause.shrink = true;
+		  solver->clause_shrink = true;
 		  LOG ("thus original clause needs shrinking");
 		}
 	    }
@@ -306,27 +317,27 @@ kissat_add (kissat * solver, int elit)
 	    {
 	      MARK (ilit) = 1;
 	      MARK (NOT (ilit)) = -1;
-	      assert (SIZE_STACK (solver->clause.lits) < UINT_MAX);
-	      PUSH_STACK (solver->clause.lits, ilit);
+	      assert (SIZE_STACK (solver->clause) < UINT_MAX);
+	      PUSH_STACK (solver->clause, ilit);
 	    }
 	}
       else if (mark < 0)
 	{
 	  assert (mark < 0);
-	  if (!solver->clause.trivial)
+	  if (!solver->clause_trivial)
 	    {
 	      LOG ("adding dual literal %u(%d) and %u(%d)",
 		   NOT (ilit), -elit, ilit, elit);
-	      solver->clause.trivial = true;
+	      solver->clause_trivial = true;
 	    }
 	}
       else
 	{
 	  assert (mark > 0);
 	  LOG ("adding duplicated literal %u(%d)", ilit, elit);
-	  if (!solver->clause.shrink)
+	  if (!solver->clause_shrink)
 	    {
-	      solver->clause.shrink = true;
+	      solver->clause_shrink = true;
 	      LOG ("thus original clause needs shrinking");
 	    }
 	}
@@ -340,15 +351,15 @@ kissat_add (kissat * solver, int elit)
       assert (esize <= UINT_MAX);
 #endif
       ADD_UNCHECKED_EXTERNAL (esize, elits);
-      const size_t isize = SIZE_STACK (solver->clause.lits);
-      unsigned *ilits = BEGIN_STACK (solver->clause.lits);
+      const size_t isize = SIZE_STACK (solver->clause);
+      unsigned *ilits = BEGIN_STACK (solver->clause);
       assert (isize < (unsigned) INT_MAX);
 
       if (solver->inconsistent)
 	LOG ("inconsistent thus skipping original clause");
-      else if (solver->clause.satisfied)
+      else if (solver->clause_satisfied)
 	LOG ("skipping satisfied original clause");
-      else if (solver->clause.trivial)
+      else if (solver->clause_trivial)
 	LOG ("skipping trivial original clause");
       else
 	{
@@ -356,7 +367,7 @@ kissat_add (kissat * solver, int elit)
 
 	  if (!isize)
 	    {
-	      if (solver->clause.shrink)
+	      if (solver->clause_shrink)
 		LOG ("all original clause literals root level falsified");
 	      else
 		LOG ("found empty original clause");
@@ -371,26 +382,18 @@ kissat_add (kissat * solver, int elit)
 	    }
 	  else if (isize == 1)
 	    {
-	      unsigned unit = TOP_STACK (solver->clause.lits);
+	      unsigned unit = TOP_STACK (solver->clause);
 
-	      if (solver->clause.shrink)
+	      if (solver->clause_shrink)
 		LOGUNARY (unit, "original clause shrinks to");
 	      else
 		LOGUNARY (unit, "found original");
 
-	      kissat_assign_unit (solver, unit);
+	      kissat_original_unit (solver, unit);
 
+	      COVER (solver->level);
 	      if (!solver->level)
-		{
-		  clause *conflict = kissat_search_propagate (solver);
-		  if (conflict)
-		    {
-		      LOG ("propagation of root level unit failed");
-		      solver->inconsistent = true;
-		      CHECK_AND_ADD_EMPTY ();
-		      ADD_EMPTY_TO_PROOF ();
-		    }
-		}
+		(void) kissat_search_propagate (solver);
 	    }
 	  else
 	    {
@@ -417,7 +420,7 @@ kissat_add (kissat * solver, int elit)
 		  LOG ("both watches falsified at level @%u", k);
 		  assert (v < 0);
 		  assert (k > 0);
-		  kissat_backtrack (solver, k - 1);
+		  kissat_backtrack_without_updating_phases (solver, k - 1);
 		}
 	      else if (u < 0)
 		{
@@ -465,7 +468,7 @@ kissat_add (kissat * solver, int elit)
 	}
 
 #if !defined(NDEBUG) || !defined(NPROOFS)
-      if (solver->clause.satisfied || solver->clause.trivial)
+      if (solver->clause_satisfied || solver->clause_trivial)
 	{
 #ifndef NDEBUG
 	  if (checking > 1)
@@ -473,10 +476,15 @@ kissat_add (kissat * solver, int elit)
 #endif
 #ifndef NPROOFS
 	  if (proving)
-	    kissat_delete_external_from_proof (solver, esize, elits);
+	    {
+	      if (esize == 1)
+		LOG ("skipping deleting unit from proof");
+	      else
+		kissat_delete_external_from_proof (solver, esize, elits);
+	    }
 #endif
 	}
-      else if (solver->clause.shrink)
+      else if (!solver->inconsistent && solver->clause_shrink)
 	{
 #ifndef NDEBUG
 	  if (checking > 1)
@@ -510,14 +518,14 @@ kissat_add (kissat * solver, int elit)
 	  solver->offset_of_last_original_clause = 0;
 	}
 #endif
-      for (all_stack (unsigned, lit, solver->clause.lits))
+      for (all_stack (unsigned, lit, solver->clause))
 	  MARK (lit) = MARK (NOT (lit)) = 0;
 
-      CLEAR_STACK (solver->clause.lits);
+      CLEAR_STACK (solver->clause);
 
-      solver->clause.satisfied = false;
-      solver->clause.trivial = false;
-      solver->clause.shrink = 0;
+      solver->clause_satisfied = false;
+      solver->clause_trivial = false;
+      solver->clause_shrink = false;
     }
 }
 
@@ -525,7 +533,7 @@ int
 kissat_solve (kissat * solver)
 {
   kissat_require_initialized (solver);
-  kissat_require (EMPTY_STACK (solver->clause.lits),
+  kissat_require (EMPTY_STACK (solver->clause),
 		  "incomplete clause (terminating zero not added)");
   kissat_require (!GET (searches), "incremental solving not supported");
   return kissat_search (solver);
@@ -535,8 +543,16 @@ void
 kissat_terminate (kissat * solver)
 {
   kissat_require_initialized (solver);
-  solver->terminate = ~(unsigned) 0;
-  assert (solver->terminate);
+  solver->termination.flagged = ~(unsigned) 0;
+  assert (solver->termination.flagged);
+}
+
+void
+kissat_set_terminate (kissat * solver, void *state, int (*terminate) (void *))
+{
+  solver->termination.terminate = 0;
+  solver->termination.state = state;
+  solver->termination.terminate = terminate;
 }
 
 int
@@ -547,7 +563,7 @@ kissat_value (kissat * solver, int elit)
   const unsigned eidx = ABS (elit);
   if (eidx >= SIZE_STACK (solver->import))
     return 0;
-  const import *import = &PEEK_STACK (solver->import, eidx);
+  const import *const import = &PEEK_STACK (solver->import, eidx);
   if (!import->imported)
     return 0;
   value tmp;

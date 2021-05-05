@@ -10,22 +10,23 @@ kissat_flush_trail (kissat * solver)
   assert (solver->unflushed);
   assert (!solver->inconsistent);
   assert (kissat_propagated (solver));
-  assert (SIZE_STACK (solver->trail) == solver->unflushed);
-  LOG ("flushed %zu units from trail", SIZE_STACK (solver->trail));
-  CLEAR_STACK (solver->trail);
+  assert (SIZE_ARRAY (solver->trail) == solver->unflushed);
+  LOG ("flushed %zu units from trail", SIZE_ARRAY (solver->trail));
+  CLEAR_ARRAY (solver->trail);
+  kissat_reset_propagate (solver);
   solver->unflushed = 0;
-  solver->propagated = 0;
 }
 
 void
 kissat_mark_reason_clauses (kissat * solver, reference start)
 {
-  LOG ("starting marking reason clauses at clause[%zu]", start);
+  LOG ("starting marking reason clauses at clause[%" REFERENCE_FORMAT "]",
+       start);
   assert (!solver->unflushed);
 #ifdef LOGGING
   unsigned reasons = 0;
 #endif
-  word *arena = BEGIN_STACK (solver->arena);
+  ward *arena = BEGIN_STACK (solver->arena);
   for (all_stack (unsigned, lit, solver->trail))
     {
       assigned *a = ASSIGNED (lit);
@@ -33,8 +34,8 @@ kissat_mark_reason_clauses (kissat * solver, reference start)
       if (a->binary)
 	continue;
       const reference ref = a->reason;
-      assert (ref != UNIT);
-      if (ref == DECISION)
+      assert (ref != UNIT_REASON);
+      if (ref == DECISION_REASON)
 	continue;
       if (ref < start)
 	continue;
@@ -48,21 +49,26 @@ kissat_mark_reason_clauses (kissat * solver, reference start)
   LOG ("marked %u reason clauses", reasons);
 }
 
+// TODO check whether this can be merged with
+// 'kissat_backtrack_propagate_and_flush_trail'.
+
 void
 kissat_restart_and_flush_trail (kissat * solver)
 {
   if (solver->level)
     {
       LOG ("forced restart");
-      kissat_backtrack (solver, 0);
+      kissat_backtrack_in_consistent_state (solver, 0);
     }
+
 #ifndef NDEBUG
   clause *conflict =
 #endif
     kissat_search_propagate (solver);
   assert (!conflict);
-  if (solver->unflushed)
-    kissat_flush_trail (solver);
+
+  assert (kissat_propagated (solver));
+  assert (kissat_trail_flushed (solver));
 }
 
 bool
@@ -74,7 +80,7 @@ kissat_flush_and_mark_reason_clauses (kissat * solver, reference start)
 
   if (solver->unflushed)
     {
-      LOG ("need to flush %zu units from trail", solver->unflushed);
+      LOG ("need to flush %u units from trail", solver->unflushed);
       kissat_restart_and_flush_trail (solver);
     }
   else
@@ -89,12 +95,13 @@ kissat_flush_and_mark_reason_clauses (kissat * solver, reference start)
 void
 kissat_unmark_reason_clauses (kissat * solver, reference start)
 {
-  LOG ("starting unmarking reason clauses at clause[%zu]", start);
+  LOG ("starting unmarking reason clauses at clause[%" REFERENCE_FORMAT "]",
+       start);
   assert (!solver->unflushed);
 #ifdef LOGGING
   unsigned reasons = 0;
 #endif
-  word *arena = BEGIN_STACK (solver->arena);
+  ward *arena = BEGIN_STACK (solver->arena);
   for (all_stack (unsigned, lit, solver->trail))
     {
       assigned *a = ASSIGNED (lit);
@@ -102,8 +109,8 @@ kissat_unmark_reason_clauses (kissat * solver, reference start)
       if (a->binary)
 	continue;
       const reference ref = a->reason;
-      assert (ref != UNIT);
-      if (ref == DECISION)
+      assert (ref != UNIT_REASON);
+      if (ref == DECISION_REASON)
 	continue;
       if (ref < start)
 	continue;

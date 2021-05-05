@@ -8,14 +8,13 @@
 #include <assert.h>
 #include <stdbool.h>
 
-static kissat *solver;
+static kissat *volatile solver;
 
 // *INDENT-OFF*
 
 static void
 kissat_signal_handler (int sig)
 {
-  assert (solver);
   kissat_signal (solver, "caught", sig);
   kissat_print_statistics (solver);
   kissat_signal (solver, "raising", sig);

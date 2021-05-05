@@ -20,9 +20,9 @@ kissat_find_and_gate (kissat * solver, unsigned lit, unsigned negative)
   unsigned not_lit = NOT (lit);
   watches *not_watches = &WATCHES (not_lit);
 
-  const word *arena = BEGIN_STACK (solver->arena);
+  ward *const arena = BEGIN_STACK (solver->arena);
   value *marks = solver->marks;
-  const value *values = solver->values;
+  const value *const values = solver->values;
 
   clause *base = 0;
   for (all_binary_large_watches (watch, *not_watches))
@@ -92,5 +92,6 @@ kissat_find_and_gate (kissat * solver, unsigned lit, unsigned negative)
   tmp = kissat_large_watch (kissat_reference_clause (solver, base));
   PUSH_STACK (solver->gates[!negative], tmp);
   solver->gate_eliminated = GATE_ELIMINATED (ands);
+  INC (ands_extracted);
   return true;
 }

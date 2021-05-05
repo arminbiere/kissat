@@ -32,7 +32,7 @@ adjust_exports_for_external_literal (kissat * solver, unsigned eidx)
   LOG ("exporting internal variable %u as external literal %u", iidx, eidx);
 }
 
-static unsigned
+static inline unsigned
 import_literal (kissat * solver, int elit)
 {
   const unsigned eidx = ABS (elit);
@@ -64,6 +64,7 @@ kissat_import_literal (kissat * solver, int elit)
     return import_literal (solver, elit);
   if (!other)
     adjust_imports_for_external_literal (solver, other++);
+
   unsigned ilit = 0;
   do
     {
@@ -71,7 +72,9 @@ kissat_import_literal (kissat * solver, int elit)
       ilit = import_literal (solver, other);
     }
   while (other++ < eidx);
+
   if (elit < 0)
     ilit = NOT (ilit);
+
   return ilit;
 }

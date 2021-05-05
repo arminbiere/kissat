@@ -50,13 +50,8 @@ do { \
 } while (0)
 
 #define BEGIN_STACK(S) (S).begin
-#define END_STACK(S) (S).end
 
-#define RELEASE_STACK(S) \
-do { \
-  kissat_dealloc (solver, (S).begin, CAPACITY_STACK (S), sizeof *(S).begin); \
-  INIT_STACK (S); \
-} while (0)
+#define END_STACK(S) (S).end
 
 #define CLEAR_STACK(S) \
 do { \
@@ -65,8 +60,9 @@ do { \
 
 #define RESIZE_STACK(S,NEW_SIZE) \
 do { \
-  assert ((NEW_SIZE) <= SIZE_STACK (S)); \
-  (S).end = (S).begin + (NEW_SIZE); \
+  const size_t TMP_NEW_SIZE = (NEW_SIZE); \
+  assert (TMP_NEW_SIZE <= SIZE_STACK (S)); \
+  (S).end = (S).begin + TMP_NEW_SIZE; \
 } while (0)
 
 #define SET_END_OF_STACK(S,P) \
@@ -80,7 +76,7 @@ do { \
 
 #define RELEASE_STACK(S) \
 do { \
-  kissat_dealloc (solver, (S).begin, CAPACITY_STACK (S), sizeof *(S).begin); \
+  DEALLOC ((S).begin, CAPACITY_STACK (S)); \
   INIT_STACK (S); \
 } while (0)
 
@@ -104,14 +100,15 @@ do { \
 } while (0)
 
 #define all_stack(T,E,S) \
-  T E, * E_PTR = BEGIN_STACK(S), * E_END = END_STACK(S); \
-  E_PTR != E_END && (E = *E_PTR, true); \
-  ++E_PTR
+  T E, * E ## _PTR = BEGIN_STACK(S), * const E ## _END = END_STACK(S); \
+  E ## _PTR != E ## _END && (E = *E ## _PTR, true); \
+  ++E ## _PTR
 
 #define all_pointers(T,E,S) \
-  T * E, ** E_PTR = BEGIN_STACK(S), ** E_END = END_STACK(S); \
-  E_PTR != E_END && (E = *E_PTR, true); \
-  ++E_PTR
+  T * E, * const * E ## _PTR = BEGIN_STACK(S), \
+    * const * const E ## _END = END_STACK(S); \
+  E ## _PTR != E ## _END && (E = *E ## _PTR, true); \
+  ++E ## _PTR
 
 // *INDENT-OFF*
 

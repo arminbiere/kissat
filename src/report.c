@@ -19,8 +19,10 @@
 REP("seconds", "5.2f", kissat_time (solver)) \
 REP("MB", "2.0f", MB) \
 REP("level", ".0f", AVERAGE (level)) \
-REP("reductions", "2" PRIu64, statistics->reductions) \
+REP("switched", "1" PRIu64, statistics->switched_modes) \
+REP("reductions", "1" PRIu64, statistics->reductions) \
 REP("restarts", "2" PRIu64, statistics->restarts) \
+REP("rate", ".0f", AVERAGE (decision_rate)) \
 REP("conflicts", "3" PRIu64, CONFLICTS) \
 REP("redundant", "3" PRIu64, REDUNDANT_CLAUSES) \
 REP("trail", ".0f%%", AVERAGE (trail)) \
@@ -117,6 +119,7 @@ kissat_report (kissat * solver, bool verbose, char type)
     case 's':
       COLOR (GREEN);
       break;
+    case '3':
     case 'f':
     case 't':
     case 'u':
@@ -124,6 +127,7 @@ kissat_report (kissat * solver, bool verbose, char type)
     case 'w':
       COLOR (BLUE);
       break;
+    case 'b':
     case 'd':
       COLOR (BOLD BLUE);
       break;

@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
+bool kissat_file_exists (const char *path);
 bool kissat_file_readable (const char *path);
 bool kissat_file_writable (const char *path);
 size_t kissat_file_size (const char *path);
@@ -30,6 +31,12 @@ bool kissat_open_to_read_file (file *, const char *path);
 bool kissat_open_to_write_file (file *, const char *path);
 
 void kissat_close_file (file *);
+
+#ifndef _POSIX_C_SOURCE
+
+bool kissat_looks_like_a_compressed_file (const char *path);
+
+#endif
 
 static inline int
 kissat_getc (file * file)

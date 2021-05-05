@@ -11,15 +11,16 @@ backward_subsume_lits (kissat * solver, reference ignore,
   assert (size > 1);
 
   unsigned min_lit = INVALID_LIT;
-  unsigned min_occs = UINT_MAX;
+  size_t min_occs = UINT_MAX;
 
-  const unsigned *end_lits = lits + size;
+  const unsigned *const end_lits = lits + size;
 
   for (const unsigned *p = lits; p != end_lits; p++)
     {
       const unsigned lit = *p;
       assert (!VALUE (lit));
-      const unsigned occs = WATCHES (lit).size;
+      watches *watches = &WATCHES (lit);
+      const size_t occs = SIZE_WATCHES (*watches);
       if (occs >= min_occs)
 	continue;
       min_occs = occs;
@@ -36,8 +37,8 @@ backward_subsume_lits (kissat * solver, reference ignore,
 	  LOGLIT (min_lit), min_occs);
 
   value *marks = solver->marks;
-  const value *values = solver->values;
-  const word *arena = BEGIN_STACK (solver->arena);
+  const value *const values = solver->values;
+  ward *const arena = BEGIN_STACK (solver->arena);
 
   const unsigned clslim = solver->bounds.subsume.clause_size;
 
@@ -47,7 +48,7 @@ backward_subsume_lits (kissat * solver, reference ignore,
 
   watches *watches = &WATCHES (min_lit);
   watch *begin_watches = BEGIN_WATCHES (*watches), *q = begin_watches;
-  const watch *end_watches = END_WATCHES (*watches), *p = q;
+  const watch *const end_watches = END_WATCHES (*watches), *p = q;
 
   bool found = false;
   bool marked = false;
@@ -60,7 +61,7 @@ backward_subsume_lits (kissat * solver, reference ignore,
 
   while (p != end_watches)
     {
-      terminated = TERMINATED (4);
+      terminated = TERMINATED (backward_terminated_1);
       if (terminated)
 	break;
       const watch watch = *q++ = *p++;
@@ -112,6 +113,7 @@ backward_subsume_lits (kissat * solver, reference ignore,
 	    continue;
 	  if (c->size > clslim)
 	    continue;
+	  INC (backward_checks);
 	  INC (subsumption_checks);
 	  if (!marked)
 	    {
@@ -282,9 +284,7 @@ backward_subsume_lits (kissat * solver, reference ignore,
   if (unit)
     {
       LOG ("backward strengthened unit clause %s", LOGLIT (min_lit));
-      kissat_assign_unit (solver, min_lit);
-      CHECK_AND_ADD_UNIT (min_lit);
-      ADD_UNIT_TO_PROOF (min_lit);
+      kissat_learned_unit (solver, min_lit);
     }
 
   for (all_stack (unsigned, other, solver->delayed))
@@ -310,7 +310,7 @@ kissat_backward_subsume_temporary (kissat * solver, reference ignore)
   assert (!solver->watching);
   assert (GET_OPTION (backward));
   START (backward);
-  unsigneds *clause = &solver->clause.lits;
+  unsigneds *clause = &solver->clause;
   const size_t size = SIZE_STACK (*clause);
   assert (size), assert (size <= UINT_MAX);
   unsigned *lits = BEGIN_STACK (*clause);

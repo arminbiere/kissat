@@ -1,16 +1,18 @@
 #!/bin/sh
-binary=`basename $0`
+script=`basename $0`
 die () {
-  echo "$binary: error: $*" 1>&2
+  echo "$script: error: $*" 1>&2
   exit 1
 }
 [ -f makefile ] || die "no 'makefile' (run './configure' first)"
 CC="`sed -e '/^CC/!d' -e 's,^CC=,,' makefile`"
 [ "$CC" = "" ] && die "could not get 'CC' from makefile"
-CFLAGS="`sed -e '/^CFLAGS/!d' -e 's,^CFLAGS=,,' makefile`"
-[ "$CFLAGS" = "" ] && die "could not get 'CFLAGS' from makefile"
 case "$CC" in
-  gcc*|clang*) CC="`$CC --version 2>/dev/null|head -1`";;
+  gcc*|clang*)
+    CFLAGS="`echo $CC|sed -e 's,^[^ ]* ,,'`"
+    CC="`echo $CC|awk '{print \$1}'`"
+    CC="`$CC --version 2>/dev/null|head -1`"
+    ;;
 esac
 COMPILER="$CC $CFLAGS"
 VERSION="`cat ../VERSION 2>/dev/null`"

@@ -1,3 +1,4 @@
+#include "collect.h"
 #include "internal.h"
 #include "parse.h"
 #include "print.h"
@@ -82,7 +83,7 @@ parse_dimacs (kissat * solver, strictness strict,
 	    return "end-of-file in header comment";
 	  else if (ch == ' ' || ch == '\t')
 	    goto START;
-#if !defined(NOPTIONS) && !defined(NEMBEDDED)
+#if !defined(NOPTIONS) && defined(EMBEDDED)
 	  else if (ch == '-' && GET_OPTION (embedded))
 	    {
 	      ch = NEXT ();
@@ -145,7 +146,7 @@ parse_dimacs (kissat * solver, strictness strict,
 	      if (ch != '\n')
 		goto COMPLETE;
 	      arg *= sign;
-	      const opt *opt = kissat_options_has (name);
+	      const opt *const opt = kissat_options_has (name);
 	      if (opt)
 		{
 		  (void) kissat_options_set_opt (&solver->options, opt, arg);
@@ -163,7 +164,7 @@ parse_dimacs (kissat * solver, strictness strict,
 #endif
 	    {
 	      while ((ch = NEXT ()) != '\n')
-#if !defined(NOPTIONS) && !defined(NEMBEDDED)
+#if !defined(NOPTIONS) && defined(EMBEDDED)
 	      COMPLETE:
 #endif
 		if (ch == EOF)
@@ -401,6 +402,8 @@ kissat_parse_dimacs (kissat * solver,
   const char *res;
   START (parse);
   res = parse_dimacs (solver, strict, file, lineno_ptr, max_var_ptr);
+  if (!solver->inconsistent)
+    kissat_defrag_watches (solver);
   STOP (parse);
   return res;
 }

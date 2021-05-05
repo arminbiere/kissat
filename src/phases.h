@@ -1,29 +1,39 @@
 #ifndef _phases_h_INCLUDED
 #define _phases_h_INCLUDED
 
-typedef struct phase phase;
+#include "value.h"
 
-struct phase
+typedef struct phases phases;
+
+struct phases
 {
-  signed char best:2;
-  signed char saved:2;
-  signed char target:2;
+  value *best;
+  value *saved;
+  value *target;
 };
 
-#define PHASE(IDX) \
-  (assert ((IDX) < VARS), (solver->phases + (IDX)))
+#define BEST(IDX) \
+  (solver->phases.best[assert (VALID_INTERNAL_INDEX (IDX)), (IDX)])
 
-#define BEST(IDX) (PHASE(IDX)->best)
-#define SAVED(IDX) (PHASE(IDX)->saved)
-#define TARGET(IDX) (PHASE(IDX)->target)
+#define SAVED(IDX) \
+  (solver->phases.saved[assert (VALID_INTERNAL_INDEX (IDX)), (IDX)])
+
+#define TARGET(IDX) \
+  (solver->phases.target[assert (VALID_INTERNAL_INDEX (IDX)), (IDX)])
 
 struct kissat;
 
-void kissat_save_best_phases (struct kissat *);
-void kissat_save_target_phases (struct kissat *);
-void kissat_clear_target_phases (struct kissat *);
+void kissat_increase_phases (struct kissat *, unsigned);
+void kissat_decrease_phases (struct kissat *, unsigned);
+void kissat_release_phases (struct kissat *);
 
-#define all_phases(P) \
-  phase * P = solver->phases, * END_ ## P = P + VARS; P != END_ ## P; P++
+void kissat_save_best_phases (struct kissat *);
+void kissat_save_saved_phases (struct kissat *);
+void kissat_save_target_phases (struct kissat *);
+
+#define all_phases(NAME,PTR) \
+  value * PTR = solver->phases.NAME, * const end_ ## PTR = PTR + VARS; \
+  PTR != end_ ## PTR; \
+  ++PTR
 
 #endif

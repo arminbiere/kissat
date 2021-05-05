@@ -1,17 +1,18 @@
 #ifdef COVERAGE
 
+#include "../src/parse.h"
+#include "../src/terminate.h"
+
 #include "test.h"
 
-#include "../src/parse.h"
-
 static void
-test_terminate (int bit,
-		bool walkinitiially,
-		int probeinit,
-		int eliminateinit, int rephaseint, const char *cnf)
+test_terminate (int bit, const char *name,
+		bool walkinitially,
+		int probeinit, int eliminateinit, int rephaseint,
+		const char *cnf)
 {
 #ifdef NOPTIONS
-  if (walkinitiially)
+  if (walkinitially)
     return;
   if (probeinit >= 0)
     return;
@@ -25,7 +26,7 @@ test_terminate (int bit,
 #ifndef NOPTIONS
   if (rephaseint > 0)
     solver->options.rephaseinit = solver->options.rephaseint = rephaseint;
-  if (walkinitiially)
+  if (walkinitially)
     solver->options.walkinitially = true;
   if (probeinit >= 0)
     solver->options.probeinit = probeinit;
@@ -45,9 +46,9 @@ test_terminate (int bit,
     FATAL ("unexpected parse error: %s", error);
   (void) error;
   kissat_close_file (&file);
-  tissat_verbose ("solving '%s' forcing 'TERMINATED (%d)'", cnf, bit);
-  assert (0 <= bit), assert (bit < 32);
-  solver->terminate = (1u << bit);
+  tissat_verbose ("solving '%s' forcing 'TERMINATED (%s)'", cnf, name);
+  assert (0 <= bit), assert (bit < 64);
+  solver->termination.flagged = ((uint64_t) 1 << bit);
   int res = kissat_solve (solver);
   if (res)
     FATAL ("solver returned '%d' but expected '0'", res);
@@ -58,44 +59,40 @@ test_terminate (int bit,
 
 // *INDENT-OFF*
 
-#if 1
 #define TEST_TERMINATE_BITS \
-TEST_TERMINATE (0,false,-1,-1,10,"hard") \
-TEST_TERMINATE (1,false,-1,-1,10,"hard") \
-TEST_TERMINATE (2,false,-1,-1,10,"hard") \
-TEST_TERMINATE (3,false,-1,-1,10,"hard") \
-TEST_TERMINATE (4,false,-1,0,-1,"add8") \
-TEST_TERMINATE (5,false,-1,0,-1,"add8") \
-TEST_TERMINATE (6,false,-1,0,-1,"add8") \
-TEST_TERMINATE (7,false,0,-1,-1,"hard") \
-TEST_TERMINATE (8,false,0,-1,-1,"hard") \
-TEST_TERMINATE (9,false,0,0,-1,"add8") \
-TEST_TERMINATE (10,false,-1,-1,10,"hard") \
-TEST_TERMINATE (11,false,0,-1,-1,"hard") \
-TEST_TERMINATE (12,false,0,-1,-1,"hard") \
-TEST_TERMINATE (13,false,0,-1,-1,"add8") \
-TEST_TERMINATE (14,false,0,-1,-1,"add8") \
-TEST_TERMINATE (15,false,0,-1,-1,"hard") \
-TEST_TERMINATE (16,false,0,-1,-1,"hard") \
-TEST_TERMINATE (17,false,0,-1,-1,"hard") \
-TEST_TERMINATE (18,false,0,-1,-1,"hard") \
-TEST_TERMINATE (19,false,0,-1,-1,"add8") \
-TEST_TERMINATE (20,false,0,-1,-1,"add8") \
-TEST_TERMINATE (21,false,0,-1,-1,"add8") \
-TEST_TERMINATE (22,false,0,-1,-1,"add8") \
-TEST_TERMINATE (23,true,-1,-1,-1,"hard") \
-TEST_TERMINATE (24,true,-1,-1,-1,"hard") \
-TEST_TERMINATE (25,false,-1,-1,-1,"hard") \
-TEST_TERMINATE (26,false,-1,0,-1,"add8")
-#else
-#define TEST_TERMINATE_BITS \
-TEST_TERMINATE (14,false,0,-1,-1,"add8")
-#endif
+TEST_TERMINATE (autarky_terminated_1,false,-1,-1,-1,"ph11") \
+TEST_TERMINATE (autarky_terminated_2,false,-1,-1,-1,"ph11") \
+TEST_TERMINATE (autarky_terminated_3,false,-1,-1,-1,"ph11") \
+TEST_TERMINATE (autarky_terminated_4,false,-1,-1,-1,"ph11") \
+TEST_TERMINATE (backbone_terminated_1,false,0,-1,-1,"add8") \
+TEST_TERMINATE (backbone_terminated_2,false,0,-1,-1,"add8") \
+TEST_TERMINATE (backbone_terminated_3,false,0,-1,-1,"add8") \
+TEST_TERMINATE (eliminate_terminated_1,false,-1,0,-1,"add8") \
+TEST_TERMINATE (failed_terminated_1,false,0,-1,-1,"add8") \
+TEST_TERMINATE (failed_terminated_2,false,0,-1,-1,"add8") \
+TEST_TERMINATE (forward_terminated_1,false,-1,0,-1,"add8") \
+TEST_TERMINATE (rephase_terminated_1,false,-1,-1,-1,"ph11") \
+TEST_TERMINATE (rephase_terminated_2,false,-1,-1,-1,"ph11") \
+TEST_TERMINATE (search_terminated_1,false,-1,-1,-1,"add8") \
+TEST_TERMINATE (substitute_terminated_1,false,0,-1,-1,"add8") \
+TEST_TERMINATE (ternary_terminated_1,false,0,-1,-1,"add128") \
+TEST_TERMINATE (ternary_terminated_2,false,0,-1,-1,"add128") \
+TEST_TERMINATE (ternary_terminated_3,false,0,-1,-1,"add128") \
+TEST_TERMINATE (transitive_terminated_1,false,0,-1,-1,"add128") \
+TEST_TERMINATE (transitive_terminated_2,false,0,-1,-1,"add128") \
+TEST_TERMINATE (transitive_terminated_3,false,0,-1,-1,"add128") \
+TEST_TERMINATE (vivify_terminated_1,false,0,-1,-1,"ph11") \
+TEST_TERMINATE (vivify_terminated_2,false,0,-1,-1,"ph11") \
+TEST_TERMINATE (vivify_terminated_3,false,0,-1,-1,"ph11") \
+TEST_TERMINATE (vivify_terminated_4,false,0,-1,-1,"ph11") \
+TEST_TERMINATE (walk_terminated_1,true,-1,-1,-1,"add8") \
+TEST_TERMINATE (walk_terminated_2,true,-1,-1,-1,"add8") \
+TEST_TERMINATE (xors_terminated_1,true,-1,0,-1,"add8") \
 
 #define TEST_TERMINATE(BIT,WALKINITIALLY,ELIMININIT,PROBEINIT,REPHASEINT,CNF) \
-static void test_terminate_bit_ ## BIT (void) \
+static void test_ ## BIT (void) \
 { \
-  test_terminate (BIT, WALKINITIALLY, ELIMININIT, PROBEINIT, REPHASEINT, \
+  test_terminate (BIT, #BIT, WALKINITIALLY, ELIMININIT, PROBEINIT, REPHASEINT, \
                   "../test/cnf/" CNF ".cnf"); \
 }
 
@@ -109,7 +106,7 @@ tissat_schedule_terminate (void)
   if (!tissat_found_test_directory)
     return;
 #define TEST_TERMINATE(BIT,...) \
-  SCHEDULE_FUNCTION (test_terminate_bit_ ## BIT);
+  SCHEDULE_FUNCTION (test_ ## BIT);
   TEST_TERMINATE_BITS
 #undef TEST_TERMINATE
 }

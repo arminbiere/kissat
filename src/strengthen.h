@@ -12,6 +12,6 @@ struct clause *kissat_on_the_fly_strengthen (struct kissat *, struct clause *,
 void
 kissat_on_the_fly_subsume (struct kissat *, struct clause *, struct clause *);
 
-bool kissat_strengthen_clause (struct kissat *, struct clause *, unsigned);
+bool issat_strengthen_clause (struct kissat *, struct clause *, unsigned);
 
 #endif

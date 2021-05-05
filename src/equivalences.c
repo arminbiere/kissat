@@ -1,4 +1,4 @@
-#include "internal.h"
+#include "inlinevector.h"
 #include "gates.h"
 #include "logging.h"
 
@@ -35,5 +35,6 @@ kissat_find_equivalence_gate (kissat * solver, unsigned lit)
   const watch watch0 = kissat_binary_watch (NOT (replace), false, false);
   PUSH_STACK (solver->gates[0], watch0);
   solver->gate_eliminated = GATE_ELIMINATED (equivalences);
+  INC (equivalences_extracted);
   return true;
 }

@@ -3,6 +3,9 @@
 #include "internal.h"
 #include "logging.h"
 
+#undef LOGPREFIX
+#define LOGPREFIX "ALLOCATE"
+
 #include <string.h>
 
 #ifdef LOGGING
@@ -12,8 +15,7 @@
 static void
 inc_bytes (kissat * solver, size_t bytes)
 {
-#ifndef NMETRICS
-
+#ifdef METRICS
   if (!solver)
     return;
   ADD (allocated_current, bytes);
@@ -35,7 +37,7 @@ inc_bytes (kissat * solver, size_t bytes)
 static void
 dec_bytes (kissat * solver, size_t bytes)
 {
-#ifndef NMETRICS
+#ifdef METRICS
   if (!solver)
     return;
   SUB (allocated_current, bytes);
@@ -61,12 +63,37 @@ kissat_malloc (kissat * solver, size_t bytes)
   return res;
 }
 
-char *
-kissat_strdup (kissat * solver, const char *str)
+void
+kissat_free (kissat * solver, void *ptr, size_t bytes)
 {
-  char *res = kissat_malloc (solver, strlen (str) + 1);
-  return strcpy (res, str);
+  if (ptr)
+    {
+      LOG4 ("free (%p[%zu])", ptr, bytes);
+      dec_bytes (solver, bytes);
+      free (ptr);
+    }
+  else
+    assert (!bytes);
 }
+
+void *
+kissat_nalloc (kissat * solver, size_t n, size_t size)
+{
+  void *res;
+  if (!n || !size)
+    return 0;
+  if (MAX_SIZE_T / size < n)
+    kissat_fatal ("invalid 'kissat_nalloc (..., %zu, %zu)' call", n, size);
+  const size_t bytes = n * size;
+  res = malloc (bytes);
+  LOG4 ("nalloc (%zu, %zu) = %p", n, size, res);
+  if (!res)
+    kissat_fatal ("out-of-memory allocating "
+		  "%zu = %zu x %zu bytes", bytes, n, size);
+  inc_bytes (solver, bytes);
+  return res;
+}
+
 
 void *
 kissat_calloc (kissat * solver, size_t n, size_t size)
@@ -87,16 +114,14 @@ kissat_calloc (kissat * solver, size_t n, size_t size)
 }
 
 void
-kissat_free (kissat * solver, void *ptr, size_t bytes)
+kissat_dealloc (kissat * solver, void *ptr, size_t n, size_t size)
 {
-  if (ptr)
-    {
-      LOG4 ("free (%p[%zu])", ptr, bytes);
-      dec_bytes (solver, bytes);
-      free (ptr);
-    }
-  else
-    assert (!bytes);
+  if (!n || !size)
+    return;
+  if (MAX_SIZE_T / size < n)
+    kissat_fatal ("invalid 'kissat_dealloc (..., %zu, %zu)' call", n, size);
+  const size_t bytes = n * size;
+  kissat_free (solver, ptr, bytes);
 }
 
 void *
@@ -133,22 +158,4 @@ kissat_nrealloc (kissat * solver, void *p, size_t o, size_t n, size_t size)
     kissat_fatal ("invalid 'kissat_nrealloc (..., %zu, %zu, %zu)' call",
 		  o, n, size);
   return kissat_realloc (solver, p, o * size, n * size);
-}
-
-void
-kissat_dealloc (kissat * solver, void *ptr, size_t n, size_t size)
-{
-  if (!n || !size)
-    return;
-  if (MAX_SIZE_T / size < n)
-    kissat_fatal ("invalid 'kissat_dealloc (..., %zu, %zu)' call", n, size);
-  const size_t bytes = n * size;
-  kissat_free (solver, ptr, bytes);
-}
-
-void
-kissat_delstr (kissat * solver, char *str)
-{
-  assert (str);
-  kissat_free (solver, str, strlen (str) + 1);
 }

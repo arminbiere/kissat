@@ -21,7 +21,7 @@ kissat_statistics_print (kissat * solver, bool verbose)
 
   const double time = kissat_process_time ();
   size_t variables = SIZE_STACK (solver->import);
-#ifndef NMETRICS
+#ifdef METRICS
   const double rss = kissat_maximum_resident_set_size ();
 #endif
 
@@ -35,24 +35,39 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define CONF_INT(NAME) \
   RELATIVE (conflicts, NAME)
 
+#define SWEEPS_PER_COMPLETED(NAME) \
+  RELATIVE (sweep, NAME)
+
 #define NO_SECONDARY(NAME) \
   0
 
 /*------------------------------------------------------------------------*/
 
-#define PER_BIN_RESOLVED(NAME) \
-  RELATIVE (NAME, hyper_binary_resolved)
+#define PER_BACKBONE(NAME) \
+  RELATIVE (NAME, backbone_computations)
+
+#define PER_BACKBONE_UNIT(NAME) \
+  RELATIVE (NAME, backbone_units)
+
+#define PER_BACKWARD_CHECK(NAME) \
+  RELATIVE (NAME, backward_checks)
+
+#define PER_CACHE_INSERTED(NAME) \
+  RELATIVE (NAME, cache_inserted)
 
 #define PER_CLS_ADDED(NAME) \
   RELATIVE (NAME, clauses_added)
 
 #define PER_CLS_LEARNED(NAME) \
-  RELATIVE (NAME, learned)
+  RELATIVE (NAME, clauses_learned)
 
 #define PER_CONFLICT(NAME) \
   RELATIVE (NAME, conflicts)
 
-#ifdef NSTATISTICS
+#define PER_FIXED(NAME) \
+  RELATIVE (NAME, units)
+
+#ifndef STATISTICS
 #define PER_FLIPPED(NAME) \
   -1
 #else
@@ -60,8 +75,14 @@ kissat_statistics_print (kissat * solver, bool verbose)
   RELATIVE (NAME, flipped)
 #endif
 
-#define PER_FIXED(NAME) \
-  RELATIVE (NAME, units)
+#define PER_FORWARD_CHECK(NAME) \
+  RELATIVE (NAME, forward_checks)
+
+#define PER_KITTEN_PROP(NAME) \
+  RELATIVE (NAME, kitten_propagations)
+
+#define PER_KITTEN_SOLVED(NAME) \
+  RELATIVE (NAME, kitten_solved)
 
 #define PER_PROPAGATION(NAME) \
   RELATIVE (NAME, propagations)
@@ -72,7 +93,7 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define PER_SECOND(NAME) \
   kissat_average (statistics->NAME, time)
 
-#ifdef NMETRICS
+#ifndef METRICS
 #define PER_TRN_RESOLVED(NAME) \
   -1
 #else
@@ -83,10 +104,13 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define PER_VARIABLE(NAME) \
   kissat_average (statistics->NAME, variables)
 
-#define PER_VIVIFICATION_CHECK(NAME) \
-  RELATIVE (NAME, vivification_checks)
+#define PER_VIVIFICATION(NAME) \
+  RELATIVE (NAME, vivifications)
 
-#ifdef NSTATISTICS
+#define PER_VIVIFY_CHECK(NAME) \
+  RELATIVE (NAME, vivify_checks)
+
+#ifndef STATISTICS
 #define PER_WALKS(NAME) \
   -1
 #else
@@ -104,8 +128,8 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define PCNT_ARENA_RESIZED(NAME) \
   PERCENT (NAME, arena_resized)
 
-#define PCNT_BIN_RESOLVED(NAME) \
-  PERCENT (NAME, hyper_binary_resolved)
+#define PCNT_CACHE_INSERTED(NAME) \
+  PERCENT (NAME, cache_inserted)
 
 #define PCNT_CLS_ADDED(NAME) \
   PERCENT (NAME, clauses_added)
@@ -122,25 +146,23 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define PCNT_DEFRAGS(NAME) \
   PERCENT (NAME, defragmentations)
 
+#define PCNT_ELIM_ATTEMPTS(NAME) \
+  PERCENT (NAME, eliminate_attempted)
+
 #define PCNT_ELIMINATED(NAME) \
   PERCENT (NAME, eliminated)
 
-#define PCNT_TRN_ADDED(NAME) \
-  PERCENT (NAME, hyper_ternaries_added)
+#define PCNT_EXTRACTED(NAME) \
+  PERCENT (NAME, gates_extracted)
 
-#define PCNT_TRN_RESOLVED(NAME) \
-  PERCENT (NAME, hyper_ternary_resolved)
+#define PCNT_KITTEN_SOLVED(NAME) \
+  PERCENT (NAME, kitten_solved)
 
-#ifdef NSTATISTICS
-#define PCNT_TICKS(NAME) \
-  -1
-#else
-#define PCNT_TICKS(NAME) \
-  PERCENT (NAME, ticks)
-#endif
-
-#define PCNT_LITERALS_DEDUCED(NAME) \
+#define PCNT_LITS_DEDUCED(NAME) \
   PERCENT (NAME, literals_deduced)
+
+#define PCNT_LITS_SHRUNKEN(NAME) \
+  PERCENT (NAME, literals_shrunken)
 
 #define PCNT_PROPS(NAME) \
   PERCENT (NAME, propagations)
@@ -150,6 +172,9 @@ kissat_statistics_print (kissat * solver, bool verbose)
 
 #define PCNT_REDUNDANT_CLAUSES(NAME) \
   PERCENT (NAME, clauses_redundant)
+
+#define PCNT_REPHASED(NAME) \
+  PERCENT (NAME, rephased)
 
 #define PCNT_RESIDENT_SET(NAME) \
   kissat_percent (statistics->NAME, rss)
@@ -169,14 +194,28 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define PCNT_SUBSUMPTION_CHECK(NAME) \
   PERCENT (NAME, subsumption_checks)
 
+#define PCNT_SWEEP_SOLVED(NAME) \
+  PERCENT (NAME, sweep_solved)
+
+#ifndef STATISTICS
+#define PCNT_TICKS(NAME) \
+  -1
+#else
+#define PCNT_TICKS(NAME) \
+  PERCENT (NAME, ticks)
+#endif
+
+#define PCNT_TRN_RESOLVED(NAME) \
+  PERCENT (NAME, hyper_ternary_resolved)
+
 #define PCNT_VARIABLES(NAME) \
   kissat_percent (statistics->NAME, variables)
 
-#define PCNT_VIVIFICATION_CHECK(NAME) \
-  PERCENT (NAME, vivification_checks)
-
 #define PCNT_VIVIFIED(NAME) \
   PERCENT (NAME, vivified)
+
+#define PCNT_VIVIFY_CHECK(NAME) \
+  PERCENT (NAME, vivify_checks)
 
 #define PCNT_VIVIFY_PROBES(NAME) \
   PERCENT (NAME, vivify_probes)
@@ -195,7 +234,7 @@ kissat_statistics_print (kissat * solver, bool verbose)
     PRINT_STAT (#NAME, statistics->NAME, OTHER(NAME), UNITS, TYPE);
 #define IGNORE(...)
 
-    STATISTICS
+    METRICS_COUNTERS_AND_STATISTICS
 
 #undef COUNTER
 #undef METRIC
@@ -219,6 +258,8 @@ int kissat_statistics_dummy_to_avoid_warning;
 /*------------------------------------------------------------------------*/
 
 #ifndef NDEBUG
+
+#include "inlinevector.h"
 
 void
 kissat_check_statistics (kissat * solver)
@@ -306,7 +347,7 @@ kissat_check_statistics (kissat * solver)
   statistics *statistics = &solver->statistics;
   assert (statistics->clauses_redundant == redundant);
   assert (statistics->clauses_irredundant == irredundant);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (statistics->hyper_binaries == hyper_binaries);
   assert (statistics->hyper_ternaries == hyper_ternaries);
   assert (statistics->arena_garbage == arena_garbage);

@@ -46,6 +46,7 @@ init_clause (kissat * solver, clause * res,
   res->redundant = redundant;
   res->shrunken = false;
   res->subsume = false;
+  res->sweeped = false;
   res->vivify = false;
 
   res->used = 0;
@@ -146,8 +147,8 @@ kissat_new_binary_clause (kissat * solver,
 reference
 kissat_new_original_clause (kissat * solver)
 {
-  const unsigned size = SIZE_STACK (solver->clause.lits);
-  unsigned *lits = BEGIN_STACK (solver->clause.lits);
+  const unsigned size = SIZE_STACK (solver->clause);
+  unsigned *lits = BEGIN_STACK (solver->clause);
   kissat_sort_literals (solver, size, lits);
   reference res = new_clause (solver, true, false, 0, size, lits);
   return res;
@@ -156,16 +157,16 @@ kissat_new_original_clause (kissat * solver)
 reference
 kissat_new_irredundant_clause (kissat * solver)
 {
-  const unsigned size = SIZE_STACK (solver->clause.lits);
-  unsigned *lits = BEGIN_STACK (solver->clause.lits);
+  const unsigned size = SIZE_STACK (solver->clause);
+  unsigned *lits = BEGIN_STACK (solver->clause);
   return new_clause (solver, false, false, 0, size, lits);
 }
 
 reference
 kissat_new_redundant_clause (kissat * solver, unsigned glue)
 {
-  const unsigned size = SIZE_STACK (solver->clause.lits);
-  unsigned *lits = BEGIN_STACK (solver->clause.lits);
+  const unsigned size = SIZE_STACK (solver->clause);
+  unsigned *lits = BEGIN_STACK (solver->clause);
   return new_clause (solver, false, true, glue, size, lits);
 }
 

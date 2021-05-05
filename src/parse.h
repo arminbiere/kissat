@@ -12,6 +12,8 @@ enum strictness
 
 typedef enum strictness strictness;
 
+struct kissat;
+
 const char *kissat_parse_dimacs (struct kissat *, strictness, file *,
 				 uint64_t * linenoptr, int *max_var_ptr);
 

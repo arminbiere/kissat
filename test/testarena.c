@@ -1,14 +1,15 @@
-#include "test.h"
-
 #include "../src/allocate.h"
 #include "../src/error.h"
 #include "../src/resources.h"
 
+#include "test.h"
+
 static void
 test_arena_basic (void)
 {
-  assert (sizeof (word) == sizeof (void *));
-  assert (kissat_aligned_word (sizeof (word)));
+  assert (sizeof (ward) >= sizeof (void *));
+  assert (!(sizeof (ward) % sizeof (void *)));
+  assert (kissat_aligned_word (sizeof (ward)));
   assert (kissat_aligned_pointer (0));
   DECLARE_AND_INIT_SOLVER (solver);
   unsigned size = 3;
@@ -23,7 +24,7 @@ test_arena_basic (void)
       (void) kissat_allocate_clause (solver, size);
     }
   RELEASE_STACK (solver->arena);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }
@@ -57,7 +58,7 @@ test_arena_realloc (void)
 	      i + 1, size, formatted);
 #endif
     }
-#ifndef NMETRICS
+#ifdef METRICS
   assert (solver->statistics.allocated_current == n * bytes);
 #endif
   unsigned count = 0;
@@ -65,7 +66,7 @@ test_arena_realloc (void)
     count++;
   assert (count == n);
   RELEASE_STACK (solver->arena);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }
@@ -95,7 +96,7 @@ test_arena_traverse (void)
     }
   assert (found == n);
   RELEASE_STACK (solver->arena);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }
@@ -128,16 +129,16 @@ test_arena_fatal (void)
 	arena *arena = &solver->arena;;
 	arena->end = arena->begin + MAX_ARENA - 1;
 	arena->allocated = arena->end + 1;
-	tissat_verbose ("word size: %zu", sizeof (word));
-	tissat_verbose ("maximum arena size: %s",
-			FORMAT_BYTES (MAX_ARENA * sizeof (word)));
+	tissat_verbose ("size of arena-word: %zu bytes", sizeof (ward));
+	tissat_verbose ("maximum arena size: %zu = %s",
+			(size_t) MAX_ARENA,
+			FORMAT_BYTES (MAX_ARENA * sizeof (ward)));
 	size_t size = SIZE_STACK (*arena);
 	size_t capacity = CAPACITY_STACK (*arena);
-	assert (size + 1 == capacity);
-	tissat_verbose ("size of arena: %s",
-			FORMAT_BYTES (size * sizeof (word)));
-	tissat_verbose ("capacity of arena: %s",
-			FORMAT_BYTES (capacity * sizeof (word)));
+	tissat_verbose ("size of arena: %zu = %s",
+			size, FORMAT_BYTES (size * sizeof (ward)));
+	tissat_verbose ("capacity of arena: %zu = %s",
+			capacity, FORMAT_BYTES (capacity * sizeof (ward)));
 	assert (capacity == MAX_ARENA);
 	assert (size + 1 == MAX_ARENA);
 	kissat_allocate_clause (solver, 3);

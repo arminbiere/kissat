@@ -10,7 +10,12 @@ typedef struct averages averages;
 struct averages
 {
   bool initialized;
-  smooth level, size, fast_glue, slow_glue, trail;
+  smooth fast_glue, slow_glue;
+#ifndef QUIET
+  smooth level, size, trail;
+#endif
+  smooth decision_rate;
+  uint64_t saved_decisions;
 };
 
 struct kissat;
@@ -23,7 +28,7 @@ void kissat_init_averages (struct kissat *, averages *);
 
 #define AVERAGE(NAME) (EMA(NAME).value)
 
-#define UPDATE(NAME,VALUE) \
+#define UPDATE_AVERAGE(NAME,VALUE) \
   kissat_update_smooth (solver, &EMA(NAME), VALUE)
 
 #endif

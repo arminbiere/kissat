@@ -11,12 +11,15 @@ typedef struct profiles profiles;
 #define PROFS \
 PROF(analyze,3) \
 PROF(autarky,2) \
+PROF(backbone,2) \
 PROF(backward,4) \
 PROF(bump,3) \
 PROF(collect,3) \
 PROF(decide,4) \
 PROF(deduce,3) \
+PROF(definition,3) \
 PROF(defrag,3) \
+PROF(dominate,4) \
 PROF(eliminate,2) \
 PROF(extend,2) \
 PROF(failed,2) \
@@ -31,9 +34,11 @@ PROF(reduce,2) \
 PROF(rephase,3) \
 PROF(restart,3) \
 PROF(search,1) \
+PROF(shrink,3) \
 PROF(simplify,1) \
 PROF(sort,4) \
 PROF(stable,2) \
+PROF(sweep,2) \
 PROF(substitute,2) \
 PROF(subsume,2) \
 PROF(ternary,2) \

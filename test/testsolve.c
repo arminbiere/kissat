@@ -1,7 +1,7 @@
+#include "../src/file.h"
+
 #include "test.h"
 #include "testcnfs.h"
-
-#include "../src/file.h"
 
 static unsigned scheduled;
 

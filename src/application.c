@@ -23,8 +23,10 @@ struct application
 #ifndef NPROOFS
   const char *proof_path;
   file proof_file;
-  bool force;
   int binary;
+#endif
+#if !defined(NPROOFS) || !defined (_POSIX_C_SOURCE)
+  bool force;
 #endif
   int time;
   int conflicts;
@@ -100,6 +102,18 @@ print_complete_dimacs_and_proof_usage (void)
 }
 
 static void
+print_force_usage (void)
+{
+#if !defined(NPROOFS) && defined(_POSIX_C_SOURCE)
+  printf ("  -f      force writing proofs (to existing CNF alike file)\n");
+#elif !defined(NPROOFS) && !defined(_POSIX_C_SOURCE)
+  printf ("  -f      force writing proofs or reading compressed files\n");
+#elif defined(NPROOFS) && !defined(_POSIX_C_SOURCE)
+  printf ("  -f      force reading compressed as uncompressed files\n");
+#endif
+}
+
+static void
 print_common_usage (void)
 {
   printf ("usage: kissat [ <option> ... ] [ <dimacs> "
@@ -113,9 +127,7 @@ print_common_usage (void)
 	  "  -h      print this list of common command line options\n"
 	  "  --help  print complete list of command line options\n");
   printf ("\n");
-#ifndef NPROOFS
-  printf ("  -f      force writing proof (to existing CNF alike file)\n");
-#endif
+  print_force_usage ();
 #if !defined(QUIET) && defined(LOGGING)
   printf ("  -l      increase logging level (implies '-v' twice)\n");
 #endif
@@ -143,9 +155,7 @@ print_complete_usage (void)
 	  "  --help  print this list of all command line options\n"
 	  "  -h      print only reduced list of command line options\n");
   printf ("\n");
-#ifndef NPROOFS
-  printf ("  -f      force writing proof (to existing CNF alike file)\n");
-#endif
+  print_force_usage ();
 #if !defined(QUIET) && defined(LOGGING)
   printf ("  -l      print logging messages"
 #ifndef NOPTIONS
@@ -177,17 +187,20 @@ print_complete_usage (void)
 	  "following less frequent options:\n");
   printf ("\n");
   printf ("  --banner             print solver information\n");
+  printf ("  --build              print build information\n");
   printf ("  --color              "
 	  "use colors (default if connected to terminal)\n");
   printf ("  --no-color           "
 	  "no colors (default if not connected to terminal)\n");
-#ifndef NOPTIONS
+  printf ("  --compiler           print compiler information\n");
+  printf ("  --copyright          print copyright information\n");
+#if !defined(NOPTIONS) && defined(EMBEDDED)
   printf ("  --embedded           print embedded option list\n");
 #endif
 #ifndef NPROOFS
   printf ("  --force              same as '-f' (force writing proof)\n");
 #endif
-  printf ("  --id                 print GIT identifier\n");
+  printf ("  --id                 print 'git' identifier (SHA-1 hash)\n");
 #ifndef NOPTIONS
   printf ("  --range              print option range list\n");
 #endif
@@ -195,12 +208,13 @@ print_complete_usage (void)
 	  " (ignore DIMACS header)\n");
   printf ("  --strict             stricter parsing"
 	  " (no empty header lines)\n");
-  printf ("  --version            print version and exit\n");
+  printf ("  --version            print version\n");
   printf ("\n");
   printf ("The following solving limits can be enforced:\n");
   printf ("\n");
   printf ("  --conflicts=<limit>\n");
   printf ("  --decisions=<limit>\n");
+  printf ("  --time=<seconds>\n");
   printf ("\n");
   printf
     ("Satisfying assignments have by default values for all variables\n");
@@ -208,7 +222,8 @@ print_complete_usage (void)
   printf ("for variables which are necessary to satisfy the formula.\n");
   printf ("\n");
 #ifndef NOPTIONS
-  printf ("The following predefined option settings are supported:\n");
+  printf
+    ("The following predefined 'configurations' (option settings) are supported:\n");
   printf ("\n");
   kissat_configuration_usage ();
   printf ("\n");
@@ -249,12 +264,22 @@ parsed_one_option_and_return_zero_exit_code (char *arg)
       kissat_banner (0, "KISSAT SAT Solver");
       return true;
     }
+  if (!strcmp (arg, "--build"))
+    {
+      kissat_build (0);
+      return true;
+    }
+  if (!strcmp (arg, "--copyright"))
+    {
+      printf ("%s\n", kissat_copyright ());
+      return true;
+    }
   if (!strcmp (arg, "--compiler"))
     {
       printf ("%s\n", kissat_compiler ());
       return true;
     }
-#ifndef NOPTIONS
+#if !defined(NOPTIONS) && defined(EMBEDDED)
   if (!strcmp (arg, "--embedded"))
     {
       kissat_print_embedded_option_list ();
@@ -285,8 +310,10 @@ static const char *single_first_option_table[] = {
   "-h",
   "--help",
   "--banner",
+  "--build",
+  "--copyright",
   "--compiler",
-#ifndef NOPTIONS
+#if !defined(NOPTIONS) && defined(EMBEDDED)
   "--embedded",
 #endif
   "--id",
@@ -373,7 +400,7 @@ parse_options (application * application, int argc, char **argv)
 #ifndef NOPTIONS
   const char *configuration = 0;
 #endif
-#ifndef NPROOFS
+#if !defined (NPROOFS) || !defined (_POSIX_C_SOURCE)
   const char *force_option = 0;
 #endif
   const char *valstr;
@@ -383,7 +410,7 @@ parse_options (application * application, int argc, char **argv)
       if (single_first_option (arg))
 	ERROR ("option '%s' only allowed as %s argument",
 	       arg, i == 1 ? "single" : "first");
-#ifndef NPROOFS
+#if !defined (NPROOFS) || !defined (_POSIX_C_SOURCE)
       else if (!strcmp (arg, "-f") ||
 	       LONG_TRUE_OPTION (arg, "force") ||
 	       LONG_TRUE_OPTION (arg, "forced"))
@@ -556,7 +583,8 @@ parse_options (application * application, int argc, char **argv)
 #endif
 #ifndef LOGGING
       else if (!strcmp (arg, "-l"))
-	ERROR ("invalid short option '%s' (configured without '-l')", arg);
+	ERROR ("invalid short option '%s' "
+	       "(configured without '-l' or '-g')", arg);
 #endif
 #ifdef NOPTIONS
       else if (arg[0] == '-' && !arg[2] &&
@@ -575,6 +603,39 @@ parse_options (application * application, int argc, char **argv)
       else if (application->input_path)
 	{
 #ifndef NPROOFS
+	  const char *input_path = application->input_path;
+	  if (!strcmp (input_path, arg))
+	    ERROR ("will not read and write '%s' at the same time",
+		   input_path);
+#ifdef _POSIX_C_SOURCE
+	  {
+	    char *real_input_path = realpath (input_path, 0);
+	    if (real_input_path)
+	      {
+		char *real_arg_path = realpath (arg, 0);
+		if (real_arg_path)
+		  {
+		    if (!strcmp (real_input_path, real_arg_path))
+		      {
+			if (strcmp (arg, real_arg_path) &&
+			    strcmp (input_path, real_input_path))
+			  ERROR ("will not read and write '%s' and '%s' "
+				 "pointing to the same file '%s'",
+				 input_path, arg, real_input_path);
+			else
+			  ERROR ("will not read and write '%s' and '%s' "
+				 "pointing to the same file",
+				 input_path, arg);
+		      }
+		    free (real_arg_path);
+		  }
+		free (real_input_path);
+	      }
+	    else
+	      ERROR ("can not get absolute path of '%s' (unexpectedly)",
+		     input_path);
+	  }
+#endif
 	  if (!application->force && most_likely_existing_cnf_file (arg))
 	    ERROR ("not writing proof to '%s' file (use '-f')", arg);
 	  if (!kissat_file_writable (arg))
@@ -592,6 +653,14 @@ parse_options (application * application, int argc, char **argv)
 	  application->input_path = arg;
 	}
     }
+#ifndef _POSIX_C_SOURCE
+  if (!application->force &&
+      application->input_path &&
+      kissat_looks_like_a_compressed_file (application->input_path))
+    ERROR ("reading apparently compressed '%s' not supported "
+	   "(use '-f' to force reading without decompression)",
+	   application->input_path);
+#endif
 #if !defined(QUIET) && !defined(NOPTIONS)
   if (kissat_get_option (solver, "quiet"))
     {
@@ -621,9 +690,9 @@ parse_input (application * application)
   kissat_section (solver, "parsing");
   kissat_message (solver, "opened and reading %sDIMACS file:",
 		  file.compressed ? "compressed " : "");
-  kissat_message (solver, "");
+  kissat_line (solver);
   kissat_message (solver, "  %s", file.path);
-  kissat_message (solver, "");
+  kissat_line (solver);
   const char *error = kissat_parse_dimacs (solver, application->strict, &file,
 					   &lineno, &application->max_var);
   kissat_close_file (&file);
@@ -674,7 +743,7 @@ write_proof (application * application)
   kissat_message (solver, "%swriting proof to %sDRAT file:",
 		  file->close ? "opened and " : "",
 		  file->compressed ? "compressed " : "");
-  kissat_message (solver, "");
+  kissat_line (solver);
   kissat_message (solver, "  %s", file->path);
 #endif
   return true;
@@ -742,7 +811,7 @@ print_limits (application * application)
 
   kissat_section (solver, "limits");
   if (!application->time &&
-      application->conflicts < 0 && application->conflicts < 0)
+      application->conflicts < 0 && application->decisions < 0)
     kissat_message (solver, "no time, conflict nor decision limit set");
   else
     {
@@ -770,20 +839,28 @@ print_limits (application * application)
 
 #endif
 
-int
-kissat_application (kissat * solver, int argc, char **argv)
+static int
+run_application (kissat * solver,
+		 int argc, char **argv, bool * cancel_alarm_ptr)
 {
+  *cancel_alarm_ptr = false;
   if (argc == 2)
     if (parsed_one_option_and_return_zero_exit_code (argv[1]))
       return 0;
   application application;
   init_app (&application, solver);
-  if (!parse_options (&application, argc, argv))
+  bool ok = parse_options (&application, argc, argv);
+  if (application.time > 0)
+    *cancel_alarm_ptr = true;
+  if (!ok)
     return 1;
 #ifndef QUIET
   kissat_section (solver, "banner");
   if (!GET_OPTION (quiet))
-    kissat_banner ("c ", "KISSAT SAT Solver");
+    {
+      kissat_banner ("c ", "KISSAT SAT Solver");
+      fflush (stdout);
+    }
 #endif
 #ifndef NPROOFS
   if (!write_proof (&application))
@@ -835,5 +912,15 @@ kissat_application (kissat * solver, int argc, char **argv)
   kissat_section (solver, "shutting down");
   kissat_message (solver, "exit %d", res);
 #endif
+  return res;
+}
+
+int
+kissat_application (kissat * solver, int argc, char **argv)
+{
+  bool cancel_alarm;
+  int res = run_application (solver, argc, argv, &cancel_alarm);
+  if (cancel_alarm)
+    alarm (0);
   return res;
 }

@@ -1,24 +1,17 @@
+#include "analyze.h"
 #include "bump.h"
+#include "inlineheap.h"
+#include "inlinequeue.h"
 #include "internal.h"
 #include "logging.h"
 #include "print.h"
 #include "rank.h"
 #include "sort.h"
 
-static inline unsigned
-rank_of_idxrank (idxrank ir)
-{
-  return ir.rank;
-}
+#define RANK(A) ((A).rank)
+#define SMALLER(A,B) (RANK (A) < RANK (B))
 
-static inline bool
-smaller_idxrank (idxrank ir, idxrank jr)
-{
-  return ir.rank < jr.rank;
-}
-
-#define RADIX_SORT_BUMP_LIMIT 800
-#define RADIX_SORT_BUMP_LENGTH 8
+#define RADIX_SORT_BUMP_LIMIT 32
 
 static void
 sort_bump (kissat * solver)
@@ -27,13 +20,12 @@ sort_bump (kissat * solver)
   if (size < RADIX_SORT_BUMP_LIMIT)
     {
       LOG ("quick sorting %zu analyzed variables", size);
-      SORT_STACK (idxrank, solver->bump, smaller_idxrank);
+      SORT_STACK (datarank, solver->ranks, SMALLER);
     }
   else
     {
       LOG ("radix sorting %zu analyzed variables", size);
-      RADIX_STACK (RADIX_SORT_BUMP_LENGTH, idxrank,
-		   unsigned, solver->bump, rank_of_idxrank);
+      RADIX_STACK (datarank, unsigned, solver->ranks, RANK);
     }
 }
 
@@ -95,14 +87,14 @@ bump_analyzed_variable_scores (kissat * solver)
 static void
 move_analyzed_variables_to_front_of_queue (kissat * solver)
 {
-  assert (EMPTY_STACK (solver->bump));
-  const links *links = solver->links;
+  assert (EMPTY_STACK (solver->ranks));
+  const links *const links = solver->links;
   for (all_stack (unsigned, idx, solver->analyzed))
     {
 // *INDENT-OFF*
-    const idxrank idxrank = { .idx = idx, .rank = links[idx].stamp };
+      const datarank rank = { .data = idx, .rank = links[idx].stamp };
 // *INDENT-ON*
-      PUSH_STACK (solver->bump, idxrank);
+      PUSH_STACK (solver->ranks, rank);
     }
 
   sort_bump (solver);
@@ -110,21 +102,22 @@ move_analyzed_variables_to_front_of_queue (kissat * solver)
   flags *flags = solver->flags;
   unsigned idx;
 
-  for (all_stack (idxrank, idxrank, solver->bump))
-    if (flags[idx = idxrank.idx].active)
+  for (all_stack (datarank, rank, solver->ranks))
+    if (flags[idx = rank.data].active)
       kissat_move_to_front (solver, idx);
 
-  CLEAR_STACK (solver->bump);
+  CLEAR_STACK (solver->ranks);
 }
 
 void
-kissat_bump_variables (kissat * solver)
+kissat_bump (kissat * solver)
 {
   START (bump);
-  assert (!solver->probing);
+  const size_t bumped = SIZE_STACK (solver->analyzed);
   if (solver->stable)
     bump_analyzed_variable_scores (solver);
   else
     move_analyzed_variables_to_front_of_queue (solver);
+  ADD (literals_bumped, bumped);
   STOP (bump);
 }
