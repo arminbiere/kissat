@@ -2,6 +2,7 @@
 #include "dense.h"
 #include "eliminate.h"
 #include "inline.h"
+#include "inlinescore.h"
 #include "print.h"
 #include "ternary.h"
 #include "report.h"
@@ -21,7 +22,7 @@ connect_ternary_clauses (kissat * solver, value * ternary)
 	continue;
       if (c->size != 3)
 	continue;
-      const unsigned *lits = c->lits;
+      const unsigned *const lits = c->lits;
       if (values[lits[0]])
 	continue;
       if (values[lits[1]])
@@ -37,10 +38,11 @@ connect_ternary_clauses (kissat * solver, value * ternary)
 static unsigned
 schedule_ternary (kissat * solver, value * ternary)
 {
-  heap *schedule = &solver->schedule;
+  const bool ternaryheap = GET_OPTION (ternaryheap);
+  heap *schedule = ternaryheap ? &solver->schedule : 0;
   flags *flags = solver->flags;
 
-  assert (!schedule->size);
+  assert (!schedule || !schedule->size);
   unsigned scheduled = 0;
 
   for (all_variables (idx))
@@ -54,10 +56,13 @@ schedule_ternary (kissat * solver, value * ternary)
       const unsigned not_lit = NOT (lit);
       if (!ternary[not_lit])
 	continue;
-      if (!schedule->size)
-	kissat_resize_heap (solver, schedule, solver->vars);
-      kissat_update_variable_score (solver, schedule, idx);
-      kissat_push_heap (solver, schedule, idx);
+      if (ternaryheap)
+	{
+	  if (!schedule->size)
+	    kissat_resize_heap (solver, schedule, solver->vars);
+	  kissat_update_variable_score (solver, schedule, idx);
+	  kissat_push_heap (solver, schedule, idx);
+	}
       scheduled++;
     }
 
@@ -84,7 +89,7 @@ struct tag
 typedef STACK (tag) tags;
 // *INDENT-ON*
 
-static void
+static bool
 ternary_resolution (kissat * solver, tags * tags, references * garbage,
 		    unsigned lit, clause * c, clause * d)
 {
@@ -145,13 +150,13 @@ ternary_resolution (kissat * solver, tags * tags, references * garbage,
   if (tautological)
     {
       LOGLITS (size, lits, "tautological resolvent");
-      return;
+      return false;
     }
 
   if (size == 4)
     {
       LOGLITS (4, lits, "size 3 exceeding resolvent");
-      return;
+      return false;
     }
 
   assert (size == 2 || size == 3);
@@ -180,17 +185,20 @@ ternary_resolution (kissat * solver, tags * tags, references * garbage,
   tag.binary = (size == 2);
 
   PUSH_STACK (*tags, tag);
+
+  return true;
 }
 
-static bool
+static inline bool
 find_binary (kissat * solver, bool irredundant,
-	     unsigned first, unsigned second)
+	     unsigned first, unsigned second, unsigned additional)
 {
-  if (WATCHES (first).size > WATCHES (second).size)
+  if (SIZE_WATCHES (WATCHES (first)) > SIZE_WATCHES (WATCHES (second)))
     SWAP (unsigned, first, second);
   watches *watches = &WATCHES (first);
-  const unsigned steps = kissat_cache_lines (watches->size, sizeof (watch));
-  ADD (hyper_ternary_steps, steps + 1);
+  const size_t size_watches = SIZE_WATCHES (*watches);
+  uint64_t steps = kissat_cache_lines (size_watches, sizeof (watch));
+  steps += additional;
   for (all_binary_large_watches (watch, *watches))
     {
       if (!watch.type.binary)
@@ -204,17 +212,18 @@ find_binary (kissat * solver, bool irredundant,
   return false;
 }
 
-static bool
-find_ternary (kissat * solver, word * arena,
+static inline bool
+find_ternary (kissat * solver, ward * arena,
 	      unsigned first, unsigned second, unsigned third)
 {
-  if (WATCHES (second).size > WATCHES (third).size)
+  if (SIZE_WATCHES (WATCHES (second)) > SIZE_WATCHES (WATCHES (third)))
     SWAP (unsigned, second, third);
-  if (WATCHES (first).size > WATCHES (second).size)
+  if (SIZE_WATCHES (WATCHES (first)) > SIZE_WATCHES (WATCHES (second)))
     SWAP (unsigned, first, second);
   watches *watches = &WATCHES (first);
-  const unsigned steps = kissat_cache_lines (watches->size, sizeof (watch));
-  ADD (hyper_ternary_steps, steps + 1);
+  const size_t size_watches = SIZE_WATCHES (*watches);
+  const unsigned steps = kissat_cache_lines (size_watches, sizeof (watch));
+  ADD (hyper_ternary_steps, steps + 4);
   for (all_binary_large_watches (watch, *watches))
     {
       if (watch.type.binary)
@@ -259,13 +268,15 @@ find_ternary (kissat * solver, word * arena,
 	    }
 	}
     }
-  return find_binary (solver, false, second, third);
+  return find_binary (solver, false, second, third, 0);
 }
 
 static void
 update_ternary_schedule_literal (kissat * solver, heap * schedule,
 				 bool reschedule, unsigned lit)
 {
+  if (!GET_OPTION (ternaryheap))
+    return;
   const unsigned idx = IDX (lit);
   kissat_update_variable_score (solver, schedule, idx);
   if (reschedule && !kissat_heap_contains (schedule, idx))
@@ -276,15 +287,17 @@ static void
 update_ternary_schedule_stack (kissat * solver,
 			       bool reschedule, unsigneds * stack)
 {
+  if (!GET_OPTION (ternaryheap))
+    return;
   heap *schedule = &solver->schedule;
   for (all_stack (unsigned, lit, *stack))
       update_ternary_schedule_literal (solver, schedule, reschedule, lit);
 }
 
-static word *
+static ward *
 add_ternary_resolvents (kissat * solver, tags * tags, uint64_t * resolved_ptr)
 {
-  word *arena = BEGIN_STACK (solver->arena);
+  ward *arena = BEGIN_STACK (solver->arena);
   while (!EMPTY_STACK (*tags))
     {
       tag tag = POP_STACK (*tags);
@@ -296,7 +309,7 @@ add_ternary_resolvents (kissat * solver, tags * tags, uint64_t * resolved_ptr)
 	binary ? INVALID_LIT : POP_STACK (solver->delayed);
       if (binary)
 	{
-	  if (find_binary (solver, !redundant, first, second))
+	  if (find_binary (solver, !redundant, first, second, 2))
 	    continue;
 	}
       else
@@ -305,11 +318,11 @@ add_ternary_resolvents (kissat * solver, tags * tags, uint64_t * resolved_ptr)
 	  if (find_ternary (solver, arena, first, second, third))
 	    continue;
 	}
-      assert (EMPTY_STACK (solver->clause.lits));
-      PUSH_STACK (solver->clause.lits, first);
-      PUSH_STACK (solver->clause.lits, second);
+      assert (EMPTY_STACK (solver->clause));
+      PUSH_STACK (solver->clause, first);
+      PUSH_STACK (solver->clause, second);
       if (!binary)
-	PUSH_STACK (solver->clause.lits, third);
+	PUSH_STACK (solver->clause, third);
       if (!redundant)
 	{
 	  assert (binary);
@@ -340,8 +353,8 @@ add_ternary_resolvents (kissat * solver, tags * tags, uint64_t * resolved_ptr)
       INC (hyper_ternary_resolved);
       *resolved_ptr += 1;
 
-      update_ternary_schedule_stack (solver, !binary, &solver->clause.lits);
-      CLEAR_STACK (solver->clause.lits);
+      update_ternary_schedule_stack (solver, !binary, &solver->clause);
+      CLEAR_STACK (solver->clause);
     }
   assert (EMPTY_STACK (solver->delayed));
 
@@ -365,8 +378,9 @@ remove_ternary_subsumed_clauses (kissat * solver, references * garbage)
   (void) marked;
 }
 
-static word *
-resolve_ternary_clauses (kissat * solver, word * arena, uint64_t steps_limit,
+static ward *
+resolve_ternary_clauses (kissat * solver, ward * arena,
+			 uint64_t resolved_limit, uint64_t steps_limit,
 			 tags * tags, references * garbage, unsigned lit,
 			 uint64_t * resolved_ptr)
 {
@@ -380,9 +394,13 @@ resolve_ternary_clauses (kissat * solver, word * arena, uint64_t steps_limit,
   assert (EMPTY_STACK (*garbage));
   assert (EMPTY_STACK (solver->delayed));
 
+  uint64_t successfully_resolved = *resolved_ptr;
+
   for (all_binary_large_watches (pos_watch, *pos_watches))
     {
-      if (TERMINATED (13))
+      if (TERMINATED (ternary_terminated_1))
+	break;
+      if (successfully_resolved >= resolved_limit)
 	break;
       if (solver->statistics.hyper_ternary_steps > steps_limit)
 	break;
@@ -407,13 +425,15 @@ resolve_ternary_clauses (kissat * solver, word * arena, uint64_t steps_limit,
 	  INC (hyper_ternary_steps);
 	  if (d->garbage)
 	    continue;
-	  ternary_resolution (solver, tags, garbage, lit, c, d);
+	  if (ternary_resolution (solver, tags, garbage, lit, c, d) &&
+	      ++successfully_resolved >= resolved_limit)
+	    break;
 	  if (c->garbage)
 	    break;
 	}
     }
 
-  word *res = add_ternary_resolvents (solver, tags, resolved_ptr);
+  ward *res = add_ternary_resolvents (solver, tags, resolved_ptr);
   remove_ternary_subsumed_clauses (solver, garbage);
 
   return res;
@@ -425,10 +445,10 @@ really_ternary (kissat * solver)
   if (!GET_OPTION (really))
     return true;
 
-  const uint64_t limit = 2 * CLAUSES;
-  statistics *statistics = &solver->statistics;
+  const uint64_t limit = 2 * CLAUSES + kissat_nlogn (1 + CLAUSES);
+  const uint64_t search_ticks = solver->statistics.search_ticks;
 
-  if (limit >= statistics->search_ticks + GET_OPTION (ternarymineff))
+  if (limit >= search_ticks)
     return false;
 
   for (all_clauses (c))
@@ -439,8 +459,8 @@ really_ternary (kissat * solver)
 }
 
 static uint64_t
-ternary_round (kissat * solver,
-	       const uint64_t resolved_limit, const uint64_t steps_limit)
+ternary_round (kissat * solver, const uint64_t resolved_limit,
+	       const uint64_t steps_limit, size_t scheduled)
 {
   tags tags;
   INIT_STACK (tags);
@@ -448,17 +468,16 @@ ternary_round (kissat * solver,
   references garbage;
   INIT_STACK (garbage);
 
-  word *arena = BEGIN_STACK (solver->arena);
-  heap *schedule = &solver->schedule;
+  const bool ternaryheap = GET_OPTION (ternaryheap);
 
-#ifndef QUIET
-  size_t scheduled = kissat_size_heap (schedule);
-#endif
+  ward *arena = BEGIN_STACK (solver->arena);
+  heap *schedule = ternaryheap ? &solver->schedule : 0;
   uint64_t resolved = 0;
 
-  while (!kissat_empty_heap (schedule))
+  unsigned idx = 0;
+  for (;;)
     {
-      if (TERMINATED (14))
+      if (TERMINATED (ternary_terminated_2))
 	break;
 
       if (solver->statistics.hyper_ternary_steps > steps_limit)
@@ -475,25 +494,48 @@ ternary_round (kissat * solver,
 	  break;
 	}
 
-      const unsigned idx = kissat_max_heap (schedule);
-      kissat_pop_heap (solver, schedule, idx);
-      assert (ACTIVE (idx));
+      if (ternaryheap)
+	{
+	  if (kissat_empty_heap (schedule))
+	    break;
+	  idx = kissat_pop_max_heap (solver, schedule);
+	}
+      else
+	{
+	  while (idx != solver->vars && !ACTIVE (idx))
+	    idx++;
+	  if (idx == solver->vars)
+	    break;
+	}
 
       const unsigned lit = LIT (idx);
-      arena = resolve_ternary_clauses (solver, arena, steps_limit,
+      arena = resolve_ternary_clauses (solver, arena,
+				       resolved_limit, steps_limit,
 				       &tags, &garbage, lit, &resolved);
+      if (!ternaryheap)
+	idx++;
     }
 
 #ifndef QUIET
-  size_t remain = kissat_size_heap (schedule);
+  size_t remain;
+  if (ternaryheap)
+    remain = kissat_size_heap (schedule);
+  else
+    {
+      for (remain = 0; idx != solver->vars; idx++)
+	if (ACTIVE (idx))
+	  remain++;
+    }
   if (remain)
     kissat_phase (solver, "ternary", GET (hyper_ternary_phases),
-		  "remaining %u variables %.0f%% (incomplete ternary round)",
+		  "remaining %zu variables %.0f%% (incomplete ternary round)",
 		  remain, kissat_percent (remain, scheduled));
   else
     kissat_phase (solver, "ternary", GET (hyper_ternary_phases),
-		  "all %u variables resolved (complete ternary round)",
+		  "all %zu variables resolved (complete ternary round)",
 		  scheduled);
+#else
+  (void) scheduled;
 #endif
 
   RELEASE_STACK (tags);
@@ -512,7 +554,7 @@ kissat_ternary (kissat * solver)
   assert (solver->watching);
   assert (solver->probing);
 
-  if (TERMINATED (15))
+  if (TERMINATED (ternary_terminated_3))
     return;
   if (!GET_OPTION (ternary))
     return;
@@ -525,7 +567,7 @@ kissat_ternary (kissat * solver)
   START (ternary);
   INC (hyper_ternary_phases);
 
-#ifndef NMETRICS
+#ifdef METRICS
   uint64_t resolved2 = solver->statistics.hyper_ternary2_resolved;
   uint64_t resolved3 = solver->statistics.hyper_ternary3_resolved;
 #endif
@@ -536,25 +578,29 @@ kissat_ternary (kissat * solver)
   connect_ternary_clauses (solver, ternary);
 
   const double resolved_limit_fraction = GET_OPTION (ternarymaxadd) * 0.01;
-  const uint64_t resolved_limit = CLAUSES * resolved_limit_fraction;
+  const uint64_t scaled_clauses = CLAUSES * resolved_limit_fraction;
+  const uint64_t scaled_conflicts = CONFLICTS * 10;
+  const uint64_t resolved_limit = MIN (scaled_clauses, scaled_conflicts);
 
   const unsigned scheduled = schedule_ternary (solver, ternary);
+  const bool ternaryheap = GET_OPTION (ternaryheap);
   uint64_t resolved = 0;
 
   if (scheduled)
     {
-      SET_EFFICIENCY_BOUND (steps_limit, ternary,
-			    hyper_ternary_steps, search_ticks,
-			    2 * CLAUSES + kissat_nlogn (scheduled));
+      SET_EFFORT_LIMIT (steps_limit, ternary, hyper_ternary_steps,
+			2 * CLAUSES + kissat_nlogn (1 + scheduled));
 
-      resolved = ternary_round (solver, resolved_limit, steps_limit);
-      kissat_release_heap (solver, &solver->schedule);
+      resolved = ternary_round (solver, resolved_limit,
+				steps_limit, scheduled);
+      if (ternaryheap)
+	kissat_release_heap (solver, &solver->schedule);
     }
 
   kissat_dealloc (solver, ternary, LITS, sizeof *ternary);
   kissat_resume_sparse_mode (solver, false, 0, 0);
 
-#ifndef NMETRICS
+#ifdef METRICS
   resolved2 = solver->statistics.hyper_ternary2_resolved - resolved2;
   resolved3 = solver->statistics.hyper_ternary3_resolved - resolved3;
   kissat_phase (solver, "ternary", GET (hyper_ternary_phases),

@@ -65,16 +65,19 @@ dump_trail (kissat * solver)
       if (level < solver->level)
 	next = frame[1].trail;
       else
-	next = SIZE_STACK (solver->trail);
+	next = SIZE_ARRAY (solver->trail);
       if (next == prev)
 	printf ("frame[%u] has no assignments\n", level);
       else
-	printf ("frame[%u] has %u assignments on trail[%u..%u]\n",
-		level, next - prev, prev, next - 1);
+	{
+	  printf ("frame[%u] has %u assignments\n", level, next - prev);
+	  if (prev < next)
+	    printf ("block[%u] = trail[%u..%u]\n", level, prev, next - 1);
+	}
       for (unsigned i = prev; i < next; i++)
 	{
 	  printf ("trail[%u] ", i);
-	  const unsigned lit = PEEK_STACK (solver->trail, i);
+	  const unsigned lit = PEEK_ARRAY (solver->trail, i);
 	  dump_literal (solver, lit);
 	  const unsigned lit_level = LEVEL (lit);
 	  assert (lit_level <= level);
@@ -85,7 +88,7 @@ dump_trail (kissat * solver)
 	    {
 	      printf (" UNIT\n");
 	      assert (!a->binary);
-	      assert (a->reason == UNIT);
+	      assert (a->reason == UNIT_REASON);
 	    }
 	  else
 	    {
@@ -95,11 +98,11 @@ dump_trail (kissat * solver)
 		  const unsigned other = a->reason;
 		  dump_binary (solver, lit, other);
 		}
-	      else if (a->reason == DECISION)
+	      else if (a->reason == DECISION_REASON)
 		printf ("DECISION\n");
 	      else
 		{
-		  assert (a->reason != UNIT);
+		  assert (a->reason != UNIT_REASON);
 		  const reference ref = a->reason;
 		  dump_ref (solver, ref);
 		}
@@ -127,11 +130,11 @@ dump_values (kissat * solver)
 static void
 dump_queue (kissat * solver)
 {
-  const queue *queue = &solver->queue;
+  const queue *const queue = &solver->queue;
   printf ("queue: first %u, last %u, stamp %u, search %u (stamp %u)\n",
 	  queue->first, queue->last, queue->stamp,
 	  queue->search.idx, queue->search.stamp);
-  const links *links = solver->links;
+  const links *const links = solver->links;
   for (unsigned idx = queue->first;
        !DISCONNECTED (idx); idx = links[idx].next)
     {
@@ -176,7 +179,7 @@ dump_map (kissat * solver)
       if (elit)
 	{
 	  const unsigned eidx = ABS (elit);
-	  const import *import = &PEEK_STACK (solver->import, eidx);
+	  const import *const import = &PEEK_STACK (solver->import, eidx);
 	  if (import->eliminated)
 	    printf (" -> eliminated[%u]", import->lit);
 	  else
@@ -238,8 +241,8 @@ dump_etrail (kissat * solver)
 static void
 dump_extend (kissat * solver)
 {
-  const extension *begin = BEGIN_STACK (solver->extend);
-  const extension *end = END_STACK (solver->extend);
+  const extension *const begin = BEGIN_STACK (solver->extend);
+  const extension *const end = END_STACK (solver->extend);
   for (const extension * p = begin, *q; p != end; p = q)
     {
       assert (p->blocking);
@@ -307,9 +310,9 @@ dump_vectors (kissat * solver)
   unsigneds *stack = &vectors->stack;
   printf ("vectors.size = %zu\n", SIZE_STACK (*stack));
   printf ("vectors.capacity = %zu\n", CAPACITY_STACK (*stack));
-  printf ("vectors.usable = %" SECTOR_FORMAT "\n", vectors->usable);
-  const unsigned *begin = BEGIN_STACK (*stack);
-  const unsigned *end = END_STACK (*stack);
+  printf ("vectors.usable = %zu\n", vectors->usable);
+  const unsigned *const begin = BEGIN_STACK (*stack);
+  const unsigned *const end = END_STACK (*stack);
   if (begin == end)
     return;
   fputc ('-', stdout);

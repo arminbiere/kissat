@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <math.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
@@ -86,13 +87,14 @@ kissat_format_bytes (format * format, uint64_t bytes)
 }
 
 const char *
-kissat_format_time (format * format, uint64_t seconds)
+kissat_format_time (format * format, double seconds)
 {
   if (!seconds)
     return "0s";
   char *res = kissat_next_format_string (format);
-  uint64_t minutes = seconds / 60;
-  seconds %= 60;
+  uint64_t rounded = round (seconds);
+  uint64_t minutes = rounded / 60;
+  rounded %= 60;
   uint64_t hours = minutes / 60;
   minutes %= 60;
   uint64_t days = hours / 24;
@@ -117,11 +119,11 @@ kissat_format_time (format * format, uint64_t seconds)
       sprintf (tmp, "%" PRIu64 "m", minutes);
       tmp += strlen (tmp);
     }
-  if (seconds)
+  if (rounded)
     {
       if (tmp != res)
 	*tmp++ = ' ';
-      sprintf (tmp, "%" PRIu64 "s", seconds);
+      sprintf (tmp, "%" PRIu64 "s", rounded);
     }
   return res;
 }
@@ -142,7 +144,7 @@ kissat_format_signs (format * format, unsigned size, word signs)
 const char *
 kissat_format_ordinal (format * format, uint64_t ordinal)
 {
-  const char *suffix;
+  char const *suffix;
   unsigned mod100 = ordinal % 100;
   if (10 <= mod100 && mod100 <= 19)
     suffix = "th";

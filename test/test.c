@@ -47,6 +47,7 @@ static const char *usage =
 
 #include <ctype.h>
 #include <stdarg.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -161,7 +162,40 @@ main (int argc, char **argv)
   const char *verbose_option = 0;
 
   if (chdir (DIR))
-    FATAL ("could not change to build director '%s'", DIR);
+    FATAL ("could not change to build directory '%s'", DIR);
+
+  const char *env = getenv ("TISSATFLAGS");
+
+  if (env)
+    {
+      const char *p = env;
+      if (*p == '-' && *++p == 'j')
+	{
+	  int ch = *++p;
+	  if ('0' < ch && ch <= '9')
+	    {
+	      int tmp = ch - '0';
+	      while (isdigit (ch = *++p))
+		{
+		  if (INT_MAX / 10 < tmp)
+		    break;
+		  tmp *= 10;
+		  const int digit = ch - '0';
+		  if (INT_MAX - digit < tmp)
+		    break;
+		  tmp += digit;
+		}
+	      if (!ch)
+		tissat_processes = tmp;
+	    }
+	  else if (!ch)
+	    tissat_processes = -1;
+	}
+      if (!tissat_processes)
+	FATAL ("invalid environment variable: TISSATFLAGS=\"%s\"", env);
+      else
+	processes_option = env;
+    }
 
   for (int i = 1; i < argc; i++)
     if (!strcmp (argv[i], "-h"))
@@ -443,21 +477,28 @@ do { \
 } while (0)
 
   SCHEDULE (error);
-  SCHEDULE (endianess);
+  SCHEDULE (utilities);
+  SCHEDULE (endianness);
+  SCHEDULE (ceil);
   SCHEDULE (format);
   SCHEDULE (references);
   SCHEDULE (reluctant);
   SCHEDULE (random);
   SCHEDULE (queue);
   SCHEDULE (allocate);
+  SCHEDULE (bits);
+  SCHEDULE (array);
   SCHEDULE (stack);
+  SCHEDULE (cache);
   SCHEDULE (arena);
   SCHEDULE (heap);
+  SCHEDULE (reap);
   SCHEDULE (vector);
   SCHEDULE (rank);
   SCHEDULE (sort);
   SCHEDULE (bump);
   SCHEDULE (options);
+  SCHEDULE (config);
   SCHEDULE (init);
   SCHEDULE (add);
   SCHEDULE (file);
@@ -465,6 +506,7 @@ do { \
   SCHEDULE (usage);
   SCHEDULE (main);
   SCHEDULE (collect);
+  SCHEDULE (kitten);
   SCHEDULE (solve);
   SCHEDULE (coverage);
   SCHEDULE (terminate);

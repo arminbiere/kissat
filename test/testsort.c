@@ -1,7 +1,7 @@
-#include  "test.h"
-
 #include  "../src/allocate.h"
 #include  "../src/sort.h"
+
+#include  "test.h"
 
 static bool
 less_unsigned (unsigned a, unsigned b)
@@ -43,7 +43,7 @@ test_sort_unsigneds (void)
 #ifndef QUIET
   RELEASE_STACK (solver->profiles.stack);
 #endif
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 #undef N
@@ -77,7 +77,7 @@ test_sort_strings (void)
 #ifndef QUIET
   RELEASE_STACK (solver->profiles.stack);
 #endif
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }

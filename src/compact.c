@@ -1,7 +1,10 @@
 #include "compact.h"
 #include "inline.h"
+#include "inlineheap.h"
 #include "print.h"
 #include "resize.h"
+
+#include <string.h>
 
 static void
 reimport_literal (kissat * solver, unsigned eidx, unsigned mlit)
@@ -36,7 +39,7 @@ kissat_compact_literals (kissat * solver, unsigned *mfixed_ptr)
   unsigned vars = 0;
   for (all_variables (iidx))
     {
-      const flags *flags = FLAGS (iidx);
+      const flags *const flags = FLAGS (iidx);
       if (flags->eliminated)
 	continue;
       const unsigned ilit = LIT (iidx);
@@ -118,11 +121,31 @@ compact_literal (kissat * solver, unsigned dst_lit, unsigned src_lit)
   LOG ("mapping old internal literal %u to %u", src_lit, dst_lit);
   solver->assigned[dst_idx] = solver->assigned[src_idx];
   solver->flags[dst_idx] = solver->flags[src_idx];
-  solver->phases[dst_idx] = solver->phases[src_idx];
+
+  solver->phases.best[dst_idx] = solver->phases.best[src_idx];
+  solver->phases.saved[dst_idx] = solver->phases.saved[src_idx];
+  solver->phases.target[dst_idx] = solver->phases.target[src_idx];
+
   const unsigned not_src_lit = NOT (src_lit);
   const unsigned not_dst_lit = NOT (dst_lit);
   solver->values[dst_lit] = solver->values[src_lit];
   solver->values[not_dst_lit] = solver->values[not_src_lit];
+
+  cache *cache = &solver->cache;
+  if (cache->valid)
+    {
+      const line *const end = END_STACK (cache->lines);
+      line *begin = BEGIN_STACK (cache->lines);
+      const unsigned old_vars = cache->vars;
+      assert (old_vars == solver->vars);
+      for (line * l = begin; l != end; l++)
+	{
+	  assert (l->vars == old_vars);
+	  bits *bits = l->bits;
+	  const bool value = kissat_get_bit (bits, old_vars, src_idx);
+	  kissat_set_bit_explicitly (bits, old_vars, dst_idx, value);
+	}
+    }
 }
 
 static unsigned
@@ -212,20 +235,20 @@ compact_scores (kissat * solver, unsigned vars)
     }
 
   kissat_release_heap (solver, old_scores);
-  solver->scores = new_scores;;
+  solver->scores = new_scores;
 }
 
 static void
 compact_trail (kissat * solver)
 {
   LOG ("compacting trail");
-  const size_t size = SIZE_STACK (solver->trail);
+  const size_t size = SIZE_ARRAY (solver->trail);
   for (size_t i = 0; i < size; i++)
     {
-      const unsigned ilit = PEEK_STACK (solver->trail, i);
+      const unsigned ilit = PEEK_ARRAY (solver->trail, i);
       const unsigned mlit = kissat_map_literal (solver, ilit, true);
       assert (mlit != INVALID_LIT);
-      POKE_STACK (solver->trail, i, mlit);
+      POKE_ARRAY (solver->trail, i, mlit);
       const unsigned idx = IDX (ilit);
       assigned *a = solver->assigned + idx;
       if (!a->binary)
@@ -279,7 +302,7 @@ compact_export (kissat * solver, unsigned vars)
       const int elit = PEEK_STACK (solver->export, iidx);
       assert (VALID_EXTERNAL_LITERAL (elit));
       const unsigned eidx = ABS (elit);
-      const import *import = &PEEK_STACK (solver->import, eidx);
+      const import *const import = &PEEK_STACK (solver->import, eidx);
       assert (import->imported);
       if (import->eliminated)
 	continue;
@@ -301,7 +324,7 @@ compact_units (kissat * solver, unsigned mfixed)
     {
       const unsigned eidx = ABS (elit);
       const unsigned mlit = elit < 0 ? NOT (mfixed) : mfixed;
-      const import *import = &PEEK_STACK (solver->import, eidx);
+      const import *const import = &PEEK_STACK (solver->import, eidx);
       assert (import->imported);
       assert (!import->eliminated);
       const unsigned ilit = import->lit;
@@ -311,39 +334,11 @@ compact_units (kissat * solver, unsigned mfixed)
 }
 
 static void
-compact_transitive (kissat * solver, unsigned vars)
-{
-  unsigned mlit = 0;
-  if (vars)
-    {
-      unsigned ilit = solver->transitive;
-      unsigned iidx = IDX (ilit);
-      if (ACTIVE (iidx))
-	mlit = kissat_map_literal (solver, ilit, true);
-      else
-	{
-	  while (iidx < VARS && !ACTIVE (iidx))
-	    iidx++;
-	  if (iidx == VARS)
-	    mlit = INVALID_LIT;
-	  else
-	    {
-	      ilit = LIT (iidx);
-	      mlit = kissat_map_literal (solver, ilit, true);
-	    }
-	}
-      if (mlit == INVALID_LIT)
-	mlit = 0;
-    }
-  LOG ("new transitive reduction starting literal %u", mlit);
-  solver->transitive = mlit;
-}
-
-static void
 compact_best_and_target_values (kissat * solver, unsigned vars)
 {
-  const phase *phases = solver->phases;
-  const flags *flags = solver->flags;
+  const value *const best = solver->phases.best;
+  const value *const target = solver->phases.target;
+  const flags *const flags = solver->flags;
 
   unsigned best_assigned = 0;
   unsigned target_assigned = 0;
@@ -352,10 +347,9 @@ compact_best_and_target_values (kissat * solver, unsigned vars)
     {
       if (!flags[idx].active)
 	continue;
-      const phase *p = phases + idx;
-      if (p->target)
+      if (target[idx])
 	target_assigned++;
-      if (p->best)
+      if (best[idx])
 	best_assigned++;
     }
 
@@ -372,8 +366,46 @@ compact_best_and_target_values (kissat * solver, unsigned vars)
 	   solver->best_assigned, best_assigned);
       solver->best_assigned = best_assigned;
     }
+}
 
-  kissat_reset_consistently_assigned (solver);
+static bits *
+compact_bits (kissat * solver, bits * old_bits, unsigned new_vars)
+{
+  bits *new_bits = kissat_new_bits (solver, new_vars);
+  const unsigned old_vars = solver->vars;
+  for (unsigned idx = 0; idx < old_vars; idx++)
+    {
+      const unsigned midx = map_idx (solver, idx);
+      if (midx == INVALID_IDX)
+	continue;
+      const bool bit = kissat_get_bit (old_bits, old_vars, idx);
+      kissat_set_bit_explicitly (new_bits, new_vars, midx, bit);
+    }
+  kissat_delete_bits (solver, old_bits, old_vars);
+  return new_bits;
+}
+
+static void
+compact_cache (kissat * solver, unsigned new_vars)
+{
+  cache *cache = &solver->cache;
+  if (!cache->valid)
+    {
+      LOG ("not compacting invalid cache");
+      return;
+    }
+  LOG ("compacting cache of size %zu over %u variables",
+       SIZE_STACK (cache->lines), cache->vars);
+  const line *const end = END_STACK (cache->lines);
+  line *begin = BEGIN_STACK (cache->lines);
+  for (line * l = begin; l != end; l++)
+    {
+      assert (l->vars == solver->vars);
+      LOGLINE (l, "resizing to %u variables", new_vars);
+      l->bits = compact_bits (solver, l->bits, new_vars);
+      l->vars = new_vars;
+    }
+  cache->vars = new_vars;
 }
 
 void
@@ -395,8 +427,6 @@ kissat_finalize_compacting (kissat * solver, unsigned vars, unsigned mfixed)
 
   unsigned reduced = solver->vars - vars;
   LOG ("compacted number of variables from %u to %u", solver->vars, vars);
-
-  compact_transitive (solver, vars);
 
   bool first = true;
   for (all_variables (iidx))
@@ -427,6 +457,7 @@ kissat_finalize_compacting (kissat * solver, unsigned vars, unsigned mfixed)
   memset (solver->watches + 2 * vars, 0, 2 * reduced * sizeof (watches));
 
   compact_queue (solver);
+  compact_cache (solver, vars);
   compact_scores (solver, vars);
   compact_frames (solver);
   compact_export (solver, vars);

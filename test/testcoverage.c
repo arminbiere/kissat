@@ -1,14 +1,14 @@
-#include "test.h"
-
 #include <ctype.h>
 #include <dirent.h>
 #include <sys/types.h>
+
+#include "test.h"
 
 static bool
 is_cover_file_name (const char *name)
 {
 #define CHAR(CH) (*p++ == CH)
-#define DIGIT() (isdigit (*p++))
+#define DIGIT() (isdigit ((int) *p++))
   const char *p = name;
 // *INDENT-OFF*
   return 

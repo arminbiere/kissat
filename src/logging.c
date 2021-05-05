@@ -7,13 +7,14 @@
 #include <string.h>
 
 static void
-begin_logging (kissat * solver, const char *fmt, va_list * ap)
+begin_logging (kissat * solver, const char *prefix,
+	       const char *fmt, va_list * ap)
 {
   TERMINAL (stdout, 1);
   assert (GET_OPTION (log));
   fputs ("c ", stdout);
   COLOR (MAGENTA);
-  printf ("LOG %u ", solver->level);
+  printf ("%s %u ", prefix, solver->level);
   vprintf (fmt, *ap);
 }
 
@@ -27,11 +28,11 @@ end_logging (void)
 }
 
 void
-kissat_log_msg (kissat * solver, const char *fmt, ...)
+kissat_log_msg (kissat * solver, const char *prefix, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   end_logging ();
 }
@@ -70,6 +71,17 @@ kissat_log_lit (kissat * solver, unsigned lit)
   return res;
 }
 
+const char *
+kissat_log_var (kissat * solver, unsigned idx)
+{
+  assert (solver);
+  char *res = kissat_next_format_string (&solver->format);
+  const unsigned lit = LIT (idx);
+  sprintf (res, "variable %u (literal %s)", idx, LOGLIT (lit));
+  assert (strlen (res) < FORMAT_STRING_SIZE);
+  return res;
+}
+
 static void
 log_lits (kissat * solver, size_t size, const unsigned *lits)
 {
@@ -81,12 +93,12 @@ log_lits (kissat * solver, size_t size, const unsigned *lits)
 }
 
 void
-kissat_log_lits (kissat * solver, size_t size, const unsigned *lits,
-		 const char *fmt, ...)
+kissat_log_lits (kissat * solver, const char *prefix, size_t size,
+		 const unsigned *const lits, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   printf (" size %zu clause", size);
   log_lits (solver, size, lits);
@@ -94,26 +106,27 @@ kissat_log_lits (kissat * solver, size_t size, const unsigned *lits,
 }
 
 void
-kissat_log_resolvent (kissat * solver, const char *fmt, ...)
+kissat_log_resolvent (kissat * solver, const char *prefix,
+		      const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
-  const size_t size = SIZE_STACK (solver->resolvent_lits);
+  const size_t size = SIZE_STACK (solver->resolvent);
   printf (" size %zu resolvent", size);
-  const unsigned *lits = BEGIN_STACK (solver->resolvent_lits);
+  const unsigned *const lits = BEGIN_STACK (solver->resolvent);
   log_lits (solver, size, lits);
   end_logging ();
 }
 
 void
-kissat_log_ints (kissat * solver, size_t size, const int *lits,
-		 const char *fmt, ...)
+kissat_log_ints (kissat * solver, const char *prefix, size_t size,
+		 const int *const lits, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   printf (" size %zu external literals clause", size);
   for (size_t i = 0; i < size; i++)
@@ -122,15 +135,29 @@ kissat_log_ints (kissat * solver, size_t size, const int *lits,
 }
 
 void
-kissat_log_extensions (kissat * solver, size_t size, const extension * exts,
-		       const char *fmt, ...)
+kissat_log_unsigneds (kissat * solver, const char *prefix, size_t size,
+		      const unsigned *const lits, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  begin_logging (solver, prefix, fmt, &ap);
+  va_end (ap);
+  printf (" size %zu clause", size);
+  for (size_t i = 0; i < size; i++)
+    printf (" %u", lits[i]);
+  end_logging ();
+}
+
+void
+kissat_log_extensions (kissat * solver, const char *prefix, size_t size,
+		       const extension * const exts, const char *fmt, ...)
 {
   assert (size > 0);
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
-  const extension *begin = BEGIN_STACK (solver->extend);
+  const extension *const begin = BEGIN_STACK (solver->extend);
   const size_t pos = exts - begin;
   printf (" extend[%zu]", pos);
   printf (" %d", exts[0].lit);
@@ -141,22 +168,8 @@ kissat_log_extensions (kissat * solver, size_t size, const extension * exts,
   end_logging ();
 }
 
-void
-kissat_log_unsigneds (kissat * solver,
-		      size_t size, const unsigned *lits, const char *fmt, ...)
-{
-  va_list ap;
-  va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
-  va_end (ap);
-  printf (" size %zu unsigned literals clause", size);
-  for (size_t i = 0; i < size; i++)
-    printf (" %u", lits[i]);
-  end_logging ();
-}
-
 static void
-log_clause (kissat * solver, clause * c)
+log_clause (kissat * solver, const clause * c)
 {
   fputc (' ', stdout);
   if (c == &solver->conflict)
@@ -191,11 +204,12 @@ log_clause (kissat * solver, clause * c)
 }
 
 void
-kissat_log_clause (kissat * solver, clause * c, const char *fmt, ...)
+kissat_log_clause (kissat * solver, const char *prefix,
+		   const clause * c, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   log_clause (solver, c);
   log_lits (solver, c->size, c->lits);
@@ -209,23 +223,24 @@ log_binary (kissat * solver, unsigned a, unsigned b)
 }
 
 void
-kissat_log_binary (kissat * solver,
+kissat_log_binary (kissat * solver, const char *prefix,
 		   unsigned a, unsigned b, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   log_binary (solver, a, b);
   end_logging ();
 }
 
 void
-kissat_log_unary (kissat * solver, unsigned a, const char *fmt, ...)
+kissat_log_unary (kissat * solver, const char *prefix, unsigned a,
+		  const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   printf (" unary clause %s", LOGLIT (a));
   end_logging ();
@@ -240,23 +255,24 @@ log_ref (kissat * solver, reference ref)
 }
 
 void
-kissat_log_ref (kissat * solver, reference ref, const char *fmt, ...)
+kissat_log_ref (kissat * solver, const char *prefix, reference ref,
+		const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   log_ref (solver, ref);
   end_logging ();
 }
 
 void
-kissat_log_watch (kissat * solver,
+kissat_log_watch (kissat * solver, const char *prefix,
 		  unsigned lit, watch watch, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   if (watch.type.binary)
     log_binary (solver, lit, watch.binary.lit);
@@ -266,12 +282,27 @@ kissat_log_watch (kissat * solver,
 }
 
 void
-kissat_log_xor (kissat * solver, unsigned lit,
-		unsigned size, unsigned *lits, const char *fmt, ...)
+kissat_log_line (kissat * solver, const char *prefix,
+		 const line * line, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  begin_logging (solver, fmt, &ap);
+  begin_logging (solver, prefix, fmt, &ap);
+  printf (" cache line[%" PRIu64 "]"
+	  " unsatisfying %u clause over %u variables and signature 0x%016"
+	  PRIx64 "", line->inserted, line->unsatisfied, line->vars,
+	  line->signature);
+  va_end (ap);
+  end_logging ();
+}
+
+void
+kissat_log_xor (kissat * solver, const char *prefix, unsigned lit,
+		unsigned size, const unsigned *lits, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   printf (" size %u XOR gate ", size);
   fputs (kissat_log_lit (solver, lit), stdout);

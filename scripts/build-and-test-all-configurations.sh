@@ -2,6 +2,7 @@
 
 cd "`dirname $0`/.."
 binary="`basename $0`"
+parallel=""
 
 usage () {
 cat <<EOF
@@ -9,19 +10,20 @@ usage: $binary [ <option> ]
 
 where '<option>' is one of the following
 
-  -h   print this command line option summary
-  -n   only print and fake building and testing
-  -1   single configuration option mode (default)
-  -2   double configuration options mode
-  -3   triple configuration options mode
-  -f   force '--coverage' with 'clang'
+  -h  print this command line option summary
+  -n  only print and fake building and testing
+  -1  single configuration option mode (default)
+  -2  double configuration options mode
+  -3  triple configuration options mode
+  -f  force '--coverage' with 'clang'
+  -j  build and test in parallel
 EOF
 exit 0
 }
 
 # All './configure' options except '-p' (pedantic).
 
-all="--default --extreme -m32 --ultimate -c -g -l -s --coverage --profile --compact --no-options --quiet --metrics --stats --no-proofs -fPIC --no-metrics --no-stats"
+all="--default --extreme -m32 --ultimate -c -g -l -s --coverage --profile --compact --no-options --quiet --metrics --stats --no-proofs -fPIC --shared --kitten --no-metrics --no-stats"
 
 tmp=/tmp/m32-support-$$
 cat <<EOF > $tmp.c
@@ -81,6 +83,7 @@ do
     -2) mode=2;;
     -3) mode=3;;
     -n) force=yes;;
+    -j|-j*) parallel="$1";;
     *) die "invalid option '$1' (try '-h')";;
   esac
   shift
@@ -96,7 +99,7 @@ count=0
 
 run () {
   configure="`echo ./configure $*|sed -e 's, --default,,'`"
-  printf "%-49s" "$configure"
+  printf "%-50s" "$configure"
   if [ $fake = no ]
   then
     $configure 1>/dev/null 2>/dev/null
@@ -164,7 +167,7 @@ echo
 echo "testing $modestr combinations"
 if [ "$CC" = "" ]
 then
-  echo "using default compiler ('gcc')"
+  echo "using default compiler 'gcc' (no 'CC' environment variable)"
 else
   echo "using '$CC' compiler (from environment variable 'CC')"
   case "$CC" in
@@ -181,6 +184,27 @@ else
   esac
 fi
 
+if [ x"$parallel" = x ]
+then
+  echo "not forcing parallel build and testing (no '-j' option)"
+else
+  TMP=""
+  for flag in $MAKEFLAGS
+  do
+    case x"$flag" in
+      x-j*) continue;;
+    esac
+    TMP="$TMP${flag} "
+  done
+  echo
+  MAKEFLAGS="$TMP${parallel}"
+  echo "setting 'MAKEFLAGS=$MAKEFLAGS' (due to '$parallel')"
+  export MAKEFLAGS
+  TISSATFLAGS="${parallel}"
+  echo "setting 'TISSATFLAGS=$TISSATFLAGS' (due to '$parallel')"
+  export TISSATFLAGS
+fi
+
 if [ $coverage = no ]
 then
   all=`echo "$all" | sed -e 's,--coverage ,,'`
@@ -192,7 +216,7 @@ fi
 
 echo
 echo "---- [ single configurations ]" \
-"---------------------------------------------"
+"----------------------------------------------"
 echo
 
 for pedantic in yes no
@@ -252,7 +276,7 @@ then
 
 echo
 echo "---- [ double configurations ]" \
-"---------------------------------------------"
+"----------------------------------------------"
 echo
 
 for pedantic in yes no
@@ -285,7 +309,7 @@ then
 
 echo
 echo "---- [ triple configurations ]" \
-"---------------------------------------------"
+"----------------------------------------------"
 echo
 
 for pedantic in yes no
@@ -319,7 +343,7 @@ fi
 #----------------------------------------------------#
 echo
 echo "---- [ summary ]" \
-"-----------------------------------------------------------"
+"------------------------------------------------------------"
 echo
 
 echo "All $count $modestr combinations" \

@@ -1,5 +1,3 @@
-#include "test.h"
-
 #include "../src/handle.h"
 #include "../src/print.h"
 
@@ -9,6 +7,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#include "test.h"
 
 #define MAX_JOBS (1u<<12)
 
@@ -84,14 +84,15 @@ execute_application (tissat_job * job)
   tissat_call_application (job->expected, job->application);
 }
 
-static void
+static int
 check_command (tissat_job * job, int status)
 {
   assert (job);
   assert (job->command);
+  int res = 0;
   if (WIFEXITED (status))
     {
-      int res = WEXITSTATUS (status);
+      res = WEXITSTATUS (status);
       if (res == job->expected)
 	tissat_verbose ("Command '%s' returned '%d' as expected.",
 			job->command, res);
@@ -103,6 +104,7 @@ check_command (tissat_job * job, int status)
     tissat_signal (WTERMSIG (status), "executing command '%s", job->command);
   else
     tissat_error ("Unexpected return status of command '%s'");
+  return res;
 }
 
 static void
@@ -125,11 +127,12 @@ check_application (tissat_job * job, int status)
 		  job->application, status);
 }
 
-static void
+static int
 execute_command (tissat_job * job)
 {
   tissat_section ("Executing Command '%s'", job->command);
   int status = system (job->command);
+  int res = 0;
   if (status < 0)
     tissat_error ("Could not generate child process or retrieve status "
 		  "while trying to execute command '%s'", job->command);
@@ -137,14 +140,16 @@ execute_command (tissat_job * job)
     tissat_error ("Shell could not be executed in the child process "
 		  "while trying to execute command '%s'", job->command);
   else
-    check_command (job, status);
+    res = check_command (job, status);
+  return res;
 }
 
 static tissat_job *running_job;
 
-static void
+static int
 execute_job (tissat_job * job)
 {
+  int res = 0;
   running_job = job;
   if (job->function)
     execute_function (job);
@@ -153,8 +158,9 @@ execute_job (tissat_job * job)
   else
     {
       assert (job->command);
-      execute_command (job);
+      res = execute_command (job);
     }
+  return res;
 }
 
 static void
@@ -236,8 +242,9 @@ static void
 run_parallel_job (tissat_job * job)
 {
   tissat_divert_stdout_and_stderr_to_dev_null ();
-  execute_job (job);
+  int res = execute_job (job);
   tissat_restore_stdout_and_stderr ();
+  exit (res);
 }
 
 #define all_jobs(JOB) \
@@ -338,7 +345,7 @@ run_jobs_in_parallel (unsigned parallel)
 	  if (WIFSIGNALED (status))
 	    handle_signal (other, WTERMSIG (status));
 	  else if (WIFEXITED (status))
-	    handle_exit (other, WEXITSTATUS (status));
+	    handle_exit (other, status);
 	  else
 	    tissat_fatal ("unexpected status '%d' of child process '%d'",
 			  status, pid);

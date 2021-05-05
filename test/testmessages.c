@@ -1,10 +1,10 @@
 #include "../src/colors.h"
 #include "../src/handle.h"
 
-#include "test.h"
-
 #include <stdarg.h>
 #include <signal.h>
+
+#include "test.h"
 
 int tissat_verbosity;
 int tissat_warnings;

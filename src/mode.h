@@ -11,13 +11,14 @@ struct mode
 #ifndef QUIET
   double entered;
   uint64_t conflicts;
-#ifndef NMETRICS
+#ifdef METRICS
   uint64_t propagations;
   uint64_t visits;
 #endif
 #endif
 };
 
+bool kissat_switching_search_mode (struct kissat *);
 void kissat_switch_search_mode (struct kissat *);
 
 #endif

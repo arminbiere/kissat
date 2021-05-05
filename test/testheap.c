@@ -1,6 +1,7 @@
-#include "test.h"
-
 #include "../src/heap.h"
+#include "../src/inlineheap.h"
+
+#include "test.h"
 
 static void
 test_heap_basic (void)
@@ -44,7 +45,7 @@ test_heap_basic (void)
       count--;
     }
   kissat_release_heap (solver, heap);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }
@@ -82,7 +83,7 @@ test_heap_random (void)
 	    }
 	}
       kissat_release_heap (solver, heap);
-#ifndef NMETRICS
+#ifdef METRICS
       assert (!solver->statistics.allocated_current);
 #endif
     }

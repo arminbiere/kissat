@@ -1,14 +1,12 @@
 #ifndef _watch_h_INCLUDED
 #define _watch_h_INCLUDED
 
-#include "endianess.h"
+#include "endianness.h"
 #include "reference.h"
 #include "stack.h"
 #include "vector.h"
 
 #include <stdbool.h>
-
-#define INVALID_WATCH INVALID_VECTOR_ELEMENT
 
 typedef union watch watch;
 
@@ -145,39 +143,50 @@ kissat_blocking_watch (unsigned lit)
   return res;
 }
 
+#define EMPTY_WATCHES(W) kissat_empty_vector (&W)
+#define SIZE_WATCHES(W) kissat_size_vector (&W)
+
 #define PUSH_WATCHES(W,E) \
 do { \
   assert (sizeof (E) == sizeof (unsigned)); \
-  kissat_push_vectors (solver, &solver->vectors, &(W), (E).raw); \
+  kissat_push_vectors (solver, &(W), (E).raw); \
 } while (0)
 
 #define LAST_WATCH_POINTER(WS) \
-  (watch *) kissat_last_vector_pointer (&solver->vectors, &WS)
+  (watch *) kissat_last_vector_pointer (solver, &WS)
 
 #define BEGIN_WATCHES(WS) \
-  ((union watch*) kissat_begin_vector (&solver->vectors, &(WS)))
+  ((union watch*) kissat_begin_vector (solver, &(WS)))
 
 #define END_WATCHES(WS) \
-  ((union watch*) kissat_end_vector (&solver->vectors, &(WS)))
+  ((union watch*) kissat_end_vector (solver, &(WS)))
+
+#define BEGIN_CONST_WATCHES(WS) \
+  ((union watch*) kissat_begin_const_vector (solver, &(WS)))
+
+#define END_CONST_WATCHES(WS) \
+  ((union watch*) kissat_end_const_vector (solver, &(WS)))
 
 #define RELEASE_WATCHES(WS) \
-  kissat_release_vector (solver, &solver->vectors, &(WS))
+  kissat_release_vector (solver, &(WS))
 
 #define SET_END_OF_WATCHES(WS,P) \
 do { \
-  sector SIZE = (unsigned*)(P) - kissat_begin_vector (&solver->vectors, &WS); \
-  kissat_resize_vector (solver, &solver->vectors, &WS, SIZE); \
+  size_t SIZE = (unsigned*)(P) - kissat_begin_vector (solver, &WS); \
+  kissat_resize_vector (solver, &WS, SIZE); \
 } while (0)
 
 #define REMOVE_WATCHES(W,E) \
-  kissat_remove_from_vector (solver, &solver->vectors, &(W), (E).raw)
+  kissat_remove_from_vector (solver, &(W), (E).raw)
 
 #define WATCHES(LIT) (solver->watches[assert ((LIT) < LITS), (LIT)])
 
+// This iterator is currently only used in 'testreferences.c'.
+//
 #define all_binary_blocking_watch_ref(WATCH,REF,WATCHES) \
   watch WATCH, \
     * WATCH ## _PTR = (assert (solver->watching), BEGIN_WATCHES (WATCHES)), \
-    * WATCH ## _END = END_WATCHES (WATCHES); \
+    * const WATCH ## _END = END_WATCHES (WATCHES); \
   WATCH ## _PTR != WATCH ## _END && \
     ((WATCH = *WATCH ## _PTR), \
      (REF = WATCH.type.binary ? INVALID_REF : \
@@ -187,14 +196,14 @@ do { \
 #define all_binary_blocking_watches(WATCH,WATCHES) \
   watch WATCH, \
     * WATCH ## _PTR = (assert (solver->watching), BEGIN_WATCHES (WATCHES)), \
-    * WATCH ## _END = END_WATCHES (WATCHES); \
+    * const WATCH ## _END = END_WATCHES (WATCHES); \
   WATCH ## _PTR != WATCH ## _END && ((WATCH = *WATCH ## _PTR), true); \
   WATCH ## _PTR += 1u + !WATCH.type.binary
 
 #define all_binary_large_watches(WATCH,WATCHES) \
   watch WATCH, \
     * WATCH ## _PTR = (assert (!solver->watching), BEGIN_WATCHES (WATCHES)), \
-    * WATCH ## _END = END_WATCHES (WATCHES); \
+    * const WATCH ## _END = END_WATCHES (WATCHES); \
   WATCH ## _PTR != WATCH ## _END && ((WATCH = *WATCH ## _PTR), true); \
   ++WATCH ## _PTR
 

@@ -66,7 +66,7 @@ kissat_profiles_print (kissat * solver)
   flush_profiles (named, now);
   profile *unsorted = (profile *) named;
   profile *sorted[SIZE_PROFS];
-  const profile *end = unsorted + SIZE_PROFS;
+  const profile *const end = unsorted + SIZE_PROFS;
   size_t size = 0;
   for (profile * p = unsorted; p != end; p++)
     if (p->level <= GET_OPTION (profile) &&

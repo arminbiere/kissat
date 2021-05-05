@@ -7,11 +7,11 @@ typedef struct smooth smooth;
 
 struct smooth
 {
+  double value, biased, alpha, beta, exp;
 #ifdef LOGGING
   const char *name;
+  uint64_t updated;
 #endif
-  double value, alpha, beta;
-  uint64_t wait, period;
 };
 
 struct kissat;

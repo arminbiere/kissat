@@ -9,6 +9,17 @@
 #include <unistd.h>
 
 bool
+kissat_file_exists (const char *path)
+{
+  if (!path)
+    return false;
+  struct stat buf;
+  if (stat (path, &buf))
+    return false;
+  return true;
+}
+
+bool
 kissat_file_readable (const char *path)
 {
   if (!path)
@@ -134,8 +145,6 @@ kissat_find_executable (const char *name)
   return res;
 }
 
-#ifdef _POSIX_C_SOURCE
-
 static int bz2sig[] = { 0x42, 0x5A, 0x68, EOF };
 static int gzsig[] = { 0x1F, 0x8B, EOF };
 static int lzmasig[] = { 0x5D, 0x00, 0x00, 0x80, 0x00, EOF };
@@ -155,6 +164,8 @@ match_signature (const char *path, const int *sig)
   fclose (tmp);
   return res;
 }
+
+#ifdef _POSIX_C_SOURCE
 
 static FILE *
 open_pipe (const char *fmt, const char *path, const char *mode)
@@ -219,6 +230,27 @@ kissat_write_already_open_file (file * file, FILE * f, const char *path)
   file->path = path;
   file->bytes = 0;
 }
+
+#ifndef _POSIX_C_SOURCE
+
+bool
+kissat_looks_like_a_compressed_file (const char *path)
+{
+#define RETURN_TRUE_IF_COMPRESSED(SUFFIX,SIGNATURE) \
+  if (kissat_has_suffix (path, SUFFIX) && \
+      match_signature (path, SIGNATURE)) \
+    return true
+
+  RETURN_TRUE_IF_COMPRESSED (".bz2", bz2sig);
+  RETURN_TRUE_IF_COMPRESSED (".gz", gzsig);
+  RETURN_TRUE_IF_COMPRESSED (".lzma", lzmasig);
+  RETURN_TRUE_IF_COMPRESSED (".7z", sig7z);
+  RETURN_TRUE_IF_COMPRESSED (".xz", xzsig);
+
+  return false;
+}
+
+#endif
 
 bool
 kissat_open_to_read_file (file * file, const char *path)

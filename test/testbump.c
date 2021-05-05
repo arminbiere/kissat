@@ -1,6 +1,6 @@
-#include "test.h"
-
 #include "../src/bump.h"
+
+#include "test.h"
 
 void kissat_update_scores (kissat *);
 
@@ -39,7 +39,7 @@ test_bump_rescale (void)
 	      if (count++ & 1)
 		PUSH_STACK (solver->analyzed, 1);
 	    }
-	  kissat_bump_variables (solver);
+	  kissat_bump (solver);
 	  CLEAR_STACK (solver->analyzed);
 	  if (prev >= solver->scinc ||
 	      solver->scinc >= MAX_SCORE * 0.7 ||

@@ -79,8 +79,8 @@ kissat_init_signal_handler (void (*h) (int sig))
 
 static volatile bool caught_alarm;
 static volatile bool alarm_handler_set;
-static void (*SIGALRM_handler) (int);
-static void (*handle_alarm) ();
+static void (*volatile SIGALRM_handler) (int);
+static void (*volatile handle_alarm) ();
 
 static void
 catch_alarm (int sig)
@@ -88,11 +88,13 @@ catch_alarm (int sig)
   assert (sig == SIGALRM);
   if (caught_alarm)
     return;
+  caught_alarm = true;
+  static void (*volatile handler) ();
+  handler = handle_alarm;
   if (!alarm_handler_set)
     raise (sig);
-  assert (handle_alarm);
-  caught_alarm = true;
-  handle_alarm ();
+  assert (handler);
+  handler ();
 }
 
 void

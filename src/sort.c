@@ -3,8 +3,8 @@
 
 static inline value
 move_smallest_literal_to_front (kissat * solver,
-				const value * values,
-				const assigned * assigned,
+				const value * const values,
+				const assigned * const assigned,
 				bool satisfied_is_enough,
 				unsigned start, unsigned size, unsigned *lits)
 {
@@ -21,7 +21,7 @@ move_smallest_literal_to_front (kissat * solver,
 
   {
     const unsigned i = IDX (a);
-    unsigned k = (u ? assigned[i].level : INFINITE_LEVEL);
+    unsigned k = (u ? assigned[i].level : UINT_MAX);
 
     assert (start < UINT_MAX);
     for (unsigned i = start + 1; i < size; i++)
@@ -38,7 +38,7 @@ move_smallest_literal_to_front (kissat * solver,
 	  }
 
 	const unsigned j = IDX (b);
-	const unsigned l = (v ? assigned[j].level : INFINITE_LEVEL);
+	const unsigned l = (v ? assigned[j].level : UINT_MAX);
 
 	bool better;
 
@@ -89,13 +89,13 @@ static inline
   void
 kissat_sort_literals (kissat * solver,
 #ifdef INLINE_SORT
-		      const value * values, const assigned * assigned,
+		      const value * const values, const assigned * assigned,
 #endif
 		      unsigned size, unsigned *lits)
 {
 #ifndef INLINE_SORT
-  const value *values = solver->values;
-  const assigned *assigned = solver->assigned;
+  const value *const values = solver->values;
+  const assigned *const assigned = solver->assigned;
 #endif
   value u = move_smallest_literal_to_front (solver, values, assigned,
 					    false, 0, size, lits);

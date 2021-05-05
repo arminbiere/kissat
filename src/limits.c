@@ -2,6 +2,7 @@
 #include "logging.h"
 #include "print.h"
 #include "reduce.h"
+#include "rephase.h"
 #include "resources.h"
 #include "restart.h"
 
@@ -34,54 +35,110 @@ kissat_changed (changes b, changes a)
   return false;
 }
 
-uint64_t
+double
 kissat_logn (uint64_t count)
 {
-  return log10 (count + 10);
+  assert (count > 0);
+  const double res = log10 (count + 9);
+  assert (res >= 1);
+  return res;
 }
 
-static uint64_t
+static double
 kissat_lognlogn (uint64_t count)
 {
-  const double tmp = log10 (count + 10);
-  return tmp * tmp;
+  assert (count > 0);
+  const double tmp = log10 (count + 9);
+  const double res = tmp * tmp;
+  assert (res >= 1);
+  return res;
 }
 
-uint64_t
+static double
+kissat_lognlognlogn (uint64_t count)
+{
+  assert (count > 0);
+  const double tmp = log10 (count + 9);
+  const double res = tmp * tmp * tmp;
+  assert (res >= 1);
+  return res;
+}
+
+double
 kissat_ndivlogn (uint64_t count)
 {
-  return count / kissat_logn (count);
+  assert (count > 0);
+  const double div = kissat_logn (count);
+  assert (div > 0);
+  const double res = count / div;
+  assert (res >= 1);
+  return res;
 }
 
-uint64_t
+double
+kissat_sqrt (uint64_t count)
+{
+  assert (count > 0);
+  const double res = sqrt (count);
+  assert (res >= 1);
+  return res;
+}
+
+double
 kissat_linear (uint64_t count)
 {
-  return count;
+  assert (count > 0);
+  const double res = count;
+  assert (res >= 1);
+  return res;
 }
 
-uint64_t
+double
 kissat_nlogn (uint64_t count)
 {
-  return count * kissat_logn (count);
+  assert (count > 0);
+  const double factor = kissat_logn (count);
+  assert (factor >= 1);
+  const double res = count * factor;
+  assert (res >= 1);
+  return res;
 }
 
-uint64_t
+double
 kissat_nlognlogn (uint64_t count)
 {
-  return count * kissat_lognlogn (count);
+  assert (count > 0);
+  const double factor = kissat_lognlogn (count);
+  const double res = count * factor;
+  assert (res >= 1);
+  return res;
 }
 
-uint64_t
+double
+kissat_nlognlognlogn (uint64_t count)
+{
+  assert (count > 0);
+  const double factor = kissat_lognlognlogn (count);
+  assert (factor >= 1);
+  const double res = count * factor;
+  assert (res >= 1);
+  return res;
+}
+
+double
 kissat_quadratic (uint64_t count)
 {
-  return count * count;
+  assert (count > 0);
+  const double res = count * count;
+  assert (res >= 1);
+  return res;
 }
 
 uint64_t
 kissat_scale_delta (kissat * solver, const char *pretty, uint64_t delta)
 {
   const uint64_t C = IRREDUNDANT_CLAUSES;
-  const double f = kissat_logn (C);
+  const double f = kissat_logn (C + 1);
   assert (f >= 1);
   const double ff = f * f;
   assert (ff >= 1);
@@ -92,7 +149,7 @@ kissat_scale_delta (kissat * solver, const char *pretty, uint64_t delta)
     "scaled %s delta %" PRIu64
     " = %g * %" PRIu64
     " = %g^2 * %" PRIu64
-    " = log10^2(" PRIu64 ") * %" PRIu64,
+    " = log10^2(%" PRIu64 ") * %" PRIu64,
     pretty, scaled, ff, delta, f, delta, C, delta);
 // *INDENT-ON*
   (void) pretty;
@@ -105,7 +162,7 @@ kissat_scale_limit (kissat * solver,
 {
   assert (base >= 0);
   assert (count > 0);
-  const double f = kissat_logn (count - 1);
+  const double f = kissat_logn (count);
   assert (f >= 1);
   uint64_t scaled = f * base;
   kissat_very_verbose (solver,
@@ -130,6 +187,8 @@ init_enabled (kissat * solver)
   else if (GET_OPTION (failed))
     probe = true;
   else if (GET_OPTION (transitive))
+    probe = true;
+  else if (GET_OPTION (sweep))
     probe = true;
   else if (GET_OPTION (vivify))
     probe = true;
@@ -157,6 +216,22 @@ init_enabled (kissat * solver)
     autarky = true;
   kissat_very_verbose (solver, "autarky %sabled", autarky ? "en" : "dis");
   solver->enabled.autarky = autarky;
+
+  bool rephase;
+  if (!GET_OPTION (rephase))
+    rephase = false;
+  else if (!GET_OPTION (phasesaving))
+    rephase = false;
+  else if (
+#define REPHASE(NAME,TYPE,INDEX) \
+    GET_OPTION (rephase ## NAME) ||
+	    REPHASES 0)
+#undef REPHASE
+    rephase = true;
+  else
+    rephase = false;
+  kissat_very_verbose (solver, "rephase %sabled", rephase ? "en" : "dis");
+  solver->enabled.rephase = rephase;
 }
 
 static void
@@ -167,16 +242,24 @@ init_mode_limit (kissat * solver)
   if (GET_OPTION (stable) == 1)
     {
       assert (!solver->stable);
-      const uint64_t delta = GET_OPTION (modeinit);
-      const uint64_t limit = CONFLICTS + delta;
-      limits->mode.conflicts = limit;
+
+      const uint64_t conflicts_delta = GET_OPTION (modeconflicts);
+      const uint64_t conflicts_limit = CONFLICTS + conflicts_delta;
+      limits->mode.conflicts = conflicts_limit;
+
+      const uint64_t ticks_delta = GET_OPTION (modeticks);
+      const uint64_t ticks_limit = CONFLICTS + ticks_delta;
+      limits->mode.ticks = ticks_limit;
+
       kissat_very_verbose (solver, "initial stable mode switching limit "
-			   "at %s conflicts", FORMAT_COUNT (limit));
+			   "at %s conflicts and %s ticks",
+			   FORMAT_COUNT (conflicts_limit),
+			   FORMAT_COUNT (ticks_limit));
 
       solver->mode.ticks = solver->statistics.search_ticks;
 #ifndef QUIET
       solver->mode.conflicts = CONFLICTS;
-#ifndef NMETRICS
+#ifdef METRICS
       solver->mode.propagations = solver->statistics.search_propagations;
 #endif
 // *INDENT-OFF*
@@ -184,12 +267,12 @@ init_mode_limit (kissat * solver)
       kissat_very_verbose (solver,
         "starting focused mode at %.2f seconds "
         "(%" PRIu64 " conflicts, %" PRIu64 " ticks"
-#ifndef NMETRICS
+#ifdef METRICS
 	", %" PRIu64 " propagations, %" PRIu64 " visits"
 #endif
 	")",
         solver->mode.entered, solver->mode.conflicts, solver->mode.ticks
-#ifndef NMETRICS
+#ifdef METRICS
         , solver->mode.propagations, solver->mode.visits
 #endif
 	);
@@ -227,7 +310,7 @@ kissat_init_limits (kissat * solver)
   if (GET_OPTION (reduce))
     INIT_CONFLICT_LIMIT (reduce, false);
 
-  if (GET_OPTION (rephase))
+  if (solver->enabled.rephase)
     INIT_CONFLICT_LIMIT (rephase, false);
 
   if (!solver->stable)

@@ -10,12 +10,17 @@
 #include "walk.h"
 
 #include <inttypes.h>
+#include <string.h>
 
 void
-kissat_reset_rephased (kissat * solver)
+kissat_reset_best_assigned (kissat * solver)
 {
-  LOG ("reset rephase type and counter");
-  solver->rephased.type = 0;
+  if (!solver->best_assigned)
+    return;
+  kissat_extremely_verbose (solver,
+			    "resetting best assigned trail height %u to 0",
+			    solver->best_assigned);
+  solver->best_assigned = 0;
 }
 
 void
@@ -23,23 +28,18 @@ kissat_reset_target_assigned (kissat * solver)
 {
   if (!solver->target_assigned)
     return;
-  LOG ("resetting target assigned %u", solver->target_assigned);
+  kissat_extremely_verbose (solver,
+			    "resetting target assigned trail height %u to 0",
+			    solver->target_assigned);
   solver->target_assigned = 0;
-}
-
-void
-kissat_reset_consistently_assigned (kissat * solver)
-{
-  if (!solver->consistently_assigned)
-    return;
-  LOG ("resetting consistently assigned %u", solver->consistently_assigned);
-  solver->consistently_assigned = 0;
 }
 
 bool
 kissat_rephasing (kissat * solver)
 {
-  if (!GET_OPTION (rephase))
+  if (!solver->enabled.rephase)
+    return false;
+  if (!solver->stable)
     return false;
   return CONFLICTS > solver->limits.rephase.conflicts;
 }
@@ -47,154 +47,149 @@ kissat_rephasing (kissat * solver)
 static char
 rephase_best (kissat * solver)
 {
-  for (all_phases (p))
-    if (p->best)
-      p->saved = p->best;
+  const value *const best = solver->phases.best;
+  const value *const end_of_best = best + VARS;
+  value const *b;
+
+  value *const saved = solver->phases.saved;
+  value *s;
+
+  value tmp;
+
+  for (s = saved, b = best; b != end_of_best; s++, b++)
+    if ((tmp = *b))
+      *s = tmp;
+
+  INC (rephased_best);
+
   return 'B';
-}
-
-char
-kissat_rephase_best (kissat * solver)
-{
-  return rephase_best (solver);
-}
-
-static char
-rephase_flipped (kissat * solver)
-{
-  for (all_phases (p))
-    p->saved *= -1;
-  return 'F';
 }
 
 static char
 rephase_original (kissat * solver)
 {
-  const value value = INITIAL_PHASE;
-  for (all_phases (p))
-    p->saved = value;
+  assert (GET_OPTION (rephaseoriginal));
+  const value initial_phase = INITIAL_PHASE;
+  for (all_phases (saved, p))
+    *p = initial_phase;
+  INC (rephased_original);
   return 'O';
 }
 
 static char
 rephase_inverted (kissat * solver)
 {
-  const value value = -INITIAL_PHASE;
-  for (all_phases (p))
-    p->saved = value;
+  assert (GET_OPTION (rephaseinverted));
+  const value inverted_initial_phase = -INITIAL_PHASE;
+  for (all_phases (saved, p))
+    *p = inverted_initial_phase;
+  INC (rephased_inverted);
   return 'I';
-}
-
-static char
-rephase_random (kissat * solver)
-{
-  for (all_phases (p))
-    p->saved = (kissat_pick_bool (&solver->random) ? 1 : -1);
-  return '#';
 }
 
 static char
 rephase_walking (kissat * solver)
 {
+  assert (GET_OPTION (rephasewalking));
+  assert (kissat_walking (solver));
   STOP (rephase);
-  char res = kissat_walk (solver);
-  if (res == 'W')
-    kissat_autarky (solver);
+  kissat_walk (solver);
   START (rephase);
-  if (!res)
-    res = rephase_best (solver);
-  return res;
+  INC (rephased_walking);
+  return 'W';
 }
 
-static void
+static char
 reset_phases (kissat * solver)
 {
-  kissat_clear_target_phases (solver);
-  kissat_reset_target_assigned (solver);
-  const uint64_t count = solver->rephased.count++;
+  uint64_t count = solver->rephased.count++;
 
-  char type = 0;
+  const bool inverted = GET_OPTION (rephaseinverted);
+  const bool original = GET_OPTION (rephaseoriginal);
+  const bool best = GET_OPTION (rephasebest);
+  const bool walking = GET_OPTION (rephasewalking) && kissat_walking (solver);
 
-  if (!count)
-    type = rephase_original (solver);
-  else if (count == 1)
-    type = rephase_inverted (solver);
+  uint64_t prefix = inverted + original;
+  prefix *= GET_OPTION (rephaseprefix);
+
+  char (*functions[6]) (kissat *);
+  uint64_t candidates = 0;
+
+#define PUSH1(NAME) \
+  if (NAME) \
+    { \
+      assert (candidates < sizeof functions / sizeof *functions); \
+      functions[candidates++] = rephase_ ## NAME; \
+    }
+
+#define PUSH3(NAME) \
+  if (NAME) \
+    { \
+      PUSH1 (best); \
+      PUSH1 (walking); \
+      PUSH1 (NAME); \
+    }
+
+  if (count < prefix)
+    {
+      PUSH1 (original);
+      PUSH1 (inverted);
+    }
   else
     {
-      switch ((count - 2) % 12)
-	{
-	default:
-	case 0:
-	  type = rephase_best (solver);
-	  break;
-	case 1:
-	  type = rephase_walking (solver);
-	  break;
-	case 2:
-	  type = rephase_original (solver);
-	  break;
-	case 3:
-	  type = rephase_best (solver);
-	  break;
-	case 4:
-	  type = rephase_walking (solver);
-	  break;
-	case 5:
-	  type = rephase_inverted (solver);
-	  break;
-	case 6:
-	  type = rephase_best (solver);
-	  break;
-	case 7:
-	  type = rephase_walking (solver);
-	  break;
-	case 8:
-	  type = rephase_random (solver);
-	  break;
-	case 9:
-	  type = rephase_best (solver);
-	  break;
-	case 10:
-	  type = rephase_walking (solver);
-	  break;
-	case 11:
-	  type = rephase_flipped (solver);
-	  break;
-	}
+      PUSH3 (original);
+      PUSH3 (inverted);
+      count -= prefix;
     }
+
+  if (!candidates)
+    {
+      PUSH1 (best);
+      PUSH1 (walking);
+    }
+
+  char type;
+
+  // Since 'enabled.rephase' is true one of the rephase methods is enabled.
+  // However 'rephasewalking' could be the only one and the derived 'walking'
+  // depends also on the size of the formula, i.e., 'kissat_walking' could
+  // return 'false'.  As a consequence there is no candidate if only the
+  // 'rephasewalking' is true but the formula is too big.
+  //
+  if (candidates)
+    {
+      const uint64_t select = count % candidates;
+      type = functions[select] (solver);
+    }
+  else
+    type = rephase_best (solver);
+
 #ifndef QUIET
-  const char *type_as_string = 0;
+  char const *type_as_string = 0;
   switch (type)
     {
-    case 'B':
-      type_as_string = "best";
-      break;
-    case 'F':
-      type_as_string = "flipped";
-      break;
-    case 'I':
-      type_as_string = "inverted";
-      break;
-    case 'O':
-      type_as_string = "original";
-      break;
-    case '#':
-      type_as_string = "random";
-      break;
-    case 'W':
-      type_as_string = "walking";
-      break;
+#define REPHASE(NAME, TYPE, INDEX) \
+      case TYPE: \
+        type_as_string = #NAME; \
+	break;
+      REPHASES
+#undef REPHASE
     }
   assert (type_as_string);
   kissat_phase (solver, "rephase", GET (rephased),
 		"%s phases in %s search mode",
 		type_as_string, solver->stable ? "stable" : "focused");
 #endif
-  LOG ("remember last rephase type '%c'", type);
-  solver->rephased.type = type;
-  solver->rephased.last = CONFLICTS;
-
-  UPDATE_CONFLICT_LIMIT (rephase, rephased, LINEAR, false);
+  kissat_extremely_verbose (solver, "remembering last rephase type '%c' at "
+			    "%s conflicts", type, FORMAT_COUNT (CONFLICTS));
+  solver->rephased.last = type;
+  LOG ("copying saved phases as target phases");
+  memcpy (solver->phases.target, solver->phases.saved, VARS);
+  UPDATE_CONFLICT_LIMIT (rephase, rephased, NLOGNLOGNLOGN, false);
+  kissat_reset_target_assigned (solver);
+  if (type == 'B')
+    kissat_reset_best_assigned (solver);
+  return type;
 }
 
 void
@@ -202,12 +197,18 @@ kissat_rephase (kissat * solver)
 {
   kissat_backtrack_propagate_and_flush_trail (solver);
   assert (!solver->inconsistent);
-  kissat_autarky (solver);
-  if (TERMINATED (10))
+  kissat_autarky (solver, 'a');
+  if (TERMINATED (rephase_terminated_1))
     return;
   START (rephase);
   INC (rephased);
-  REPORT (1, '~');
-  reset_phases (solver);
+#ifndef QUIET
+  const char type =
+#endif
+    reset_phases (solver);
+  REPORT (0, type);
   STOP (rephase);
+  if (TERMINATED (rephase_terminated_2))
+    return;
+  kissat_autarky (solver, 'z');
 }

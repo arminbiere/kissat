@@ -1,4 +1,5 @@
 #include "analyze.h"
+#include "bump.h"
 #include "decide.h"
 #include "eliminate.h"
 #include "internal.h"
@@ -42,8 +43,6 @@ start_search (kissat * solver)
   unsigned seed = GET_OPTION (seed);
   solver->random = seed;
   LOG ("initialized random number generator with seed %u", seed);
-
-  kissat_reset_rephased (solver);
 
   const unsigned eagersubsume = GET_OPTION (eagersubsume);
   if (eagersubsume && !solver->clueue.elements)
@@ -94,10 +93,10 @@ stop_search (kissat * solver, int res)
       solver->limited.decisions = false;
     }
 
-  if (solver->terminate)
+  if (solver->termination.flagged)
     {
       kissat_very_verbose (solver, "termination forced externally");
-      solver->terminate = 0;
+      solver->termination.flagged = 0;
     }
 
 #ifndef QUIET
@@ -162,9 +161,7 @@ int
 kissat_search (kissat * solver)
 {
   start_search (solver);
-
   int res = kissat_walk_initially (solver);
-
   while (!res)
     {
       clause *conflict = kissat_search_propagate (solver);
@@ -174,12 +171,14 @@ kissat_search (kissat * solver)
 	iterate (solver);
       else if (!solver->unassigned)
 	res = 10;
-      else if (TERMINATED (11))
+      else if (TERMINATED (search_terminated_1))
 	break;
       else if (conflict_limit_hit (solver))
 	break;
       else if (kissat_reducing (solver))
 	res = kissat_reduce (solver);
+      else if (kissat_switching_search_mode (solver))
+	kissat_switch_search_mode (solver);
       else if (kissat_restarting (solver))
 	kissat_restart (solver);
       else if (kissat_rephasing (solver))
@@ -188,15 +187,11 @@ kissat_search (kissat * solver)
 	res = kissat_eliminate (solver);
       else if (kissat_probing (solver))
 	res = kissat_probe (solver);
-      else if (!solver->level && solver->unflushed)
-	kissat_flush_trail (solver);
       else if (decision_limit_hit (solver))
 	break;
       else
 	kissat_decide (solver);
     }
-
   stop_search (solver, res);
-
   return res;
 }

@@ -1,6 +1,6 @@
-#include "test.h"
-
 #include "../src/file.h"
+
+#include "test.h"
 
 void
 tissat_schedule_usage (void)
@@ -16,7 +16,9 @@ tissat_schedule_usage (void)
 
 #ifndef NOPTIONS
 
+#ifdef EMBEDDED
   APP (0, "--embedded");
+#endif
   APP (0, "--range");
 
   if (tissat_found_test_directory)
@@ -61,6 +63,9 @@ tissat_schedule_usage (void)
       APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-xors");
 
       APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-eagersubsume");
+
+      APP (0,
+	   "../test/cnf/ph11.cnf --rephaseinit=10 --conflicts=20 --no-autarky");
 
 #ifndef QUIET
       APP (0, "--walkinitially --conflicts=3000 --probeinit=0 "

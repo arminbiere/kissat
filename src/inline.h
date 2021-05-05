@@ -1,10 +1,10 @@
 #ifndef _inline_h_INCLUDED
 #define _inline_h_INCLUDED
 
-#include "internal.h"
+#include "inlinevector.h"
 #include "logging.h"
 
-#ifndef NMETRICS
+#ifdef METRICS
 
 static inline size_t
 kissat_allocated (kissat * solver)
@@ -17,7 +17,21 @@ kissat_allocated (kissat * solver)
 static inline bool
 kissat_propagated (kissat * solver)
 {
-  return SIZE_STACK (solver->trail) == solver->propagated;
+  assert (BEGIN_ARRAY (solver->trail) <= solver->propagate);
+  assert (solver->propagate <= END_ARRAY (solver->trail));
+  return solver->propagate == END_ARRAY (solver->trail);
+}
+
+static inline bool
+kissat_trail_flushed (kissat * solver)
+{
+  return !solver->unflushed && EMPTY_ARRAY (solver->trail);
+}
+
+static inline void
+kissat_reset_propagate (kissat * solver)
+{
+  solver->propagate = BEGIN_ARRAY (solver->trail);
 }
 
 static inline value
@@ -39,7 +53,9 @@ kissat_mark_removed_literal (kissat * solver, unsigned lit)
   flags *flags = FLAGS (idx);
   if (flags->eliminate)
     return;
-  LOG ("marking variable %u removed", idx);
+  if (flags->fixed)
+    return;
+  LOG ("marking %s removed", LOGVAR (idx));
   flags->eliminate = true;
   INC (variables_removed);
 }
@@ -51,7 +67,7 @@ kissat_mark_added_literal (kissat * solver, unsigned lit)
   flags *flags = FLAGS (idx);
   if (flags->subsume)
     return;
-  LOG ("marking variable %u added", idx);
+  LOG ("marking %s added", LOGVAR (idx));
   flags->subsume = true;
   INC (variables_added);
 }
@@ -176,7 +192,7 @@ static inline reference
 kissat_reference_clause (kissat * solver, const clause * c)
 {
   assert (kissat_clause_in_arena (solver, c));
-  return (word *) c - BEGIN_STACK (solver->arena);
+  return (ward *) c - BEGIN_STACK (solver->arena);
 }
 
 static inline void
@@ -204,16 +220,6 @@ kissat_watch_clause (kissat * solver, clause * c)
   kissat_watch_reference (solver, c->lits[0], c->lits[1], ref);
 }
 
-static inline void
-kissat_update_queue (kissat * solver, const links * links, unsigned idx)
-{
-  assert (!DISCONNECTED (idx));
-  const unsigned stamp = links[idx].stamp;
-  LOG ("queue updated to variable %u stamped %u", idx, stamp);
-  solver->queue.search.idx = idx;
-  solver->queue.search.stamp = stamp;
-}
-
 static inline int
 kissat_export_literal (kissat * solver, unsigned ilit)
 {
@@ -237,27 +243,13 @@ kissat_map_literal (kissat * solver, unsigned ilit, bool map)
   if (!elit)
     return INVALID_LIT;
   const unsigned eidx = ABS (elit);
-  const import *import = &PEEK_STACK (solver->import, eidx);
+  const import *const import = &PEEK_STACK (solver->import, eidx);
   if (import->eliminated)
     return INVALID_LIT;
   unsigned mlit = import->lit;
   if (elit < 0)
     mlit = NOT (mlit);
   return mlit;
-}
-
-static inline void
-kissat_update_variable_score (kissat * solver, heap * schedule, unsigned idx)
-{
-  assert (schedule->size);
-  const unsigned lit = LIT (idx);
-  const unsigned not_lit = NOT (lit);
-  size_t pos = WATCHES (lit).size;
-  size_t neg = WATCHES (not_lit).size;
-  double new_score = ((double) pos) * neg + pos + neg;
-  LOG ("new elimination score %g for variable %u (pos %zu and neg %zu)",
-       new_score, idx, pos, neg);
-  kissat_update_heap (solver, schedule, idx, -new_score);
 }
 
 static inline clause *
@@ -279,6 +271,66 @@ kissat_binary_conflict (kissat * solver,
   lits[0] = a;
   lits[1] = b;
   return res;
+}
+
+static inline void
+kissat_push_analyzed (kissat * solver, assigned * assigned, unsigned idx)
+{
+  assert (idx < VARS);
+  struct assigned *a = assigned + idx;
+  assert (!a->analyzed);
+  a->analyzed = true;
+  PUSH_STACK (solver->analyzed, idx);
+  LOG2 ("%s analyzed", LOGVAR (idx));
+}
+
+static inline bool
+kissat_analyzed (kissat * solver)
+{
+  return !EMPTY_STACK (solver->analyzed);
+}
+
+static inline void
+kissat_push_removable (kissat * solver, assigned * assigned, unsigned idx)
+{
+  assert (idx < VARS);
+  struct assigned *a = assigned + idx;
+  assert (!a->removable);
+  a->removable = true;
+  PUSH_STACK (solver->removable, idx);
+  LOG2 ("%s removable", LOGVAR (idx));
+}
+
+static inline void
+kissat_push_poisoned (kissat * solver, assigned * assigned, unsigned idx)
+{
+  assert (idx < VARS);
+  struct assigned *a = assigned + idx;
+  assert (!a->poisoned);
+  a->poisoned = true;
+  PUSH_STACK (solver->poisoned, idx);
+  LOG2 ("%s poisoned", LOGVAR (idx));
+}
+
+static inline void
+kissat_push_shrinkable (kissat * solver, assigned * assigned, unsigned idx)
+{
+  assert (idx < VARS);
+  struct assigned *a = assigned + idx;
+  assert (!a->shrinkable);
+  a->shrinkable = true;
+  PUSH_STACK (solver->shrinkable, idx);
+  LOG2 ("%s shrinkable", LOGVAR (idx));
+}
+
+static inline void
+kissat_invalidate_cache (kissat * solver)
+{
+  cache *cache = &solver->cache;
+  if (!cache->valid)
+    return;
+  cache->valid = false;
+  LOG ("invalidated cache");
 }
 
 static inline int

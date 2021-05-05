@@ -2,6 +2,7 @@
 #define _heap_h_INCLUDED
 
 #include "stack.h"
+#include "utilities.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -57,10 +58,6 @@ kissat_size_heap (heap * heap)
   return SIZE_STACK (heap->stack);
 }
 
-void kissat_push_heap (struct kissat *, heap *, unsigned);
-void kissat_pop_heap (struct kissat *, heap *, unsigned);
-void kissat_update_heap (struct kissat *, heap *, unsigned, double);
-
 static inline unsigned
 kissat_max_heap (heap * heap)
 {
@@ -68,8 +65,23 @@ kissat_max_heap (heap * heap)
   return PEEK_STACK (heap->stack, 0);
 }
 
-double kissat_max_score_on_heap (heap *);
 void kissat_rescale_heap (struct kissat *, heap * heap, double factor);
+
+void kissat_enlarge_heap (struct kissat *, heap *, unsigned new_vars);
+
+static inline double
+kissat_max_score_on_heap (heap * heap)
+{
+  if (!heap->tainted)
+    return 0;
+  assert (heap->vars);
+  const double *const score = heap->score;
+  const double *const end = score + heap->vars;
+  double res = score[0];
+  for (const double *p = score + 1; p != end; p++)
+    res = MAX (res, *p);
+  return res;
+}
 
 #ifndef NDEBUG
 void kissat_dump_heap (heap *);

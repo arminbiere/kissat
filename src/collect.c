@@ -11,6 +11,7 @@
 #include "sort.c"
 
 #include <inttypes.h>
+#include <string.h>
 
 static void
 flush_watched_clauses_by_literal (kissat * solver, litpairs * hyper,
@@ -18,18 +19,17 @@ flush_watched_clauses_by_literal (kissat * solver, litpairs * hyper,
 {
   assert (start != INVALID_REF);
 
-  const value *values = solver->values;
-  const assigned *all_assigned = solver->assigned;
+  const value *const values = solver->values;
+  const assigned *const all_assigned = solver->assigned;
 
   const value lit_value = values[lit];
-  const assigned *lit_assigned = all_assigned + IDX (lit);
+  const assigned *const lit_assigned = all_assigned + IDX (lit);
   const value lit_fixed = (lit_value && !lit_assigned->level) ? lit_value : 0;
-
   const unsigned mlit = kissat_map_literal (solver, lit, true);
 
   watches *lit_watches = &WATCHES (lit);
   watch *begin = BEGIN_WATCHES (*lit_watches), *q = begin;
-  const watch *end_of_watches = END_WATCHES (*lit_watches), *p = q;
+  const watch *const end_of_watches = END_WATCHES (*lit_watches), *p = q;
 
   while (p != end_of_watches)
     {
@@ -98,8 +98,10 @@ flush_watched_clauses_by_literal (kissat * solver, litpairs * hyper,
 
   assert (!lit_fixed || q == begin);
   SET_END_OF_WATCHES (*lit_watches, q);
-  LOG ("keeping %" SECTOR_FORMAT " watches[%u]", lit_watches->size, lit);
-
+#ifdef LOGGING
+  const size_t size_lit_watches = SIZE_WATCHES (*lit_watches);
+  LOG ("keeping %zu watches[%u]", size_lit_watches, lit);
+#endif
   if (!compact)
     return;
 
@@ -107,15 +109,18 @@ flush_watched_clauses_by_literal (kissat * solver, litpairs * hyper,
     return;
 
   watches *mlit_watches = &WATCHES (mlit);
+#if defined(LOGGING) || !defined(NDEBUG)
+  const size_t size_mlit_watches = SIZE_WATCHES (*mlit_watches);
+#endif
   if (lit_fixed)
-    assert (!mlit_watches->size);
+    assert (!size_mlit_watches);
   else if (mlit < lit)
     {
       assert (mlit != INVALID_LIT);
       assert (mlit < lit);
       *mlit_watches = *lit_watches;
-      LOG ("copied watches[%u] = watches[%u] "
-	   "(size %" SECTOR_FORMAT ")", mlit, lit, mlit_watches->size);
+      LOG ("copied watches[%u] = watches[%u] (size %zu)",
+	   mlit, lit, size_mlit_watches);
       memset (lit_watches, 0, sizeof *lit_watches);
     }
   else
@@ -126,8 +131,8 @@ static void
 flush_hyper_binary_watches (kissat * solver, litpairs * hyper, bool compact)
 {
   assert (!solver->probing);
-  const litpair *end = END_STACK (*hyper);
-  const value *values = solver->values;
+  const litpair *const end = END_STACK (*hyper);
+  const value *const values = solver->values;
   size_t flushed = 0;
   for (const litpair * p = BEGIN_STACK (*hyper); p != end; p++)
     {
@@ -170,7 +175,7 @@ static void
 flush_all_watched_clauses (kissat * solver, bool compact, reference start)
 {
   assert (solver->watching);
-  LOG ("starting to flush watches at clause[%zu]", start);
+  LOG ("starting to flush watches at clause[%" REFERENCE_FORMAT "]", start);
   litpairs hyper;
   INIT_STACK (hyper);
   for (all_variables (idx))
@@ -224,7 +229,7 @@ get_forced (const value * values, clause * dst)
 
 static void
 get_forced_and_update_large_reason (kissat * solver, assigned * assigned,
-				    const value * values, clause * dst)
+				    const value * const values, clause * dst)
 {
   const unsigned forced = get_forced (values, dst);
   update_large_reason (solver, assigned, forced, dst);
@@ -294,7 +299,7 @@ move_redundant_clauses_to_the_end (kissat * solver, reference ref)
   clause *redundant = (clause *) kissat_malloc (solver, bytes_redundant);
   clause *p = begin, *q = begin, *r = redundant;
 
-  const value *values = solver->values;
+  const value *const values = solver->values;
   assigned *assigned = solver->assigned;
 
   clause *last_irredundant = kissat_last_irredundant_clause (solver);
@@ -348,22 +353,23 @@ static reference
 sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 {
   assert (solver->watching);
-  LOG ("sparse garbage collection starting at clause[%zu]", start);
+  LOG ("sparse garbage collection starting at clause[%" REFERENCE_FORMAT "]",
+       start);
 #ifdef CHECKING_OR_PROVING
   const bool checking_or_proving = kissat_checking_or_proving (solver);
 #endif
   assert (EMPTY_STACK (solver->added));
   assert (EMPTY_STACK (solver->removed));
 
-  const value *values = solver->values;
+  const value *const values = solver->values;
   assigned *assigned = solver->assigned;
 
   size_t flushed_garbage_clauses = 0;
   size_t flushed_satisfied_clauses = 0;
-  size_t flushed_literals = 0;
+  size_t flushed = 0;
 
   clause *begin = (clause *) BEGIN_STACK (solver->arena);
-  const clause *end = (clause *) END_STACK (solver->arena);
+  const clause *const end = (clause *) END_STACK (solver->arena);
 
   clause *first, *src, *dst;
   if (start)
@@ -432,7 +438,7 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	  const unsigned level = tmp ? assigned[idx].level : INVALID_LEVEL;
 
 	  if (tmp < 0 && !level)
-	    flushed_literals++;
+	    flushed++;
 	  else if (tmp > 0 && !level)
 	    {
 	      assert (!satisfied);
@@ -593,15 +599,14 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
   if (first_redundant)
     LOGCLS (first_redundant, "determined first redundant clause as");
 
-#if !defined(QUIET) || !defined(NMETRICS)
+#if !defined(QUIET) || defined(METRICS)
   size_t bytes = (char *) END_STACK (solver->arena) - (char *) dst;
 #endif
 #ifndef QUIET
-  if (flushed_literals)
+  if (flushed)
     kissat_phase (solver, "collect",
 		  GET (garbage_collections),
-		  "flushed %zu falsified literals in large clauses",
-		  flushed_literals);
+		  "flushed %zu falsified literals in large clauses", flushed);
   size_t flushed_clauses =
     flushed_satisfied_clauses + flushed_garbage_clauses;
   if (flushed_satisfied_clauses)
@@ -621,8 +626,8 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 		GET (garbage_collections),
 		"collected %s in total", FORMAT_BYTES (bytes));
 #endif
-  ADD (literals_flushed, flushed_literals);
-#ifndef NMETRICS
+  ADD (flushed, flushed);
+#ifdef METRICS
   ADD (allocated_collected, bytes);
 #endif
 
@@ -633,7 +638,7 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
     {
 #ifdef LOGGING
       size_t move_bytes = (char *) dst - (char *) first_redundant;
-      LOG ("redundant bytes %s (%.0f%) out of %s moving bytes",
+      LOG ("redundant bytes %s (%.0f%%) out of %s moving bytes",
 	   FORMAT_BYTES (redundant_bytes),
 	   kissat_percent (redundant_bytes, move_bytes),
 	   FORMAT_BYTES (move_bytes));
@@ -643,12 +648,12 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
       assert (res != INVALID_REF);
     }
 
-  SET_END_OF_STACK (solver->arena, (word *) dst);
+  SET_END_OF_STACK (solver->arena, (ward *) dst);
   kissat_shrink_arena (solver);
 
   kissat_clear_clueue (solver, &solver->clueue);
 
-#ifndef NMETRICS
+#ifdef METRICS
   if (solver->statistics.arena_garbage)
     kissat_very_verbose (solver, "still %s garbage left in arena",
 			 FORMAT_BYTES (solver->statistics.arena_garbage));
@@ -662,13 +667,14 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 static void
 rewatch_clauses (kissat * solver, reference start)
 {
-  LOG ("rewatching clause[%zu] and following clauses", start);
+  LOG ("rewatching clause[%" REFERENCE_FORMAT "] and following clauses",
+       start);
   assert (solver->watching);
 
-  const value *values = solver->values;
-  const assigned *assigned = solver->assigned;
+  const value *const values = solver->values;
+  const assigned *const assigned = solver->assigned;
   watches *watches = solver->watches;
-  const word *arena = BEGIN_STACK (solver->arena);
+  ward *const arena = BEGIN_STACK (solver->arena);
 
   clause *end = (clause *) END_STACK (solver->arena);
   clause *c = (clause *) (BEGIN_STACK (solver->arena) + start);
@@ -682,7 +688,7 @@ rewatch_clauses (kissat * solver, reference start)
       kissat_sort_literals (solver, values, assigned, c->size, lits);
       c->searched = 2;
 
-      const reference ref = (word *) c - arena;
+      const reference ref = (ward *) c - arena;
       const unsigned l0 = lits[0];
       const unsigned l1 = lits[1];
 
@@ -733,7 +739,7 @@ dense_sweep_garbage_clauses (kissat * solver)
   clause *last_irredundant = 0;
 
   clause *begin = (clause *) BEGIN_STACK (solver->arena);
-  const clause *end = (clause *) END_STACK (solver->arena);
+  const clause *const end = (clause *) END_STACK (solver->arena);
 
   clause *src = begin;
   clause *dst = src;
@@ -766,7 +772,7 @@ dense_sweep_garbage_clauses (kissat * solver)
   update_first_reducible (solver, dst, first_reducible);
   update_last_irredundant (solver, dst, last_irredundant);
 
-#if !defined(QUIET) || !defined(NMETRICS)
+#if !defined(QUIET) || defined(METRICS)
   size_t bytes = (char *) END_STACK (solver->arena) - (char *) dst;
 #endif
   kissat_phase (solver, "collect",
@@ -775,15 +781,15 @@ dense_sweep_garbage_clauses (kissat * solver)
   kissat_phase (solver, "collect",
 		GET (garbage_collections),
 		"collected %s in total", FORMAT_BYTES (bytes));
-#ifndef NMETRICS
+#ifdef METRICS
   ADD (allocated_collected, bytes);
 #endif
 
-  SET_END_OF_STACK (solver->arena, (word *) dst);
+  SET_END_OF_STACK (solver->arena, (ward *) dst);
   kissat_shrink_arena (solver);
 
   kissat_clear_clueue (solver, &solver->clueue);
-#ifndef NMETRICS
+#ifdef METRICS
   if (solver->statistics.arena_garbage)
     kissat_very_verbose (solver, "still %s garbage left in arena",
 			 FORMAT_BYTES (solver->statistics.arena_garbage));

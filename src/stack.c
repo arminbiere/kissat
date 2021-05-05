@@ -38,7 +38,7 @@ kissat_shrink_stack (struct kissat *solver, chars * s, size_t bytes)
   size_t new_capacity;
   if (old_size)
     {
-      const unsigned ld_old_size = kissat_ldceil (old_size);
+      const unsigned ld_old_size = kissat_log2_ceiling_of_word (old_size);
       new_capacity = ((size_t) 1) << ld_old_size;
     }
   else

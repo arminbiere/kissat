@@ -1,13 +1,14 @@
-#include "test.h"
-
 #if defined(NDEBUG) || !defined(NOPTIONS)
 
 #include "../src/collect.h"
 #include "../src/dense.h"
 #include "../src/flags.h"
 #include "../src/import.h"
+#include "../src/inline.h"
 #include "../src/propsearch.h"
 #include "../src/trail.h"
+
+#include "test.h"
 
 #define REDUNDANT_LITERAL 2
 #define IRREDUNDANT_LITERAL 4
@@ -17,7 +18,7 @@ flush_unit (kissat * solver)
 {
   clause *conflict = kissat_search_propagate (solver);
   assert (!conflict);
-  kissat_flush_trail (solver);
+  assert (kissat_trail_flushed (solver));
 }
 
 static void
@@ -25,7 +26,7 @@ add_unit_to_satisfy_redundant_clause (kissat * solver)
 {
   if (solver->values[REDUNDANT_LITERAL])
     return;
-  kissat_assign_unit (solver, REDUNDANT_LITERAL);
+  kissat_learned_unit (solver, REDUNDANT_LITERAL);
   flush_unit (solver);
 }
 
@@ -34,7 +35,7 @@ add_unit_to_satisfy_irredundant_clause (kissat * solver)
 {
   if (solver->values[IRREDUNDANT_LITERAL])
     return;
-  kissat_assign_unit (solver, IRREDUNDANT_LITERAL);
+  kissat_learned_unit (solver, IRREDUNDANT_LITERAL);
   flush_unit (solver);
 }
 
@@ -60,9 +61,9 @@ static void
 add_large_redundant_clause (kissat * solver)
 {
   assert (solver->vars == 4);
-  PUSH_STACK (solver->clause.lits, 0);
-  PUSH_STACK (solver->clause.lits, REDUNDANT_LITERAL);
-  PUSH_STACK (solver->clause.lits, 6);
+  PUSH_STACK (solver->clause, 0);
+  PUSH_STACK (solver->clause, REDUNDANT_LITERAL);
+  PUSH_STACK (solver->clause, 6);
   kissat_new_redundant_clause (solver, 2);
 }
 
@@ -70,9 +71,9 @@ static void
 add_large_irredundant_clause (kissat * solver)
 {
   assert (solver->vars == 4);
-  PUSH_STACK (solver->clause.lits, 0);
-  PUSH_STACK (solver->clause.lits, IRREDUNDANT_LITERAL);
-  PUSH_STACK (solver->clause.lits, 6);
+  PUSH_STACK (solver->clause, 0);
+  PUSH_STACK (solver->clause, IRREDUNDANT_LITERAL);
+  PUSH_STACK (solver->clause, 6);
   kissat_new_irredundant_clause (solver);
 }
 

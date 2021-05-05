@@ -1,6 +1,6 @@
-#include "test.h"
-
 #include "../src/allocate.h"
+
+#include "test.h"
 
 static void
 test_stack_basic (void)
@@ -17,7 +17,7 @@ test_stack_basic (void)
       assert (SIZE_STACK (stack) == i);
       PUSH_STACK (stack, i);
     }
-#ifndef NMETRICS
+#ifdef METRICS
   assert (solver->statistics.allocated_current == 128 * sizeof (unsigned));
 #endif
   {
@@ -39,7 +39,7 @@ test_stack_basic (void)
     assert (i == 0u - 1);
   }
   RELEASE_STACK (stack);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }
@@ -70,7 +70,7 @@ test_shrink_stack (void)
   RESIZE_STACK (stack, 1);
   SHRINK_STACK (stack);
   RELEASE_STACK (stack);
-#ifndef NMETRICS
+#ifdef METRICS
   assert (!solver->statistics.allocated_current);
 #endif
 }

@@ -1,5 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://travis-ci.org/arminbiere/kissat.svg?branch=master)](https://travis-ci.org/arminbiere/kissat)
+[![Build Status](https://travis-ci.com/arminbiere/kissat.svg?branch=master)](https://travis-ci.com/arminbiere/kissat)
 
 The Kissat SAT Solver
 =====================

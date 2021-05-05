@@ -8,6 +8,7 @@ typedef struct bounds bounds;
 typedef struct changes changes;
 typedef struct delays delays;
 typedef struct delay delay;
+typedef struct effort effort;
 typedef struct enabled enabled;
 typedef struct limited limited;
 typedef struct limits limits;
@@ -55,10 +56,11 @@ struct limits
   uint64_t decisions;
   uint64_t reports;
 
-  union
+  struct
   {
     uint64_t ticks;
     uint64_t conflicts;
+    uint64_t interval;
   } mode;
 
   struct
@@ -90,6 +92,7 @@ struct enabled
   bool focus;
   bool mode;
   bool probe;
+  bool rephase;
 };
 
 struct delay
@@ -101,11 +104,19 @@ struct delay
 struct delays
 {
   delay autarky;
+  delay backbone;
+  delay bumpreasons;
   delay eliminate;
   delay failed;
   delay probe;
   delay substitute;
   delay ternary;
+};
+
+struct effort
+{
+  uint64_t eliminate;
+  uint64_t probe;
 };
 
 struct waiting
@@ -133,18 +144,22 @@ uint64_t kissat_scale_limit (struct kissat *,
   kissat_scale_limit (solver, #NAME, \
                       solver->statistics.COUNT, GET_OPTION (NAME))
 
-uint64_t kissat_logn (uint64_t);
-uint64_t kissat_ndivlogn (uint64_t);
-uint64_t kissat_linear (uint64_t);
-uint64_t kissat_nlogn (uint64_t);
-uint64_t kissat_nlognlogn (uint64_t);
-uint64_t kissat_quadratic (uint64_t);
+double kissat_linear (uint64_t);
+double kissat_logn (uint64_t);
+double kissat_ndivlogn (uint64_t);
+double kissat_nlognlognlogn (uint64_t);
+double kissat_nlognlogn (uint64_t);
+double kissat_nlogn (uint64_t);
+double kissat_quadratic (uint64_t);
+double kissat_sqrt (uint64_t);
 
-#define NDIVLOGN(COUNT) kissat_ndivlogn (COUNT)
 #define LINEAR(COUNT) kissat_linear (COUNT)
+#define NDIVLOGN(COUNT) kissat_ndivlogn (COUNT)
 #define NLOGN(COUNT) kissat_nlogn (COUNT)
 #define NLOGNLOGN(COUNT) kissat_nlognlogn (COUNT)
+#define NLOGNLOGNLOGN(COUNT) kissat_nlognlognlogn (COUNT)
 #define QUADRATIC(COUNT) kissat_quadratic (COUNT)
+#define SQRT(COUNT) kissat_sqrt (COUNT)
 
 #define INIT_CONFLICT_LIMIT(NAME,SCALE) \
 do { \
@@ -161,15 +176,17 @@ do { \
 do { \
   if (solver->inconsistent) \
     break; \
-  struct statistics *statistics = &solver->statistics; \
+  const struct statistics *statistics = &solver->statistics; \
+  assert (statistics->COUNT > 0); \
   struct limits *limits = &solver->limits; \
   uint64_t DELTA = GET_OPTION (NAME ## int); \
-  DELTA *= SCALE_COUNT_FUNCTION (statistics->COUNT) + 1; \
+  const double SCALING = SCALE_COUNT_FUNCTION (statistics->COUNT); \
+  assert (SCALING >= 1); \
+  DELTA *= SCALING;  \
   const uint64_t SCALED = !(SCALE_DELTA) ? DELTA : \
     kissat_scale_delta (solver, #NAME, DELTA); \
   limits->NAME.conflicts = CONFLICTS + SCALED; \
-  kissat_phase (solver, #NAME, \
-		GET (COUNT), \
+  kissat_phase (solver, #NAME, GET (COUNT), \
 		"new limit of %s after %s conflicts", \
 		FORMAT_COUNT (limits->NAME.conflicts), \
 		FORMAT_COUNT (SCALED)); \
@@ -177,25 +194,50 @@ do { \
 
 #include <inttypes.h>
 
-#define SET_EFFICIENCY_BOUND(BOUND,NAME,START,REFERENCE,ADDITIONAL) \
-  uint64_t BOUND = solver->statistics.START; \
+#define SET_EFFORT_LIMIT(LIMIT,NAME,START,ADDITIONAL) \
+  uint64_t LIMIT; \
   do { \
-    const uint64_t REFERENCE = solver->statistics.REFERENCE; \
-    const uint64_t MINIMUM = GET_OPTION (NAME ## mineff); \
-    const uint64_t MAXIMUM = MINIMUM * GET_OPTION (NAME ## maxeff); \
-    const double EFFICIENCY = (double) GET_OPTION (NAME ## releff) / 1e3; \
+    const uint64_t OLD_LIMIT = solver->statistics.START; \
+    const uint64_t TICKS = solver->statistics.search_ticks; \
+    const uint64_t LAST = \
+      solver->probing ? solver->last.probe : solver->last.eliminate; \
+    uint64_t REFERENCE = TICKS - LAST; \
+    const uint64_t MINEFFORT = GET_OPTION (mineffort); \
+    if (REFERENCE < MINEFFORT) \
+      { \
+	REFERENCE = MINEFFORT; \
+	kissat_extremely_verbose (solver, \
+	  #NAME " effort reference %s set to 'mineffort'", \
+	  FORMAT_COUNT (REFERENCE)); \
+      } \
+    else \
+      { \
+	kissat_extremely_verbose (solver, \
+	  #NAME " effort reference %s = %s - %s 'search_ticks'", \
+	  FORMAT_COUNT (REFERENCE), \
+	    FORMAT_COUNT (TICKS), FORMAT_COUNT (LAST)); \
+      } \
     const uint64_t ADJUSTMENT = (ADDITIONAL); \
-    const uint64_t PRODUCT = REFERENCE * EFFICIENCY; \
+    const double EFFORT = (double) GET_OPTION (NAME ## effort) * 1e-3; \
+    const uint64_t PRODUCT = EFFORT * REFERENCE; \
     uint64_t DELTA = PRODUCT + ADJUSTMENT; \
-    if (DELTA < MINIMUM) \
-      DELTA = MINIMUM; \
-    if (DELTA > MAXIMUM) \
-      DELTA = MAXIMUM; \
-    BOUND += DELTA; \
+    \
+    kissat_extremely_verbose (solver, \
+      #NAME \
+      " effort delta %s = %s + %s = %g * %s + %s '" \
+      #START "'", \
+      FORMAT_COUNT (DELTA), \
+      FORMAT_COUNT (PRODUCT), FORMAT_COUNT (ADJUSTMENT), \
+      EFFORT, FORMAT_COUNT (REFERENCE), FORMAT_COUNT (ADJUSTMENT)); \
+      \
+    const uint64_t NEW_LIMIT = OLD_LIMIT + DELTA; \
     kissat_very_verbose (solver, \
-      #NAME " efficiency limit %s delta %s = %s + %s", \
-      FORMAT_COUNT (BOUND), FORMAT_COUNT (DELTA), \
-      FORMAT_COUNT (PRODUCT), FORMAT_COUNT (ADJUSTMENT)); \
+      #NAME " effort limit %s = %s + %s '" #START "'", \
+      FORMAT_COUNT (NEW_LIMIT), \
+	FORMAT_COUNT (OLD_LIMIT), FORMAT_COUNT (DELTA)); \
+    \
+    LIMIT = NEW_LIMIT; \
+    \
   } while (0)
 
 #define RETURN_IF_DELAYED(NAME) \

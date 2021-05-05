@@ -43,9 +43,10 @@ unmark_literals (kissat * solver, value * marks,
 
 static unsigned
 copy_literals (kissat * solver, unsigned lit,
-	       const value * values, unsigned *lits, clause * c)
+	       const value * const values, unsigned *lits, clause * c)
 {
-  const unsigned *end = c->lits + c->size;
+  assert (!c->garbage);
+  const unsigned *const end = c->lits + c->size;
   unsigned *q = lits;
 #ifndef NDEBUG
   bool found_lit = false;
@@ -64,7 +65,12 @@ copy_literals (kissat * solver, unsigned lit,
       else
 	{
 	  const value value = values[other];
-	  assert (value <= 0);
+	  if (value > 0)
+	    {
+	      kissat_eliminate_clause (solver, c, other);
+	      LOG ("found satisfied %s", LOGLIT (other));
+	      return UINT_MAX;
+	    }
 	  if (value < 0)
 	    {
 	      LOG ("skipping falsified %s", LOGLIT (other));
@@ -77,7 +83,7 @@ copy_literals (kissat * solver, unsigned lit,
   assert (found_lit);
   *q++ = lit;
   const unsigned size = q - lits;
-  LOGLITS (size, lits, "copied", size);
+  LOGLITS (size, lits, "copied %u", size);
 #ifndef LOGGING
   (void) solver;
 #endif
@@ -146,6 +152,8 @@ match_lits_ref (kissat * solver, const value * marks, const value * values,
 		unsigned size, reference ref)
 {
   clause *c = kissat_dereference_clause (solver, ref);
+  if (c->garbage)
+    return false;
   unsigned found = 0;
   for (all_literals_in_clause (lit, c))
     {
@@ -169,7 +177,7 @@ match_lits_ref (kissat * solver, const value * marks, const value * values,
 
 static bool
 match_lits_watch (kissat * solver,
-		  const value * marks, const value * values,
+		  const value * const marks, const value * values,
 		  unsigned size, watch watch)
 {
   if (watch.type.binary)
@@ -188,18 +196,21 @@ match_lits_watch (kissat * solver,
     }
 }
 
-static watch *
+static inline watch *
 find_lits_watch (kissat * solver, watch * begin, watch * end,
-		 const value * marks, const value * values,
+		 const value * const marks, const value * values,
 		 unsigned size, uint64_t * steps)
 {
   assert (begin <= end);
   for (watch * p = begin; p != end; p++)
     {
-      *steps += 1;
       if (match_lits_watch (solver, marks, values, size, *p))
-	return p;
+	{
+	  *steps += p - begin + 1;
+	  return p;
+	}
     }
+  *steps += end - begin;
   return 0;
 }
 
@@ -250,7 +261,7 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
 
   unsigned* lits = _alloca(sizeof(unsigned)*size_limit);
 
-  const value *values = solver->values;
+  const value *const values = solver->values;
   value *marks = solver->marks;
 
   const unsigned steps_limit = solver->bounds.eliminate.occurrences;
@@ -265,15 +276,19 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
       if (steps > steps_limit)
 	break;
 
-      if (TERMINATED (26))
+      if (TERMINATED (xors_terminated_1))
 	break;
 
       steps++;
       clause *c = kissat_dereference_clause (solver, p->large.ref);
+      if (c->garbage)
+	continue;
       if (c->size > size_limit)
 	continue;
 
       unsigned size = copy_literals (solver, lit, values, lits, c);
+      if (size == UINT_MAX)
+	continue;
 
       assert (size <= 32);
       if (size < 3)
@@ -332,10 +347,10 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
 
 	  sort_watch_pointers (solver, &solver->xorted[0]);
 
-	  const watch *prev = 0;
+	  watch const *prev = 0;
 	  for (unsigned i = 0; i < nsort[0]; i++)
 	    {
-	      const watch *p0 = PEEK_STACK (solver->xorted[0], i);
+	      const watch *const p0 = PEEK_STACK (solver->xorted[0], i);
 	      const watch w0 = *p0;
 	      if (p0 == prev)
 		LOGWATCH (lit, w0, "dropping repeated");
@@ -352,7 +367,7 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
 	  prev = 0;
 	  for (unsigned i = 0; i < nsort[1]; i++)
 	    {
-	      const watch *p1 = PEEK_STACK (solver->xorted[1], i);
+	      const watch *const p1 = PEEK_STACK (solver->xorted[1], i);
 	      const watch w1 = *p1;
 	      if (p1 == prev)
 		LOGWATCH (not_lit, w1, "dropping repeated");
@@ -382,6 +397,7 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
 	continue;
 
       solver->gate_eliminated = GATE_ELIMINATED (xors);
+      INC (xors_extracted);
 
       return true;
     }

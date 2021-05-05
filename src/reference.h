@@ -5,8 +5,10 @@
 
 typedef unsigned reference;
 
-#define LD_MAX_REF 31
-#define MAX_REF (((reference)1 << LD_MAX_REF)-1)
+#define REFERENCE_FORMAT "u"
+
+#define LD_MAX_REF 31u
+#define MAX_REF ((1u << LD_MAX_REF)-1)
 
 #define INVALID_REF UINT_MAX
 

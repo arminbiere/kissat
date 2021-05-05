@@ -68,7 +68,7 @@ propagate_clause (kissat * solver,
 }
 
 static inline unsigned
-propagate_unassigned (kissat * solver, word * arena,
+propagate_unassigned (kissat * solver, ward * arena, watches * all_watches,
 		      const value * values, value * autarky,
 		      unsigneds * work, unsigned lit)
 {
@@ -77,9 +77,10 @@ propagate_unassigned (kissat * solver, word * arena,
   assert (!solver->level);
   LOG ("autarky propagate unassigned %s", LOGLIT (lit));
   unsigned unassigned = 0;
-  watches *watches = &WATCHES (lit);
+  assert (lit < LITS);
+  watches *watches = all_watches + lit;
   watch *begin = BEGIN_WATCHES (*watches), *q = begin;
-  const watch *end = END_WATCHES (*watches), *p = q;
+  const watch *const end = END_WATCHES (*watches), *p = q;
   while (p != end)
     {
       const watch watch = *p++;
@@ -113,15 +114,15 @@ propagate_unassigned (kissat * solver, word * arena,
 }
 
 static inline unsigned
-propagate_autarky (kissat * solver,
+propagate_autarky (kissat * solver, watches * all_watches,
 		   const value * values, value * autarky, unsigneds * work)
 {
   unsigned unassigned = 0;
-  word *arena = BEGIN_STACK (solver->arena);
+  ward *arena = BEGIN_STACK (solver->arena);
   while (!EMPTY_STACK (*work))
     {
       unsigned lit = POP_STACK (*work);
-      unassigned += propagate_unassigned (solver, arena,
+      unassigned += propagate_unassigned (solver, arena, all_watches,
 					  values, autarky, work, lit);
     }
   return unassigned;
@@ -131,13 +132,13 @@ static unsigned
 determine_autarky (kissat * solver, value * autarky, unsigneds * work)
 {
   assert (!solver->level);
-  const phase *phases = solver->phases;
+  const value *const saved = solver->phases.saved;
   unsigned assigned = 0;
   for (all_variables (idx))
     {
       if (!ACTIVE (idx))
 	continue;
-      value value = phases[idx].saved;
+      value value = saved[idx];
       if (!value)
 	value = INITIAL_PHASE;
       const unsigned lit = LIT (idx);
@@ -148,7 +149,7 @@ determine_autarky (kissat * solver, value * autarky, unsigneds * work)
       assigned++;
     }
 
-  const value *values = solver->values;
+  const value *const values = solver->values;
 
   clause *last_irredundant = kissat_last_irredundant_clause (solver);
 
@@ -160,7 +161,7 @@ determine_autarky (kissat * solver, value * autarky, unsigneds * work)
 	continue;
       if (c->redundant)
 	continue;
-      if (TERMINATED (0))
+      if (TERMINATED (autarky_terminated_1))
 	return UINT_MAX;
       unsigned unassigned = propagate_clause (solver, values, autarky, 0, c);
       if (!unassigned)
@@ -181,6 +182,8 @@ determine_autarky (kissat * solver, value * autarky, unsigneds * work)
       return UINT_MAX;
     }
 
+  watches *all_watches = solver->watches;
+
   for (all_literals (lit))
     {
       if (!assigned)
@@ -190,9 +193,10 @@ determine_autarky (kissat * solver, value * autarky, unsigneds * work)
       value lit_value = autarky[lit];
       if (lit_value > 0)
 	continue;
-      if (TERMINATED (1))
+      if (TERMINATED (autarky_terminated_2))
 	return UINT_MAX;
-      watches *watches = &WATCHES (lit);
+      assert (lit < LITS);
+      watches *watches = all_watches + lit;
       for (all_binary_large_watches (watch, *watches))
 	{
 	  assert (watch.type.binary);
@@ -222,7 +226,7 @@ determine_autarky (kissat * solver, value * autarky, unsigneds * work)
       if (EMPTY_STACK (*work))
 	continue;
       const unsigned unassigned =
-	propagate_autarky (solver, values, autarky, work);
+	propagate_autarky (solver, all_watches, values, autarky, work);
       assert (unassigned <= assigned);
       assigned -= unassigned;
     }
@@ -245,13 +249,14 @@ determine_autarky (kissat * solver, value * autarky, unsigneds * work)
 	continue;
       if (c->redundant)
 	continue;
-      if (TERMINATED (2))
+      if (TERMINATED (autarky_terminated_3))
 	return UINT_MAX;
       unsigned unassigned =
 	propagate_clause (solver, values, autarky, work, c);
       if (unassigned)
 	{
-	  unassigned += propagate_autarky (solver, values, autarky, work);
+	  unassigned += propagate_autarky (solver, all_watches,
+					   values, autarky, work);
 	  assert (unassigned <= assigned);
 	  assigned -= unassigned;
 	  if (!assigned)
@@ -292,12 +297,14 @@ flush_large_connected_and_autarky_binaries (kissat * solver)
   assert (!solver->watching);
   LOG ("flushing large connected clause references and autarky binaries");
   size_t flushed_large = 0, flushed_binaries = 0;
-  const flags *flags = solver->flags;
+  const flags *const flags = solver->flags;
+  watches *all_watches = solver->watches;
   for (all_literals (lit))
     {
-      watches *watches = &WATCHES (lit);
+      assert (lit < LITS);
+      watches *watches = all_watches + lit;
       watch *begin = BEGIN_WATCHES (*watches), *q = begin;
-      const watch *end_watches = END_WATCHES (*watches), *p = q;
+      const watch *const end_watches = END_WATCHES (*watches), *p = q;
       const unsigned lit_idx = IDX (lit);
       const struct flags *lit_flags = flags + lit_idx;
       const bool lit_eliminated = lit_flags->eliminated;
@@ -338,18 +345,19 @@ flush_large_connected_and_autarky_binaries (kissat * solver)
 }
 
 static void
-autarky_literal (kissat * solver, unsigned lit)
+autarky_literal (kissat * solver, watches * all_watches, unsigned lit)
 {
   LOG ("autarky literal %s", LOGLIT (lit));
-  INC (autarky);
+  INC (autarky_eliminated);
   kissat_mark_eliminated_variable (solver, IDX (lit));
-  word *arena = BEGIN_STACK (solver->arena);
+  ward *arena = BEGIN_STACK (solver->arena);
   if (GET_OPTION (incremental))
     {
-      watches *watches = &WATCHES (lit);
+      assert (lit < LITS);
+      watches *watches = all_watches + lit;
       watch *q = BEGIN_WATCHES (*watches);
-      const watch *end = END_WATCHES (*watches);
-      const watch *p = q;
+      const watch *const end = END_WATCHES (*watches);
+      watch const *p = q;
       while (p != end)
 	{
 	  const watch watch = *p++;
@@ -383,6 +391,7 @@ static void
 apply_autarky (kissat * solver, unsigned size, value * autarky)
 {
   unsigned eliminated = 0;
+  watches *all_watches = solver->watches;
   for (all_variables (idx))
     {
       unsigned lit = LIT (idx);
@@ -392,7 +401,7 @@ apply_autarky (kissat * solver, unsigned size, value * autarky)
       if (value < 0)
 	lit = NOT (lit);
       assert (autarky[lit] > 0);
-      autarky_literal (solver, lit);
+      autarky_literal (solver, all_watches, lit);
       eliminated++;
     }
   LOG ("eliminated %u autarky variables", eliminated);
@@ -402,11 +411,11 @@ apply_autarky (kissat * solver, unsigned size, value * autarky)
 }
 
 void
-kissat_autarky (kissat * solver)
+kissat_autarky (kissat * solver, char type)
 {
   if (solver->inconsistent)
     return;
-  if (TERMINATED (3))
+  if (TERMINATED (autarky_terminated_4))
     return;
   if (!solver->enabled.autarky)
     return;
@@ -436,7 +445,11 @@ kissat_autarky (kissat * solver)
   RELEASE_STACK (saved);
   bool success = (autarkic && autarkic < UINT_MAX);
   UPDATE_DELAY (success, autarky);
-  REPORT (!success, 'a');
+#ifndef QUIET
+  REPORT (!success, type);
+#else
+  (void) type;
+#endif
   STOP_SIMPLIFIER_AND_RESUME_SEARCH (autarky);
   kissat_check_statistics (solver);
 }

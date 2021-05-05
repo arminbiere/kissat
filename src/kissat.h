@@ -26,12 +26,15 @@ DllExport const char *kissat_id (void);
 DllExport const char *kissat_version (void);
 DllExport const char *kissat_compiler (void);
 
+DllExport const char *kissat_copyright (void);
+DllExport void kissat_build (const char *line_prefix);
 DllExport void kissat_banner (const char *line_prefix, const char *name_of_app);
 
 DllExport int kissat_get_option (kissat * solver, const char *name);
 DllExport int kissat_set_option (kissat * solver, const char *name, int new_value);
 
-DllExport void kissat_set_configuration (kissat * solver, const char *name);
+DllExport int kissat_has_configuration (const char *name);
+DllExport int kissat_set_configuration (kissat * solver, const char *name);
 
 DllExport void kissat_set_conflict_limit (kissat * solver, unsigned);
 DllExport void kissat_set_decision_limit (kissat * solver, unsigned);

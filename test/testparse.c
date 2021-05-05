@@ -1,9 +1,9 @@
-#include "test.h"
-
 #include "../src/file.h"
 #include "../src/parse.h"
 
 #include <inttypes.h>
+
+#include "test.h"
 
 static bool
 test_parse (bool expect_parse_error, unsigned strict, const char *path)

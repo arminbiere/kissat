@@ -16,7 +16,7 @@ verbosity (kissat * solver)
     return -1;
 #ifdef LOGGING
   if (GET_OPTION (log))
-    return 2;
+    return 3;
 #endif
 #ifndef QUIET
   if (GET_OPTION (quiet))
@@ -74,6 +74,13 @@ print_message (const char *color, const char *fmt, va_list * ap)
   fflush (stdout);
 }
 
+static void
+print_line (void)
+{
+  fputs ("c\n", stdout);
+  fflush (stdout);
+}
+
 int
 kissat_verbosity (kissat * solver)
 {
@@ -89,6 +96,13 @@ kissat_message (kissat * solver, const char *fmt, ...)
   va_start (ap, fmt);
   print_message ("", fmt, &ap);
   va_end (ap);
+}
+
+void
+kissat_line (kissat * solver)
+{
+  if (verbosity (solver) >= 0)
+    print_line ();
 }
 
 void

@@ -9,7 +9,7 @@ kissat_find_dominator (kissat * solver, unsigned lit, clause * c)
 
   LOGCLS (c, "starting to find dominator of %s from", LOGLIT (lit));
 
-  const word *arena = BEGIN_STACK (solver->arena);
+  ward *const arena = BEGIN_STACK (solver->arena);
   assigned *assigned = solver->assigned;
 
   unsigned count = 0;
@@ -33,6 +33,8 @@ kissat_find_dominator (kissat * solver, unsigned lit, clause * c)
       return INVALID_LIT;
     }
 
+  START (dominate);
+
   unsigneds *analyzed = &solver->analyzed;
 
   assert (EMPTY_STACK (*analyzed));
@@ -50,7 +52,7 @@ kissat_find_dominator (kissat * solver, unsigned lit, clause * c)
   for (;;)
     {
       assert (a == ASSIGNED (root));
-      if (a->reason == DECISION)
+      if (a->reason == DECISION_REASON)
 	break;
       unsigned prev = INVALID_LIT;
       if (a->binary)
@@ -113,7 +115,7 @@ kissat_find_dominator (kissat * solver, unsigned lit, clause * c)
       while (!a->analyzed)
 	{
 	  assert (a == ASSIGNED (dom));
-	  if (a->reason == DECISION)
+	  if (a->reason == DECISION_REASON)
 	    break;
 	  unsigned prev = INVALID_LIT;
 	  if (a->binary)
@@ -189,6 +191,7 @@ kissat_find_dominator (kissat * solver, unsigned lit, clause * c)
   else
     LOG ("found dominator %s", LOGLIT (res));
 #endif
+  STOP (dominate);
 
   return res;
 }

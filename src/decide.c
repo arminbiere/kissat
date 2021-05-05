@@ -1,5 +1,7 @@
 #include "decide.h"
-#include "inline.h"
+#include "inlineframes.h"
+#include "inlineheap.h"
+#include "inlinequeue.h"
 
 #include <inttypes.h>
 
@@ -7,8 +9,8 @@ static unsigned
 last_enqueued_unassigned_variable (kissat * solver)
 {
   assert (solver->unassigned);
-  const links *links = solver->links;
-  const value *values = solver->values;
+  const links *const links = solver->links;
+  const value *const values = solver->values;
   unsigned res = solver->queue.search.idx;
   if (values[LIT (res)])
     {
@@ -22,7 +24,7 @@ last_enqueued_unassigned_variable (kissat * solver)
     }
 #ifdef LOGGING
   const unsigned stamp = links[res].stamp;
-  LOG ("last enqueued unassigned variable %u stamp %u", res, stamp);
+  LOG ("last enqueued unassigned %s stamp %u", LOGVAR (res), stamp);
 #endif
 #ifdef CHECK_QUEUE
   for (unsigned i = links[res].next; !DISCONNECTED (i); i = links[i].next)
@@ -35,19 +37,21 @@ static unsigned
 largest_score_unassigned_variable (kissat * solver)
 {
   unsigned res = kissat_max_heap (&solver->scores);
-  const value *values = solver->values;
+  const value *const values = solver->values;
   while (values[LIT (res)])
     {
-      kissat_pop_heap (solver, &solver->scores, res);
+      kissat_pop_max_heap (solver, &solver->scores);
       res = kissat_max_heap (&solver->scores);
     }
 #if defined(LOGGING) || defined(CHECK_HEAP)
   const double score = kissat_get_heap_score (&solver->scores, res);
 #endif
-  LOG ("largest score unassigned variable %u score %g", res, score);
+  LOG ("largest score unassigned %s score %g", LOGVAR (res), score);
 #ifdef CHECK_HEAP
   for (all_variables (idx))
     {
+      if (!ACTIVE (idx))
+	continue;
       if (VALUE (LIT (idx)))
 	continue;
       const double idx_score = kissat_get_heap_score (&solver->scores, idx);
@@ -65,7 +69,7 @@ kissat_next_decision_variable (kissat * solver)
     res = largest_score_unassigned_variable (solver);
   else
     res = last_enqueued_unassigned_variable (solver);
-  LOG ("next decision variable %u", res);
+  LOG ("next decision %s", LOGVAR (res));
   return res;
 }
 
@@ -74,37 +78,42 @@ decide_phase (kissat * solver, unsigned idx)
 {
   bool force = GET_OPTION (forcephase);
 
-  bool target;
+  value *target;
   if (force)
-    target = false;
+    target = 0;
   else if (!GET_OPTION (target))
-    target = false;
-  else if (solver->stable)
-    target = true;
+    target = 0;
+  else if (solver->stable || GET_OPTION (target) > 1)
+    target = solver->phases.target + idx;
   else
-    target = (GET_OPTION (target) > 1);
+    target = 0;
 
-  const bool saved = !force && GET_OPTION (phasesaving);
+  value *saved;
+  if (force)
+    saved = 0;
+  else if (GET_OPTION (phasesaving))
+    saved = solver->phases.saved + idx;
+  else
+    saved = 0;
 
-  const phase *phase = PHASE (idx);
   value res = 0;
 
-  if (target && (res = phase->target))
+  if (!res && target && (res = *target))
     {
-      LOG ("variable %u uses target decision phase %d", idx, (int) res);
+      LOG ("%s uses target decision phase %d", LOGVAR (idx), (int) res);
       INC (target_decisions);
     }
 
-  if (saved && !res && (res = phase->saved))
+  if (!res && saved && (res = *saved))
     {
-      LOG ("variable %u uses saved decision phase %d", idx, (int) res);
+      LOG ("%s uses saved decision phase %d", LOGVAR (idx), (int) res);
       INC (saved_decisions);
     }
 
   if (!res)
     {
       res = INITIAL_PHASE;
-      LOG ("variable %u uses initial decision phase %d", idx, (int) res);
+      LOG ("%s uses initial decision phase %d", LOGVAR (idx), (int) res);
       INC (initial_decisions);
     }
   assert (res);
@@ -118,8 +127,12 @@ kissat_decide (kissat * solver)
   START (decide);
   assert (solver->unassigned);
   INC (decisions);
-  assert (solver->level < MAX_LEVEL);
+  if (solver->stable)
+    INC (stable_decisions);
+  else
+    INC (focused_decisions);
   solver->level++;
+  assert (solver->level != INVALID_LEVEL);
   const unsigned idx = kissat_next_decision_variable (solver);
   const value value = decide_phase (solver, idx);
   unsigned lit = LIT (idx);
@@ -137,8 +150,8 @@ kissat_internal_assume (kissat * solver, unsigned lit)
 {
   assert (solver->unassigned);
   assert (!VALUE (lit));
-  assert (solver->level < MAX_LEVEL);
   solver->level++;
+  assert (solver->level != INVALID_LEVEL);
   kissat_push_frame (solver, lit);
   assert (solver->level < SIZE_STACK (solver->frames));
   LOG ("assuming literal %s", LOGLIT (lit));
