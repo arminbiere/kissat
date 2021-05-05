@@ -21,7 +21,7 @@ typedef struct walker walker;
 struct tagged
 {
   unsigned ref:LD_MAX_WALK_REF;
-  bool binary:1;
+  unsigned binary:1;
 };
 
 static inline tagged

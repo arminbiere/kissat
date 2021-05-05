@@ -1,3 +1,4 @@
+#define round roundOriginal
 #include "allocate.h"
 #include "backtrack.h"
 #include "colors.h"
@@ -14,6 +15,7 @@
 #include "vivify.h"
 
 #include <inttypes.h>
+#undef round
 
 static inline bool
 more_occurrences (unsigned *counts, unsigned a, unsigned b)

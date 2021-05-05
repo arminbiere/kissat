@@ -19,7 +19,7 @@ typedef struct large_watch large_watch;
 struct watch_type
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
-  bool binary:1;
+    unsigned binary:1;
   unsigned padding:2;
   unsigned lit:29;
 #else
@@ -32,9 +32,9 @@ struct watch_type
 struct binary_watch
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
-  bool binary:1;
-  bool redundant:1;
-  bool hyper:1;
+    unsigned binary:1;
+    unsigned redundant:1;
+    unsigned hyper:1;
   unsigned lit:29;
 #else
   unsigned lit:29;
@@ -47,7 +47,7 @@ struct binary_watch
 struct large_watch
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
-  bool binary:1;
+    unsigned binary:1;
   unsigned ref:31;
 #else
   unsigned ref:31;
@@ -58,7 +58,7 @@ struct large_watch
 struct blocking_watch
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
-  bool binary:1;
+    unsigned binary:1;
   unsigned padding:2;
   unsigned lit:29;
 #else

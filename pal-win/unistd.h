@@ -70,6 +70,12 @@ _crt_signal_t pal_signal(int sig, _crt_signal_t);
 #define signal(a,b) pal_signal(a,b)
 unsigned int alarm(unsigned int seconds);
 
+
+#define __builtin_clz _lzcnt_u32
+#define __builtin_clzl _lzcnt_u64
+#define __builtin_clzll _lzcnt_u64
+
+
 #define DllExport   __declspec( dllexport )
 
 #ifndef UINT_MAX

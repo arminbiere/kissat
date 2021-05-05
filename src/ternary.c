@@ -81,8 +81,8 @@ typedef struct tag tag;
 struct tag
 {
   unsigned first:30;
-  bool redundant:1;
-  bool binary:1;
+  unsigned redundant:1;
+  unsigned binary:1;
 };
 
 // *INDENT-OFF*

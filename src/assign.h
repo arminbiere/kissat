@@ -18,15 +18,15 @@ struct assigned
 {
   unsigned level:28;
 
-  bool analyzed:1;
-  bool poisoned:1;
-  bool removable:1;
-  bool shrinkable:1;
+  unsigned analyzed:1;
+  unsigned poisoned:1;
+  unsigned removable:1;
+  unsigned shrinkable:1;
 
   unsigned trail:30;
 
-  bool binary:1;
-  bool redundant:1;
+  unsigned binary:1;
+  unsigned redundant:1;
 
   unsigned reason;
 };

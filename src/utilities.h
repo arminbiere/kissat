@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 typedef uintptr_t word;
 typedef uintptr_t w2rd[2];

@@ -39,6 +39,7 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -59,6 +60,7 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -99,7 +101,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
     <IncludePath>C:\Users\de\Source\Repos\kissat\pal-win;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -111,7 +113,7 @@
     <IncludePath>C:\Users\de\Source\Repos\kissat\pal-win;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
+    <LinkIncremental>false</LinkIncremental>
     <IncludePath>C:\Users\de\Source\Repos\kissat\pal-win;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -129,10 +131,13 @@
       <PreprocessorDefinitions>NMETRICS;NSTATISTICS;NEMBEDDED;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <ExceptionHandling>false</ExceptionHandling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
       <ControlFlowGuard>false</ControlFlowGuard>
       <CallingConvention>StdCall</CallingConvention>
       <CompileAs>CompileAsC</CompileAs>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -159,6 +164,8 @@
       <StringPooling>true</StringPooling>
       <OmitFramePointers>true</OmitFramePointers>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -186,6 +193,8 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -201,10 +210,13 @@
       <PreprocessorDefinitions>NMETRICS;NSTATISTICS;NEMBEDDED;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <ExceptionHandling>false</ExceptionHandling>
-      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
       <ControlFlowGuard>false</ControlFlowGuard>
       <CallingConvention>StdCall</CallingConvention>
       <CompileAs>CompileAsC</CompileAs>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -231,6 +243,8 @@
       <StringPooling>true</StringPooling>
       <OmitFramePointers>true</OmitFramePointers>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -258,6 +272,8 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -275,10 +291,13 @@
     <ClCompile Include="src\assign.c" />
     <ClCompile Include="src\autarky.c" />
     <ClCompile Include="src\averages.c" />
+    <ClCompile Include="src\backbone.c" />
     <ClCompile Include="src\backtrack.c" />
     <ClCompile Include="src\backward.c" />
+    <ClCompile Include="src\bits.c" />
     <ClCompile Include="src\build.c" />
     <ClCompile Include="src\bump.c" />
+    <ClCompile Include="src\cache.c" />
     <ClCompile Include="src\check.c" />
     <ClCompile Include="src\clause.c" />
     <ClCompile Include="src\clueue.c" />
@@ -288,6 +307,7 @@
     <ClCompile Include="src\config.c" />
     <ClCompile Include="src\decide.c" />
     <ClCompile Include="src\deduce.c" />
+    <ClCompile Include="src\definition.c" />
     <ClCompile Include="src\dense.c" />
     <ClCompile Include="src\dominate.c" />
     <ClCompile Include="src\dump.c" />
@@ -300,19 +320,20 @@
     <ClCompile Include="src\flags.c" />
     <ClCompile Include="src\format.c" />
     <ClCompile Include="src\forward.c" />
-    <ClCompile Include="src\frames.c" />
     <ClCompile Include="src\gates.c" />
     <ClCompile Include="src\handle.c" />
     <ClCompile Include="src\heap.c" />
     <ClCompile Include="src\ifthenelse.c" />
     <ClCompile Include="src\import.c" />
     <ClCompile Include="src\internal.c" />
+    <ClCompile Include="src\kitten.c" />
     <ClCompile Include="src\learn.c" />
     <ClCompile Include="src\limits.c" />
     <ClCompile Include="src\logging.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\minimize.c" />
     <ClCompile Include="src\mode.c" />
+    <ClCompile Include="src\nonces.c" />
     <ClCompile Include="src\options.c" />
     <ClCompile Include="pal-win\unistd.c" />
     <ClCompile Include="src\parse.c" />
@@ -327,6 +348,7 @@
     <ClCompile Include="src\proprobe.c" />
     <ClCompile Include="src\propsearch.c" />
     <ClCompile Include="src\queue.c" />
+    <ClCompile Include="src\reap.c" />
     <ClCompile Include="src\reduce.c" />
     <ClCompile Include="src\reluctant.c" />
     <ClCompile Include="src\rephase.c" />
@@ -336,12 +358,14 @@
     <ClCompile Include="src\resources.c" />
     <ClCompile Include="src\restart.c" />
     <ClCompile Include="src\search.c" />
+    <ClCompile Include="src\shrink.c" />
     <ClCompile Include="src\smooth.c" />
     <ClCompile Include="src\sort.c" />
     <ClCompile Include="src\stack.c" />
     <ClCompile Include="src\statistics.c" />
     <ClCompile Include="src\strengthen.c" />
     <ClCompile Include="src\substitute.c" />
+    <ClCompile Include="src\sweep.c" />
     <ClCompile Include="src\terminate.c" />
     <ClCompile Include="src\ternary.c" />
     <ClCompile Include="src\trail.c" />
@@ -361,13 +385,18 @@
     <ClInclude Include="src\ands.h" />
     <ClInclude Include="src\application.h" />
     <ClInclude Include="src\arena.h" />
+    <ClInclude Include="src\array.h" />
     <ClInclude Include="src\assign.h" />
+    <ClInclude Include="src\attribute.h" />
     <ClInclude Include="src\autarky.h" />
     <ClInclude Include="src\averages.h" />
+    <ClInclude Include="src\backbone.h" />
     <ClInclude Include="src\backtrack.h" />
     <ClInclude Include="src\backward.h" />
+    <ClInclude Include="src\bits.h" />
     <ClInclude Include="src\build.h" />
     <ClInclude Include="src\bump.h" />
+    <ClInclude Include="src\cache.h" />
     <ClInclude Include="src\check.h" />
     <ClInclude Include="src\clause.h" />
     <ClInclude Include="src\clueue.h" />
@@ -378,14 +407,16 @@
     <ClInclude Include="src\cover.h" />
     <ClInclude Include="src\decide.h" />
     <ClInclude Include="src\deduce.h" />
+    <ClInclude Include="src\definition.h" />
     <ClInclude Include="src\dense.h" />
     <ClInclude Include="src\dominate.h" />
     <ClInclude Include="src\eliminate.h" />
-    <ClInclude Include="src\endianess.h" />
+    <ClInclude Include="src\endianness.h" />
     <ClInclude Include="src\equivalences.h" />
     <ClInclude Include="src\error.h" />
     <ClInclude Include="src\extend.h" />
     <ClInclude Include="src\failed.h" />
+    <ClInclude Include="src\fastassign.h" />
     <ClInclude Include="src\file.h" />
     <ClInclude Include="src\flags.h" />
     <ClInclude Include="src\format.h" />
@@ -397,14 +428,23 @@
     <ClInclude Include="src\ifthenelse.h" />
     <ClInclude Include="src\import.h" />
     <ClInclude Include="src\inline.h" />
+    <ClInclude Include="src\inlineassign.h" />
+    <ClInclude Include="src\inlineframes.h" />
+    <ClInclude Include="src\inlineheap.h" />
+    <ClInclude Include="src\inlinequeue.h" />
+    <ClInclude Include="src\inlinereap.h" />
+    <ClInclude Include="src\inlinescore.h" />
+    <ClInclude Include="src\inlinevector.h" />
     <ClInclude Include="src\internal.h" />
     <ClInclude Include="src\kissat.h" />
+    <ClInclude Include="src\kitten.h" />
     <ClInclude Include="src\learn.h" />
     <ClInclude Include="src\limits.h" />
     <ClInclude Include="src\literal.h" />
     <ClInclude Include="src\logging.h" />
     <ClInclude Include="src\minimize.h" />
     <ClInclude Include="src\mode.h" />
+    <ClInclude Include="src\nonces.h" />
     <ClInclude Include="src\options.h" />
     <ClInclude Include="pal-win\strings.h" />
     <ClInclude Include="pal-win\sys\resource.h" />
@@ -425,6 +465,7 @@
     <ClInclude Include="src\queue.h" />
     <ClInclude Include="src\random.h" />
     <ClInclude Include="src\rank.h" />
+    <ClInclude Include="src\reap.h" />
     <ClInclude Include="src\reduce.h" />
     <ClInclude Include="src\reference.h" />
     <ClInclude Include="src\reluctant.h" />
@@ -436,12 +477,14 @@
     <ClInclude Include="src\resources.h" />
     <ClInclude Include="src\restart.h" />
     <ClInclude Include="src\search.h" />
+    <ClInclude Include="src\shrink.h" />
     <ClInclude Include="src\smooth.h" />
     <ClInclude Include="src\sort.h" />
     <ClInclude Include="src\stack.h" />
     <ClInclude Include="src\statistics.h" />
     <ClInclude Include="src\strengthen.h" />
     <ClInclude Include="src\substitute.h" />
+    <ClInclude Include="src\sweep.h" />
     <ClInclude Include="src\terminate.h" />
     <ClInclude Include="src\ternary.h" />
     <ClInclude Include="src\trail.h" />

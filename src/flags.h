@@ -7,16 +7,16 @@ typedef struct flags flags;
 
 struct flags
 {
-  bool active:1;
-  bool backbone0:1;
-  bool backbone1:1;
-  bool eliminate:1;
-  bool eliminated:1;
-  bool fixed:1;
-  bool probe:1;
-  bool subsume:1;
-  bool sweep:1;
-  bool transitive:1;
+	unsigned active:1;
+	unsigned backbone0:1;
+	unsigned backbone1:1;
+	unsigned eliminate:1;
+	unsigned eliminated:1;
+	unsigned fixed:1;
+	unsigned probe:1;
+	unsigned subsume:1;
+	unsigned sweep:1;
+	unsigned transitive:1;
 };
 
 #define FLAGS(IDX) \

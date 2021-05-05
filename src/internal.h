@@ -50,8 +50,8 @@ typedef struct import import;
 struct import
 {
   unsigned lit:30;
-  bool imported:1;
-  bool eliminated:1;
+  unsigned imported:1;
+  unsigned eliminated:1;
 };
 
 typedef struct termination termination;

@@ -6,14 +6,14 @@
 
 struct first
 {
-  bool bit:1;
+    unsigned bit:1;
   unsigned rest:31;
 };
 
 struct last
 {
   unsigned rest:31;
-  bool bit:1;
+  unsigned bit:1;
 };
 
 union type
