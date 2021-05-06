@@ -72,7 +72,7 @@ unsigned int alarm(unsigned int seconds);
 
 
 #define __builtin_clz _lzcnt_u32
-#define __builtin_clzl _lzcnt_u64
+#define __builtin_clzl _lzcnt_u32
 #define __builtin_clzll _lzcnt_u64
 
 
