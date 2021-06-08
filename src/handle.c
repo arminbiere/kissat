@@ -1,7 +1,6 @@
 #include "handle.h"
 
 #include <assert.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -9,31 +8,12 @@ static void (*handler) (int);
 static volatile int caught_signal;
 static volatile bool handler_set;
 
-#define SIGNALS \
-SIGNAL(SIGABRT) \
-SIGNAL(SIGBUS) \
-SIGNAL(SIGINT) \
-SIGNAL(SIGSEGV) \
-SIGNAL(SIGTERM)
-
 // *INDENT-OFF*
 
 #define SIGNAL(SIG) \
 static void (*SIG ## _handler)(int);
 SIGNALS
 #undef SIGNAL
-
-const char *
-kissat_signal_name (int sig)
-{
-#define SIGNAL(SIG) \
-  if (sig == SIG) return #SIG;
-  SIGNALS
-#undef SIGNAL
-  if (sig == SIGALRM)
-    return "SIGALRM";
-  return "SIGUNKNOWN";
-}
 
 void
 kissat_reset_signal_handler (void)
