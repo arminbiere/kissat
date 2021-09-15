@@ -264,11 +264,6 @@ check_repeated_proof_lines (proof * proof)
       assert (punit != INVALID_LIT);
       if (!proof->size_units || proof->size_units < punit)
 	resize_proof_units (proof, punit);
-      else
-	{
-	  COVER (proof->units[punit]);
-	  assert (!proof->units[punit]);
-	}
       proof->units[punit] = 1;
     }
 }
