@@ -55,9 +55,9 @@ install(
 
 include(InstallRequiredSystemLibraries)
 set(CPACK_BUNDLE_NAME "${PROJECT_NAME}")
-set(CPACK_PACKAGE_VENDOR "Attractive Chaos")
-set(CPACK_PACKAGE_DESCRIPTION "KANN is a standalone and lightweight library in C for constructing and training small to medium artificial neural networks.")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "KANN is a standalone and lightweight library in C for constructing and training small to medium artificial neural networks.")
+set(CPACK_PACKAGE_VENDOR "Armin Biere")
+set(CPACK_PACKAGE_DESCRIPTION "Kissat is a "keep it simple and clean bare metal SAT solver" written in C.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Kissat is a "keep it simple and clean bare metal SAT solver" written in C.")
 if (APPLE)
     set(CPACK_BUNDLE_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist")
     set(CPACK_BUNDLE_ICON "${CMAKE_CURRENT_SOURCE_DIR}/cmake/Info.plist")
