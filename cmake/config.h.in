@@ -1,0 +1,9 @@
+#ifndef kissat_CONFIG_H
+#define kissat_CONFIG_H
+
+#define kissat_VERSION_MAJOR @kissat_VERSION_MAJOR@
+#define kissat_VERSION_MINOR @kissat_VERSION_MINOR@
+#define kissat_VERSION_PATCH @kissat_VERSION_PATCH@
+#define kissat_VERSION "@kissat_VERSION@"
+
+#endif /* kissat_CONFIG_H */
