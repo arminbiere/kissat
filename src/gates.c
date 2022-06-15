@@ -5,7 +5,6 @@
 #include "gates.h"
 #include "ifthenelse.h"
 #include "inline.h"
-#include "xors.h"
 
 size_t
 kissat_mark_binaries (kissat * solver, unsigned lit)
@@ -58,10 +57,6 @@ kissat_find_gates (kissat * solver, unsigned lit)
   else if (kissat_find_if_then_else_gate (solver, lit, 0))
     res = true;
   else if (kissat_find_if_then_else_gate (solver, not_lit, 1))
-    res = true;
-  else if (kissat_find_xor_gate (solver, lit, 0))
-    res = true;
-  else if (kissat_find_xor_gate (solver, not_lit, 1))
     res = true;
   else if (kissat_find_definition (solver, lit))
     res = true;

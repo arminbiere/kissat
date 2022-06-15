@@ -5,10 +5,8 @@
 #include "array.h"
 #include "assign.h"
 #include "averages.h"
-#include "cache.h"
 #include "check.h"
 #include "clause.h"
-#include "clueue.h"
 #include "cover.h"
 #include "extend.h"
 #include "smooth.h"
@@ -20,14 +18,12 @@
 #include "kissat.h"
 #include "literal.h"
 #include "mode.h"
-#include "nonces.h"
 #include "options.h"
 #include "phases.h"
 #include "profile.h"
 #include "proof.h"
 #include "queue.h"
 #include "random.h"
-#include "reap.h"
 #include "reluctant.h"
 #include "rephase.h"
 #include "stack.h"
@@ -125,8 +121,6 @@ struct kissat
 
   value *values;
   phases phases;
-  cache cache;
-  nonces nonces;
 
   eliminated eliminated;
   unsigneds etrail;
@@ -134,15 +128,8 @@ struct kissat
   links *links;
   queue queue;
 
-  rephased rephased;
-
-  unsigned branching;
-  heap scores[2];
-  uint64_t *conflicted;
-  double alphachb;
+  heap scores;
   double scinc;
-
-  heap schedule;
 
   unsigned level;
   frames frames;
@@ -173,8 +160,6 @@ struct kissat
   unsigneds removable;
   unsigneds shrinkable;
 
-  reap reap;
-
   clause conflict;
 
   bool clause_satisfied;
@@ -185,7 +170,6 @@ struct kissat
   unsigneds shadow;
 
   arena arena;
-  clueue clueue;
   vectors vectors;
   reference first_reducible;
   reference last_irredundant;
@@ -198,7 +182,6 @@ struct kissat
   reluctant reluctant;
 
   bounds bounds;
-  budget budget;
   delays delays;
   enabled enabled;
   effort last;
@@ -258,8 +241,7 @@ struct kissat
 #define VARS (solver->vars)
 #define LITS (2*solver->vars)
 
-#define SCORES  \
-  (&solver->scores[assert (solver->branching < 2), solver->branching])
+#define SCORES (&solver->scores)
 
 static inline unsigned
 kissat_assigned (kissat * solver)
@@ -284,8 +266,5 @@ kissat_assigned (kissat * solver)
 	 * C ## _NEXT; \
   C != C ## _END && (C ## _NEXT = kissat_next_clause (C), true); \
   C = C ## _NEXT
-
-#define all_scores(S) \
-  heap * S = solver->scores; S != solver->scores + 2; S++
 
 #endif

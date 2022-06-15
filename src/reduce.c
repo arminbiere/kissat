@@ -65,10 +65,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 #endif
   solver->first_reducible = redundant;
   const unsigned tier2 = GET_OPTION (tier2);
-#ifndef QUIET
-  size_t flushed_hyper_ternary_clauses = 0;
-  size_t used_hyper_ternary_clauses = 0;
-#endif
   for (clause * c = start; c != end; c = kissat_next_clause (c))
     {
       if (!c->redundant)
@@ -77,25 +73,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
 	continue;
       if (c->reason)
 	continue;
-      if (c->hyper)
-	{
-	  assert (c->size == 3);
-	  if (c->used)
-	    {
-#ifndef QUIET
-	      used_hyper_ternary_clauses++;
-#endif
-	      c->used = false;
-	    }
-	  else
-	    {
-#ifndef QUIET
-	      flushed_hyper_ternary_clauses++;
-#endif
-	      kissat_mark_clause_as_garbage (solver, c);
-	    }
-	  continue;
-	}
       if (c->keep)
 	continue;
       if (c->used)
@@ -113,19 +90,6 @@ collect_reducibles (kissat * solver, reducibles * reds, reference start_ref)
       red.ref = (ward *) c - arena;
       PUSH_STACK (*reds, red);
     }
-#ifndef QUIET
-// *INDENT-OFF*
-  size_t total_hyper_ternary_clauses =
-    flushed_hyper_ternary_clauses + used_hyper_ternary_clauses;
-  if (flushed_hyper_ternary_clauses)
-    kissat_phase (solver, "reduced", GET (reductions),
-      "reduced %zu unused hyper ternary clauses %.0f%% out of %zu",
-      flushed_hyper_ternary_clauses,
-	kissat_percent (flushed_hyper_ternary_clauses,
-	                total_hyper_ternary_clauses),
-      total_hyper_ternary_clauses);
-// *INDENT-ON*
-#endif
   if (EMPTY_STACK (*reds))
     {
       LOG ("did not find any reducible redundant clause");

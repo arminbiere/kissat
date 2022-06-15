@@ -33,8 +33,7 @@ static void
 rescale_scores (kissat * solver)
 {
   INC (rescaled);
-  assert (!solver->branching);
-  heap *scores = &solver->scores[0];
+  heap *scores = &solver->scores;
   const double max_score = kissat_max_score_on_heap (scores);
   kissat_phase (solver, "rescale", GET (rescaled),
 		"maximum score %g increment %g", max_score, solver->scinc);
@@ -64,11 +63,9 @@ bump_score_increment (kissat * solver)
 static inline void
 bump_analyzed_variable_score (kissat * solver, unsigned idx)
 {
-  assert (!solver->branching);
-  heap *scores = &solver->scores[0];
+  heap *scores = &solver->scores;
   const double old_score = kissat_get_heap_score (scores, idx);
-  const double inc = GET_OPTION (acids) ?
-    (CONFLICTS - old_score) / 2.0 : solver->scinc;
+  const double inc = solver->scinc;
   const double new_score = old_score + inc;
   LOG ("new score[%u] = %g = %g + %g", idx, new_score, old_score, inc);
   kissat_update_heap (solver, scores, idx, new_score);
@@ -79,15 +76,13 @@ bump_analyzed_variable_score (kissat * solver, unsigned idx)
 static void
 bump_analyzed_variable_scores (kissat * solver)
 {
-  assert (!solver->branching);
   flags *flags = solver->flags;
 
   for (all_stack (unsigned, idx, solver->analyzed))
     if (flags[idx].active)
         bump_analyzed_variable_score (solver, idx);
 
-  if (!GET_OPTION (acids))
-    bump_score_increment (solver);
+  bump_score_increment (solver);
 }
 
 static void
@@ -115,17 +110,6 @@ move_analyzed_variables_to_front_of_queue (kissat * solver)
   CLEAR_STACK (solver->ranks);
 }
 
-static void
-update_conflicted (kissat * solver)
-{
-  const uint64_t conflicts = CONFLICTS;
-  flags *flags = solver->flags;
-
-  for (all_stack (unsigned, idx, solver->analyzed))
-    if (flags[idx].active)
-        solver->conflicted[idx] = conflicts;
-}
-
 void
 kissat_bump_analyzed (kissat * solver)
 {
@@ -133,55 +117,10 @@ kissat_bump_analyzed (kissat * solver)
   const size_t bumped = SIZE_STACK (solver->analyzed);
   if (!solver->stable)
     move_analyzed_variables_to_front_of_queue (solver);
-  else if (solver->branching)
-    update_conflicted (solver);
   else
     bump_analyzed_variable_scores (solver);
   ADD (literals_bumped, bumped);
   STOP (bump);
-}
-
-void
-kissat_bump_propagated (kissat * solver)
-{
-  assert (solver->branching);
-  assert (GET_OPTION (bump));
-
-  const unsigned level = solver->level;
-  if (!level)
-    return;
-
-  assert (!solver->probing);
-
-  const uint64_t conflicts = CONFLICTS;
-  const double alpha = solver->alphachb;
-
-  const uint64_t *conflicted = solver->conflicted;
-  const struct assigned *assigned = solver->assigned;
-  assert (solver->branching);
-  heap *scores = &solver->scores[1];
-
-  const unsigned *begin = BEGIN_STACK (solver->trail);
-  const unsigned *end = END_STACK (solver->trail);
-  const unsigned *t = end;
-
-  while (t > begin)
-    {
-      const unsigned lit = *--t;
-      const unsigned idx = IDX (lit);
-
-      if (assigned[idx].level != level)
-	break;
-
-      const uint64_t last = conflicted[idx];
-      const uint64_t diff = last ? (conflicts - last) : 0;	// UINT_MAX;
-      const uint64_t age = (diff == UINT64_MAX ? UINT64_MAX : diff + 1);
-      const double reward = 1.0 / age;
-      const double old_score = kissat_get_heap_score (scores, idx);
-      const double new_score = alpha * reward + (1 - alpha) * old_score;
-      LOG ("new score[%u] = %g vs %g", idx, new_score, old_score);
-      kissat_update_heap (solver, scores, idx, new_score);
-    }
 }
 
 void

@@ -10,7 +10,6 @@ test_references_layout (void)
   printf ("EXTERNAL_MAX_VAR             %08x\n", EXTERNAL_MAX_VAR);
   printf ("INTERNAL_MAX_VAR             %08x\n", INTERNAL_MAX_VAR);
   printf ("INTERNAL_MAX_LIT             %08x\n", INTERNAL_MAX_LIT);
-  printf ("ILLEGAL_LIT                  %08x\n", ILLEGAL_LIT);
   printf ("INVALID_LIT                  %08x\n", INVALID_LIT);
 
   assert (sizeof (watch) == 4);

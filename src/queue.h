@@ -25,7 +25,7 @@ struct queue
 };
 
 void kissat_init_queue (struct kissat *);
-void kissat_reset_queue (struct kissat *);
+void kissat_reset_search_of_queue (struct kissat *);
 void kissat_reassign_queue_stamps (struct kissat *);
 
 #define LINK(IDX) \

@@ -130,24 +130,6 @@ compact_literal (kissat * solver, unsigned dst_lit, unsigned src_lit)
   const unsigned not_dst_lit = NOT (dst_lit);
   solver->values[dst_lit] = solver->values[src_lit];
   solver->values[not_dst_lit] = solver->values[not_src_lit];
-
-  solver->conflicted[dst_idx] = solver->conflicted[src_idx];
-
-  cache *cache = &solver->cache;
-  if (cache->valid)
-    {
-      const line *const end = END_STACK (cache->lines);
-      line *begin = BEGIN_STACK (cache->lines);
-      const unsigned old_vars = cache->vars;
-      assert (old_vars == solver->vars);
-      for (line * l = begin; l != end; l++)
-	{
-	  assert (l->vars == old_vars);
-	  bits *bits = l->bits;
-	  const bool value = kissat_get_bit (bits, old_vars, src_idx);
-	  kissat_set_bit_explicitly (bits, old_vars, dst_idx, value);
-	}
-    }
 }
 
 static unsigned
@@ -385,46 +367,6 @@ compact_best_and_target_values (kissat * solver, unsigned vars)
     }
 }
 
-static bits *
-compact_bits (kissat * solver, bits * old_bits, unsigned new_vars)
-{
-  bits *new_bits = kissat_new_bits (solver, new_vars);
-  const unsigned old_vars = solver->vars;
-  for (unsigned idx = 0; idx < old_vars; idx++)
-    {
-      const unsigned midx = map_idx (solver, idx);
-      if (midx == INVALID_IDX)
-	continue;
-      const bool bit = kissat_get_bit (old_bits, old_vars, idx);
-      kissat_set_bit_explicitly (new_bits, new_vars, midx, bit);
-    }
-  kissat_delete_bits (solver, old_bits, old_vars);
-  return new_bits;
-}
-
-static void
-compact_cache (kissat * solver, unsigned new_vars)
-{
-  cache *cache = &solver->cache;
-  if (!cache->valid)
-    {
-      LOG ("not compacting invalid cache");
-      return;
-    }
-  LOG ("compacting cache of size %zu over %u variables",
-       SIZE_STACK (cache->lines), cache->vars);
-  const line *const end = END_STACK (cache->lines);
-  line *begin = BEGIN_STACK (cache->lines);
-  for (line * l = begin; l != end; l++)
-    {
-      assert (l->vars == solver->vars);
-      LOGLINE (l, "resizing to %u variables", new_vars);
-      l->bits = compact_bits (solver, l->bits, new_vars);
-      l->vars = new_vars;
-    }
-  cache->vars = new_vars;
-}
-
 void
 kissat_finalize_compacting (kissat * solver, unsigned vars, unsigned mfixed)
 {
@@ -469,16 +411,13 @@ kissat_finalize_compacting (kissat * solver, unsigned vars, unsigned mfixed)
     compact_units (solver, mfixed);
 
   memset (solver->assigned + vars, 0, reduced * sizeof (assigned));
-  memset (solver->conflicted + vars, 0, reduced * sizeof (uint64_t));
   memset (solver->flags + vars, 0, reduced * sizeof (flags));
   memset (solver->values + 2 * vars, 0, 2 * reduced * sizeof (value));
   memset (solver->watches + 2 * vars, 0, 2 * reduced * sizeof (watches));
 
   compact_queue (solver);
   compact_sweep (solver);
-  compact_cache (solver, vars);
-  for (all_scores (scores))
-    compact_scores (solver, scores, vars);
+  compact_scores (solver, SCORES, vars);
   compact_frames (solver);
   compact_export (solver, vars);
   compact_best_and_target_values (solver, vars);

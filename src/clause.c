@@ -40,7 +40,6 @@ init_clause (kissat * solver, clause * res,
   res->glue = glue;
 
   res->garbage = false;
-  res->hyper = false;
   res->keep = keep;
   res->reason = false;
   res->redundant = redundant;
@@ -179,12 +178,6 @@ mark_clause_as_garbage (kissat * solver, clause * c)
     kissat_mark_removed_literals (solver, c->size, c->lits);
   REMOVE_CHECKER_CLAUSE (c);
   DELETE_CLAUSE_FROM_PROOF (c);
-  if (c->hyper)
-    {
-      assert (c->size == 3);
-      assert (c->redundant);
-      DEC (hyper_ternaries);
-    }
   dec_clause (solver, c->redundant);
   c->garbage = true;
 }

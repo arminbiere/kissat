@@ -345,10 +345,7 @@ dump (kissat * solver)
   dump_trail (solver);
   printf ("stable = %u\n", (unsigned) solver->stable);
   if (solver->stable)
-    {
-      printf ("branching = %u\n", solver->branching);
-      dump_scores (solver);
-    }
+    dump_scores (solver);
   else
     dump_queue (solver);
   dump_values (solver);

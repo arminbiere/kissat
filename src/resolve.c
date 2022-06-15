@@ -1,7 +1,6 @@
 #include "eliminate.h"
 #include "gates.h"
 #include "inline.h"
-#include "inlinescore.h"
 #include "print.h"
 #include "resolve.h"
 

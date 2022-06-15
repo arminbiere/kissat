@@ -66,7 +66,6 @@ learn_binary (kissat * solver, unsigned not_uip)
     kissat_new_redundant_clause (solver, 1);
   assert (ref == INVALID_REF);
   kissat_assign_binary (solver, true, not_uip, other);
-  kissat_eager_subsume (solver);
 }
 
 static void
@@ -104,11 +103,6 @@ learn_reference (kissat * solver, unsigned not_uip, unsigned glue)
   const unsigned new_level = determine_new_level (solver, jump_level);
   kissat_backtrack_after_conflict (solver, new_level);
   kissat_assign_reference (solver, not_uip, ref, c);
-  if (GET_OPTION (eagersubsume))
-    {
-      kissat_eager_subsume (solver);
-      kissat_push_clueue (&solver->clueue, ref);
-    }
 }
 
 void

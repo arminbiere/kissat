@@ -143,14 +143,6 @@ init_sweeper (kissat * solver, sweeper * sweeper)
 
   SET_EFFORT_LIMIT (ticks_limit, sweep, kitten_ticks,
 		    10 * (1 + solver->active));
-  unsigned boost = GET_OPTION (sweepboost);
-  assert (solver->statistics.sweep >= completed);
-  boost >>= solver->statistics.sweep - completed;
-  if (boost)
-    {
-      kissat_extremely_verbose (solver, "sweeping boost %u", boost);
-      ticks_limit *= boost;
-    }
   sweeper->limit.ticks = ticks_limit;
   set_kitten_ticks_limit (sweeper);
 }
@@ -1050,8 +1042,7 @@ substitute_connected_clauses (sweeper * sweeper, unsigned lit, unsigned repr)
 		const unsigned other = first ^ second ^ repr;
 		const watch src = {.raw = head.raw };
 		const bool redundant = c->redundant;
-		const bool hyper = c->hyper;
-		watch dst = kissat_binary_watch (repr, redundant, hyper);
+		watch dst = kissat_binary_watch (repr, redundant, false);
 		watches *other_watches = &WATCHES (other);
 		kissat_substitute_large_watch (solver, other_watches,
 					       src, dst);

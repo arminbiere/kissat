@@ -10,7 +10,7 @@
 
 typedef struct clause clause;
 
-#define LD_MAX_GLUE 21u
+#define LD_MAX_GLUE 22u
 #define MAX_GLUE ((1u<<LD_MAX_GLUE)-1)
 
 struct clause
@@ -18,7 +18,6 @@ struct clause
   unsigned glue:LD_MAX_GLUE;
 
   bool garbage:1;
-  bool hyper:1;
   bool keep:1;
   bool reason:1;
   bool redundant:1;

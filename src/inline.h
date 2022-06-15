@@ -323,16 +323,6 @@ kissat_push_shrinkable (kissat * solver, assigned * assigned, unsigned idx)
   LOG2 ("%s shrinkable", LOGVAR (idx));
 }
 
-static inline void
-kissat_invalidate_cache (kissat * solver)
-{
-  cache *cache = &solver->cache;
-  if (!cache->valid)
-    return;
-  cache->valid = false;
-  LOG ("invalidated cache");
-}
-
 static inline int
 kissat_checking (kissat * solver)
 {

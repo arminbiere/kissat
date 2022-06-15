@@ -478,8 +478,6 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	    DEC (clauses_redundant);
 	  else
 	    DEC (clauses_irredundant);
-	  if (dst->hyper)
-	    DEC (hyper_ternaries);
 
 	  flushed_satisfied_clauses++;
 
@@ -514,9 +512,6 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	  const bool redundant = dst->redundant;
 	  LOGBINARY (mfirst, msecond, "DST");
 	  kissat_watch_binary (solver, redundant, false, mfirst, msecond);
-
-	  if (dst->hyper)
-	    DEC (hyper_ternaries);
 
 	  if (dst->reason)
 	    {
@@ -650,8 +645,6 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 
   SET_END_OF_STACK (solver->arena, (ward *) dst);
   kissat_shrink_arena (solver);
-
-  kissat_clear_clueue (solver, &solver->clueue);
 
 #ifdef METRICS
   if (solver->statistics.arena_garbage)
@@ -788,7 +781,6 @@ dense_sweep_garbage_clauses (kissat * solver)
   SET_END_OF_STACK (solver->arena, (ward *) dst);
   kissat_shrink_arena (solver);
 
-  kissat_clear_clueue (solver, &solver->clueue);
 #ifdef METRICS
   if (solver->statistics.arena_garbage)
     kissat_very_verbose (solver, "still %s garbage left in arena",

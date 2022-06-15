@@ -5,7 +5,6 @@
 #include <stdint.h>
 
 typedef struct bounds bounds;
-typedef struct budget budget;
 typedef struct changes changes;
 typedef struct delays delays;
 typedef struct delay delay;
@@ -20,25 +19,6 @@ struct bounds
   struct
   {
     uint64_t max_bound_completed;
-    unsigned additional_clauses;
-  } eliminate;
-};
-
-struct budget
-{
-  uint64_t forward;
-};
-
-struct changes
-{
-  struct
-  {
-    uint64_t added;
-    uint64_t removed;
-    unsigned units;
-  } variables;
-  struct
-  {
     unsigned additional_clauses;
   } eliminate;
 };
@@ -80,12 +60,10 @@ struct limited
 
 struct enabled
 {
-  bool autarky;
   bool eliminate;
   bool focus;
   bool mode;
   bool probe;
-  bool rephase;
 };
 
 struct delay
@@ -96,14 +74,12 @@ struct delay
 
 struct delays
 {
-  delay autarky;
   delay backbone;
   delay bumpreasons;
   delay eliminate;
   delay failed;
   delay probe;
   delay substitute;
-  delay ternary;
 };
 
 struct effort
@@ -140,17 +116,6 @@ double kissat_logn (uint64_t);
 #define NLOG3N(COUNT) kissat_nlogpown (COUNT,3)
 
 #define SQRT(COUNT) kissat_sqrt (COUNT)
-
-#define INIT_CONFLICT_LIMIT(NAME,SCALE) \
-do { \
-  const uint64_t DELTA = GET_OPTION (NAME ## init); \
-  const uint64_t SCALED = !(SCALE) ? DELTA : \
-    kissat_scale_delta (solver, #NAME, DELTA); \
-  limits->NAME.conflicts = CONFLICTS + SCALED; \
-  kissat_very_verbose (solver, \
-    "initial " #NAME " limit of %s conflicts", \
-    FORMAT_COUNT (limits->NAME.conflicts)); \
-} while (0)
 
 #define UPDATE_CONFLICT_LIMIT(NAME,COUNT,SCALE_COUNT_FUNCTION,SCALE_DELTA) \
 do { \
@@ -219,58 +184,5 @@ do { \
     LIMIT = NEW_LIMIT; \
     \
   } while (0)
-
-#define RETURN_IF_DELAYED(NAME) \
-do { \
-  assert (!solver->inconsistent); \
-  if (!GET_OPTION (NAME ## delay)) \
-    break; \
-  delay * DELAY = &solver->delays.NAME; \
-  assert (DELAY->count <= DELAY->current); \
-  if (!DELAY->count) \
-    break; \
-  kissat_very_verbose (solver, \
-                       #NAME " delayed %u more time%s", \
-		       DELAY->count, DELAY->count > 1 ? "s" : ""); \
-  DELAY->count--; \
-  return; \
-} while (0)
-
-#define UPDATE_DELAY(SUCCESS,NAME) \
-do { \
-  if (solver->inconsistent) \
-    break; \
-  if (!GET_OPTION (NAME ## delay)) \
-    break; \
-  delay * DELAY = &solver->delays.NAME; \
-  unsigned MAX_DELAY = GET_OPTION (delay); \
-  assert (DELAY->count <= DELAY->current); \
-  if (SUCCESS) \
-    { \
-      if (DELAY->current) \
-	{ \
-	  kissat_very_verbose (solver, #NAME " delay reset"); \
-	  DELAY->current = DELAY->count = 0; \
-	} \
-      else \
-	assert (!DELAY->count); \
-    } \
-  else \
-    { \
-      if (DELAY->current < MAX_DELAY) \
-	{ \
-	  DELAY->current++; \
-	  kissat_very_verbose (solver, \
-			       #NAME " delay increased to %u", \
-			       DELAY->current); \
-	} \
-      else \
-	kissat_very_verbose (solver, \
-			     "keeping " #NAME " delay at maximum %u", \
-			     DELAY->current); \
-      DELAY->count = DELAY->current; \
-    } \
-  assert (DELAY->count <= DELAY->current); \
-} while (0)
 
 #endif

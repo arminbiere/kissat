@@ -73,9 +73,6 @@ void kissat_log_watch (kissat *, const char*,
                        unsigned, watch, const char *, ...)
 ATTRIBUTE_FORMAT (5, 6);
 
-void kissat_log_line (kissat *, const char*, const line *, const char *, ...)
-ATTRIBUTE_FORMAT (4, 5);
-
 // *INDENT-ON*
 
 #ifndef LOGPREFIX

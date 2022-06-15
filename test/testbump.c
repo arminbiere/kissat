@@ -24,7 +24,7 @@ test_bump_rescale (void)
   assert (solver->scinc > 0);
   tissat_verbose ("initial score increment %g", solver->scinc);
   ACTIVE (0) = ACTIVE (1) = true;
-  heap *scores = &solver->scores[0];
+  heap *scores = SCORES;
   unsigned count = 0;
   for (unsigned i = 1; i <= 5; i++)
     {

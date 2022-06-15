@@ -112,7 +112,7 @@ do { \
 #include "allocate.h"		// Use 'kissat' allocator if embedded.
 #include "error.h"		// Use 'kissat_fatal' if embedded.
 #include "internal.h"		// Also use 'kissat' statistics if embedded.
-#include "terminate.h"		// For 'TERMINATE (kitten_terminated_1)'.
+#include "terminate.h"		// For macros defining termination macro.
 
 #define KITTEN_TICKS (solver->statistics.kitten_ticks)
 

@@ -10,9 +10,7 @@ typedef struct profiles profiles;
 
 #define PROFS \
 PROF(analyze,3) \
-PROF(autarky,2) \
 PROF(backbone,2) \
-PROF(backward,4) \
 PROF(bump,3) \
 PROF(collect,3) \
 PROF(decide,4) \
@@ -41,7 +39,6 @@ PROF(stable,2) \
 PROF(sweep,2) \
 PROF(substitute,2) \
 PROF(subsume,2) \
-PROF(ternary,2) \
 PROF(total,0) \
 PROF(transitive,2) \
 PROF(vivify,2) \

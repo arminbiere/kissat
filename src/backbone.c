@@ -41,24 +41,14 @@ schedule_backbone_candidates (kissat * solver, unsigneds * candidates)
       else
 	not_rescheduled++;
     }
-  const size_t rescheduled = SIZE_STACK (*candidates);
 #ifndef QUIET
+  const size_t rescheduled = SIZE_STACK (*candidates);
   const unsigned active_literals = 2u * solver->active;
   kissat_very_verbose (solver,
 		       "rescheduled %zu backbone candidate literals %.0f%%",
 		       rescheduled,
 		       kissat_percent (rescheduled, active_literals));
 #endif
-  if (rescheduled && GET_OPTION (backbonefocus))
-    {
-      kissat_extremely_verbose (solver,
-				"dropping %u not-rescheduled "
-				"backbone candidate literals %.0f%%",
-				not_rescheduled,
-				kissat_percent (not_rescheduled,
-						active_literals));
-      return;
-    }
   if (not_rescheduled)
     {
       for (all_variables (idx))
@@ -424,7 +414,7 @@ compute_backbone (kissat * solver)
 	}
       size_t previous = failed;
       assert (!solver->inconsistent);
-      if (TERMINATED (backbone_terminated_2))
+      if (TERMINATED (backbone_terminated_1))
 	break;
       round++;
       INC (backbone_rounds);
@@ -474,7 +464,7 @@ compute_backbone (kissat * solver)
 	      }
 	    if (solver->statistics.backbone_ticks > ticks_limit)
 	      break;
-	    if (TERMINATED (backbone_terminated_3))
+	    if (TERMINATED (backbone_terminated_2))
 	      break;
 	    const unsigned level = solver->level;
 	    unsigned *const saved = END_ARRAY (*trail);
@@ -653,9 +643,8 @@ kissat_binary_clauses_backbone (kissat * solver)
     return;
   if (!GET_OPTION (backbone))
     return;
-  if (TERMINATED (backbone_terminated_1))
+  if (TERMINATED (backbone_terminated_3))
     return;
-  RETURN_IF_DELAYED (backbone);
   assert (solver->watching);
   assert (solver->probing);
   assert (!solver->level);
@@ -665,10 +654,11 @@ kissat_binary_clauses_backbone (kissat * solver)
   assert (!solver->backbone_computing);
   solver->backbone_computing = true;
 #endif
-  const unsigned failed = compute_backbone (solver);
+#ifndef QUIET
+  const unsigned failed =
+#endif
+    compute_backbone (solver);
   REPORT (!failed, 'b');
-  const bool success = (failed > 0);
-  UPDATE_DELAY (success, backbone);
 #if !defined(NDEBUG) || defined(METRICS)
   assert (solver->backbone_computing);
   solver->backbone_computing = false;

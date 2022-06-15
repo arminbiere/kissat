@@ -8,13 +8,11 @@ mark_clause_as_used (kissat * solver, clause * c)
 {
   if (!c->redundant)
     return;
-  if (!c->hyper && c->keep)
+  if (c->keep)
     return;
   const unsigned used = c->used;
   LOGCLS (c, "using");
   c->used = 1;
-  if (c->hyper)
-    return;
   const unsigned old_glue = c->glue;
   const unsigned new_glue = kissat_recompute_glue (solver, c, old_glue);
   if (new_glue < old_glue)

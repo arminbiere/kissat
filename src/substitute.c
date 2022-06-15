@@ -11,22 +11,6 @@
 
 #include <string.h>
 
-static uint64_t
-substitute_effort (kissat * solver)
-{
-  return 10 * CLAUSES;
-}
-
-static bool
-really_substitute (kissat * solver)
-{
-  if (!GET_OPTION (really))
-    return true;
-  const uint64_t needed = substitute_effort (solver);
-  const uint64_t search_ticks = solver->statistics.search_ticks;
-  return needed < search_ticks;
-}
-
 static void
 assign_and_propagate_units (kissat * solver, unsigneds * units)
 {
@@ -690,8 +674,6 @@ kissat_substitute (kissat * solver)
   if (!GET_OPTION (substitute))
     return;
   if (TERMINATED (substitute_terminated_1))
-    return;
-  if (!really_substitute (solver))
     return;
   substitute_rounds (solver);
 }

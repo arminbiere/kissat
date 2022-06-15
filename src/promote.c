@@ -13,9 +13,7 @@ kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
   assert (new_glue < old_glue);
   const unsigned tier1 = GET_OPTION (tier1);
   const unsigned tier2 = MAX (GET_OPTION (tier2), GET_OPTION (tier1));
-  if (c->hyper)
-    LOGCLS (c, "promoting to new glue %u", new_glue);
-  else if (new_glue <= tier1)
+  if (new_glue <= tier1)
     {
       assert (tier1 < old_glue);
       assert (new_glue <= tier1);

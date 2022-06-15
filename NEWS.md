@@ -1,3 +1,13 @@
+Version sc2022-hyper
+--------------------
+
+This version can be seen as an intermediate version between sc2022-bulky and
+sc2022-light but actually evolved from an earlier version sc2022-light by
+adding back support for hyper binary resolution. This feature turns out to
+be somewhat useful for unsatisfiable formulas even though the improved SAT
+sweeping in sc2022-bulky and kept for sc2022-light covers up for some of the
+losses incurred by taking out hyper-binary resolution.
+
 Version sc2022-bulky
 --------------------
 

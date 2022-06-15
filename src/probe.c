@@ -4,7 +4,6 @@
 #include "internal.h"
 #include "print.h"
 #include "probe.h"
-#include "ternary.h"
 #include "transitive.h"
 #include "substitute.h"
 #include "sweep.h"
@@ -25,19 +24,16 @@ kissat_probing (kissat * solver)
 static void
 probe (kissat * solver)
 {
-  RETURN_IF_DELAYED (probe);
   kissat_backtrack_propagate_and_flush_trail (solver);
   assert (!solver->inconsistent);
   const uint64_t probings = solver->statistics.probings;
   const bool full = GET_OPTION (probe) > 1;
   STOP_SEARCH_AND_START_SIMPLIFIER (probe);
-  kissat_phase (solver, "probe", probings,
+  kissat_phase (solver, "probe", GET (probings),
 		"probing limit hit after %" PRIu64 " conflicts",
 		solver->limits.probe.conflicts);
-  const changes before = kissat_changes (solver);
   kissat_substitute (solver);
   kissat_binary_clauses_backbone (solver);
-  kissat_ternary (solver);
   kissat_transitive_reduction (solver);
   if (!GET_OPTION (failed))
     kissat_vivify (solver);
@@ -55,9 +51,6 @@ probe (kissat * solver)
   kissat_sweep (solver);
   kissat_substitute (solver);
   kissat_binary_clauses_backbone (solver);
-  const changes after = kissat_changes (solver);
-  const bool changed = kissat_changed (before, after);
-  UPDATE_DELAY (changed, probe);
   STOP_SIMPLIFIER_AND_RESUME_SEARCH (probe);
 }
 

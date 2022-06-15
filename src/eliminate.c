@@ -1,12 +1,10 @@
 #include "allocate.h"
 #include "backtrack.h"
-#include "backward.h"
 #include "collect.h"
 #include "dense.h"
 #include "eliminate.h"
 #include "forward.h"
 #include "inline.h"
-#include "inlinescore.h"
 #include "kitten.h"
 #include "propdense.h"
 #include "print.h"
@@ -25,16 +23,6 @@ eliminate_adjustment (kissat * solver)
   return 2 * CLAUSES + NLOGN (1 + solver->active);
 }
 
-static bool
-really_eliminate (kissat * solver)
-{
-  if (!GET_OPTION (really))
-    return true;
-  const uint64_t limit = eliminate_adjustment (solver);
-  statistics *statistics = &solver->statistics;
-  return limit < statistics->search_ticks;
-}
-
 bool
 kissat_eliminating (kissat * solver)
 {
@@ -47,8 +35,6 @@ kissat_eliminating (kissat * solver)
     return false;
   limits *limits = &solver->limits;
   if (limits->eliminate.conflicts > statistics->conflicts)
-    return false;
-  if (!really_eliminate (solver))
     return false;
   if (limits->eliminate.variables.added < statistics->variables_added)
     return true;
@@ -114,7 +100,6 @@ kissat_flush_units_while_connected (kissat * solver)
 static void
 connect_resolvents (kissat * solver)
 {
-  bool backward = GET_OPTION (backward);
   const value *const values = solver->values;
   assert (EMPTY_STACK (solver->clause));
   bool satisfied = false;
@@ -128,36 +113,27 @@ connect_resolvents (kissat * solver)
 	  else
 	    {
 	      LOGTMP ("temporary resolvent");
-	      if (kissat_forward_subsume_temporary (solver))
-		LOGTMP ("temporary forward subsumed");
+	      const size_t size = SIZE_STACK (solver->clause);
+	      if (!size)
+		{
+		  assert (!solver->inconsistent);
+		  LOG ("resolved empty clause");
+		  CHECK_AND_ADD_EMPTY ();
+		  ADD_EMPTY_TO_PROOF ();
+		  solver->inconsistent = true;
+		  break;
+		}
+	      else if (size == 1)
+		{
+		  const unsigned unit = PEEK_STACK (solver->clause, 0);
+		  LOG ("resolved unit clause %s", LOGLIT (unit));
+		  kissat_learned_unit (solver, unit);
+		}
 	      else
 		{
-		  const size_t size = SIZE_STACK (solver->clause);
-		  if (!size)
-		    {
-		      assert (!solver->inconsistent);
-		      LOG ("resolved empty clause");
-		      CHECK_AND_ADD_EMPTY ();
-		      ADD_EMPTY_TO_PROOF ();
-		      solver->inconsistent = true;
-		      break;
-		    }
-		  else if (size == 1)
-		    {
-		      const unsigned unit = PEEK_STACK (solver->clause, 0);
-		      LOG ("resolved unit clause %s", LOGLIT (unit));
-		      kissat_learned_unit (solver, unit);
-		    }
-		  else
-		    {
-		      assert (size > 1);
-		      reference ref = kissat_new_irredundant_clause (solver);
-		      added++;
-
-		      if (backward)
-			backward =
-			  kissat_backward_subsume_temporary (solver, ref);
-		    }
+		  assert (size > 1);
+		  (void) kissat_new_irredundant_clause (solver);
+		  added++;
 		}
 	    }
 	  CLEAR_STACK (solver->clause);
@@ -379,12 +355,6 @@ eliminate_variables (kissat * solver)
 		    eliminate, eliminate_resolutions,
 		    eliminate_adjustment (solver));
 
-  solver->budget.forward =
-    1 * (resolution_limit - solver->statistics.eliminate_resolutions);
-  kissat_extremely_verbose (solver,
-			    "temporary forward subsumption budget set to %s",
-			    FORMAT_COUNT (solver->budget.forward));
-
   bool complete;
   int round = 0;
 
@@ -510,14 +480,12 @@ reset_map_and_kitten (kissat * solver)
 static void
 eliminate (kissat * solver)
 {
-  RETURN_IF_DELAYED (eliminate);
   kissat_backtrack_propagate_and_flush_trail (solver);
   assert (!solver->inconsistent);
   STOP_SEARCH_AND_START_SIMPLIFIER (eliminate);
   kissat_phase (solver, "eliminate", GET (eliminations),
 		"elimination limit of %" PRIu64 " conflicts hit",
 		solver->limits.eliminate.conflicts);
-  const changes before = kissat_changes (solver);
   init_map_and_kitten (solver);
   litwatches saved;
   INIT_STACK (saved);
@@ -527,9 +495,6 @@ eliminate (kissat * solver)
   RELEASE_STACK (saved);
   reset_map_and_kitten (solver);
   kissat_check_statistics (solver);
-  const changes after = kissat_changes (solver);
-  const bool changed = kissat_changed (before, after);
-  UPDATE_DELAY (changed, eliminate);
   STOP_SIMPLIFIER_AND_RESUME_SEARCH (eliminate);
 }
 

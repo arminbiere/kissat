@@ -244,11 +244,6 @@ log_clause (kissat * solver, const clause * c)
     }
   else
     {
-      if (c->hyper)
-	{
-	  assert (c->size == 3);
-	  fputs ("hyper ", stdout);
-	}
       if (c->redundant)
 	printf ("redundant glue %u", c->glue);
       else
@@ -356,21 +351,6 @@ kissat_log_watch (kissat * solver, const char *prefix,
     log_binary (solver, lit, watch.binary.lit);
   else
     log_ref (solver, watch.large.ref);
-  end_logging ();
-}
-
-void
-kissat_log_line (kissat * solver, const char *prefix,
-		 const line * line, const char *fmt, ...)
-{
-  va_list ap;
-  va_start (ap, fmt);
-  begin_logging (solver, prefix, fmt, &ap);
-  printf (" cache line[%" PRIu64 "]"
-	  " unsatisfying %u clause over %u variables and signature 0x%016"
-	  PRIx64 "", line->inserted, line->unsatisfied, line->vars,
-	  line->signature);
-  va_end (ap);
   end_logging ();
 }
 

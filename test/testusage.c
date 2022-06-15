@@ -41,15 +41,8 @@ tissat_schedule_usage (void)
 
       APP (20, "../test/cnf/add8.cnf --no-probe");
       APP (20, "../test/cnf/add8.cnf --no-substitute");
-      APP (20, "../test/cnf/add8.cnf --no-substitute --no-failed");
-      APP (20, "../test/cnf/add8.cnf --no-substitute --no-failed "
-	   "--no-transitive");
-      APP (20, "../test/cnf/add8.cnf --no-substitute --no-failed "
-	   "--no-transitive --no-vivify");
 
       APP (20, "../test/cnf/add8.cnf --no-eliminate");
-
-      APP (20, "../test/cnf/add8.cnf --no-autarky");
 
       APP (20, "../test/cnf/add8.cnf --stable=2");
       APP (20, "../test/cnf/add8.cnf --no-stable");
@@ -60,12 +53,6 @@ tissat_schedule_usage (void)
       APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-ifthenelse");
       APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-equivalences");
       APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-ands");
-      APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-xors");
-
-      APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-eagersubsume");
-
-      APP (0,
-	   "../test/cnf/ph11.cnf --rephaseinit=10 --conflicts=20 --no-autarky");
 
 #ifndef QUIET
       APP (0, "--walkinitially --conflicts=3000 --probeinit=0 "
@@ -97,7 +84,7 @@ tissat_schedule_usage (void)
 #ifdef NOPTIONS
 #define LIMITED_OPTIONS ""
 #else
-#define LIMITED_OPTIONS " --rephaseinit=10 --rephaseint=10 --no-really"
+#define LIMITED_OPTIONS " --rephaseinit=10 --rephaseint=10"
 #endif
 
   if (tissat_found_test_directory)

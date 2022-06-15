@@ -2,7 +2,6 @@
 #include "backtrack.h"
 #include "inline.h"
 #include "inlineheap.h"
-#include "inlinescore.h"
 #include "inlinequeue.h"
 #include "print.h"
 #include "proprobe.h"

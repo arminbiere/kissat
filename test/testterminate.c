@@ -60,10 +60,6 @@ test_terminate (int bit, const char *name,
 // *INDENT-OFF*
 
 #define TEST_TERMINATE_BITS \
-TEST_TERMINATE (autarky_terminated_1,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (autarky_terminated_2,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (autarky_terminated_3,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (autarky_terminated_4,false,-1,-1,-1,"ph11") \
 TEST_TERMINATE (backbone_terminated_1,false,0,-1,-1,"add8") \
 TEST_TERMINATE (backbone_terminated_2,false,0,-1,-1,"add8") \
 TEST_TERMINATE (backbone_terminated_3,false,0,-1,-1,"add8") \
@@ -71,13 +67,8 @@ TEST_TERMINATE (eliminate_terminated_1,false,-1,0,-1,"add8") \
 TEST_TERMINATE (failed_terminated_1,false,0,-1,-1,"add8") \
 TEST_TERMINATE (failed_terminated_2,false,0,-1,-1,"add8") \
 TEST_TERMINATE (forward_terminated_1,false,-1,0,-1,"add8") \
-TEST_TERMINATE (rephase_terminated_1,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (rephase_terminated_2,false,-1,-1,-1,"ph11") \
 TEST_TERMINATE (search_terminated_1,false,-1,-1,-1,"add8") \
 TEST_TERMINATE (substitute_terminated_1,false,0,-1,-1,"add8") \
-TEST_TERMINATE (ternary_terminated_1,false,0,-1,-1,"add128") \
-TEST_TERMINATE (ternary_terminated_2,false,0,-1,-1,"add128") \
-TEST_TERMINATE (ternary_terminated_3,false,0,-1,-1,"add128") \
 TEST_TERMINATE (transitive_terminated_1,false,0,-1,-1,"add128") \
 TEST_TERMINATE (transitive_terminated_2,false,0,-1,-1,"add128") \
 TEST_TERMINATE (transitive_terminated_3,false,0,-1,-1,"add128") \

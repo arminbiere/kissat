@@ -470,8 +470,6 @@ kissat_failed_literal_computation (kissat * solver)
   if (!GET_OPTION (failed))
     return;
 
-  RETURN_IF_DELAYED (failed);
-
   START (failed);
   INC (failed_computations);
 #if !defined(NDEBUG) || defined(METRICS)
@@ -551,8 +549,6 @@ kissat_failed_literal_computation (kissat * solver)
     kissat_phase (solver, "failed", GET (failed_computations),
 		  "no hyper binary resolvents in total in %u rounds", round);
 
-  bool success = failed + resolved;
-  UPDATE_DELAY (success, failed);
 #if !defined(NDEBUG) || defined(METRICS)
   assert (solver->failed_probing);
   solver->failed_probing = false;
