@@ -152,9 +152,9 @@ reset_phases (kissat * solver)
 
   // Since 'enabled.rephase' is true one of the rephase methods is enabled.
   // However 'rephasewalking' could be the only one and the derived 'walking'
-  // depends also on the size of the formula, i.e., 'kissat_walking' could
-  // return 'false'.  As a consequence there is no candidate if only the
-  // 'rephasewalking' is true but the formula is too big.
+  // depends also on the size of the formula.  As a consequence there is no
+  // candidate if only the option 'rephasewalking' is true but the formula is
+  // too big in which case however 'kissat_walking' and 'walking' are false.
   //
   if (candidates)
     {
@@ -185,7 +185,7 @@ reset_phases (kissat * solver)
   solver->rephased.last = type;
   LOG ("copying saved phases as target phases");
   memcpy (solver->phases.target, solver->phases.saved, VARS);
-  UPDATE_CONFLICT_LIMIT (rephase, rephased, NLOGNLOGNLOGN, false);
+  UPDATE_CONFLICT_LIMIT (rephase, rephased, NLOG3N, false);
   kissat_reset_target_assigned (solver);
   if (type == 'B')
     kissat_reset_best_assigned (solver);

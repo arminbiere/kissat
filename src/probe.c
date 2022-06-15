@@ -28,8 +28,10 @@ probe (kissat * solver)
   RETURN_IF_DELAYED (probe);
   kissat_backtrack_propagate_and_flush_trail (solver);
   assert (!solver->inconsistent);
+  const uint64_t probings = solver->statistics.probings;
+  const bool full = GET_OPTION (probe) > 1;
   STOP_SEARCH_AND_START_SIMPLIFIER (probe);
-  kissat_phase (solver, "probe", GET (probings),
+  kissat_phase (solver, "probe", probings,
 		"probing limit hit after %" PRIu64 " conflicts",
 		solver->limits.probe.conflicts);
   const changes before = kissat_changes (solver);
@@ -37,8 +39,19 @@ probe (kissat * solver)
   kissat_binary_clauses_backbone (solver);
   kissat_ternary (solver);
   kissat_transitive_reduction (solver);
-  kissat_failed_literal_computation (solver);
-  kissat_vivify (solver);
+  if (!GET_OPTION (failed))
+    kissat_vivify (solver);
+  else if (!GET_OPTION (vivify))
+    kissat_failed_literal_computation (solver);
+  else if (full)
+    {
+      kissat_failed_literal_computation (solver);
+      kissat_vivify (solver);
+    }
+  else if (probings & 1)
+    kissat_failed_literal_computation (solver);
+  else
+    kissat_vivify (solver);
   kissat_sweep (solver);
   kissat_substitute (solver);
   kissat_binary_clauses_backbone (solver);

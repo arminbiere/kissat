@@ -24,7 +24,7 @@ test_bump_rescale (void)
   assert (solver->scinc > 0);
   tissat_verbose ("initial score increment %g", solver->scinc);
   ACTIVE (0) = ACTIVE (1) = true;
-  heap *scores = &solver->scores;
+  heap *scores = &solver->scores[0];
   unsigned count = 0;
   for (unsigned i = 1; i <= 5; i++)
     {
@@ -39,7 +39,7 @@ test_bump_rescale (void)
 	      if (count++ & 1)
 		PUSH_STACK (solver->analyzed, 1);
 	    }
-	  kissat_bump (solver);
+	  kissat_bump_analyzed (solver);
 	  CLEAR_STACK (solver->analyzed);
 	  if (prev >= solver->scinc ||
 	      solver->scinc >= MAX_SCORE * 0.7 ||

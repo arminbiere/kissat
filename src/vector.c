@@ -24,15 +24,17 @@ fix_vector_pointers_after_moving_stack (kissat * solver, ptrdiff_t moved)
   struct vector *end_watches = begin_watches + LITS;
   for (struct vector * p = begin_watches; p != end_watches; p++)
     {
+
 #define FIX_POINTER(PTR) \
 do { \
-char * old_char_ptr_value = (char*) (PTR); \
-if (!old_char_ptr_value) \
-break; \
-char * new_char_ptr_value = old_char_ptr_value + moved; \
-unsigned * new_unsigned_ptr_value = (unsigned *) new_char_ptr_value; \
-(PTR) = new_unsigned_ptr_value; \
+  char * old_char_ptr_value = (char*) (PTR); \
+  if (!old_char_ptr_value) \
+    break; \
+  char * new_char_ptr_value = old_char_ptr_value + moved; \
+  unsigned * new_unsigned_ptr_value = (unsigned *) new_char_ptr_value; \
+  (PTR) = new_unsigned_ptr_value; \
 } while (0)
+
       FIX_POINTER (p->begin);
       FIX_POINTER (p->end);
     }

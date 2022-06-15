@@ -155,6 +155,9 @@ kissat_statistics_print (kissat * solver, bool verbose)
 #define PCNT_EXTRACTED(NAME) \
   PERCENT (NAME, gates_extracted)
 
+#define PCNT_KITTEN_FLIP(NAME) \
+  PERCENT (NAME, kitten_flip)
+
 #define PCNT_KITTEN_SOLVED(NAME) \
   PERCENT (NAME, kitten_solved)
 

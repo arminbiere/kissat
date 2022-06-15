@@ -174,7 +174,16 @@ kissat_on_the_fly_subsume (kissat * solver, clause * c, clause * d)
   kissat_mark_clause_as_garbage (solver, d);
   INC (on_the_fly_subsumed);
   if (d->redundant)
-    return;
+    {
+      if (c->redundant && !c->keep)
+	{
+	  if (c->glue > d->glue)
+	    kissat_promote_clause (solver, c, d->glue);
+	  if (c->glue <= (unsigned) GET_OPTION (tier2) && c->used <= 1)
+	    c->used = 2;
+	}
+      return;
+    }
   if (!c->redundant)
     return;
   if (c->size == 2)

@@ -24,7 +24,7 @@ const char *kissat_id (void);
 const char *kissat_version (void);
 const char *kissat_compiler (void);
 
-const char *kissat_copyright (void);
+const char **kissat_copyright (void);
 void kissat_build (const char *line_prefix);
 void kissat_banner (const char *line_prefix, const char *name_of_app);
 

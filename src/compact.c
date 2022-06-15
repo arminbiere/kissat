@@ -131,6 +131,8 @@ compact_literal (kissat * solver, unsigned dst_lit, unsigned src_lit)
   solver->values[dst_lit] = solver->values[src_lit];
   solver->values[not_dst_lit] = solver->values[not_src_lit];
 
+  solver->conflicted[dst_idx] = solver->conflicted[src_idx];
+
   cache *cache = &solver->cache;
   if (cache->valid)
     {
@@ -200,15 +202,30 @@ compact_queue (kissat * solver)
 }
 
 static void
-compact_scores (kissat * solver, unsigned vars)
+compact_sweep (kissat * solver)
+{
+  unsigned *q = BEGIN_STACK (solver->sweep);
+  const unsigned *const end = END_STACK (solver->sweep);
+  for (const unsigned *p = q; p != end; p++)
+    {
+      const unsigned idx = *p;
+      const unsigned midx = map_idx (solver, idx);
+      if (midx == INVALID_IDX)
+	continue;
+      *q++ = midx;
+    }
+  SET_END_OF_STACK (solver->sweep, q);
+  SHRINK_STACK (solver->sweep);
+}
+
+static void
+compact_scores (kissat * solver, heap * old_scores, unsigned vars)
 {
   LOG ("compacting scores");
 
   heap new_scores;
   memset (&new_scores, 0, sizeof new_scores);
   kissat_resize_heap (solver, &new_scores, vars);
-
-  heap *old_scores = &solver->scores;
 
   if (old_scores->tainted)
     {
@@ -235,7 +252,7 @@ compact_scores (kissat * solver, unsigned vars)
     }
 
   kissat_release_heap (solver, old_scores);
-  solver->scores = new_scores;
+  *old_scores = new_scores;
 }
 
 static void
@@ -452,13 +469,16 @@ kissat_finalize_compacting (kissat * solver, unsigned vars, unsigned mfixed)
     compact_units (solver, mfixed);
 
   memset (solver->assigned + vars, 0, reduced * sizeof (assigned));
+  memset (solver->conflicted + vars, 0, reduced * sizeof (uint64_t));
   memset (solver->flags + vars, 0, reduced * sizeof (flags));
   memset (solver->values + 2 * vars, 0, 2 * reduced * sizeof (value));
   memset (solver->watches + 2 * vars, 0, 2 * reduced * sizeof (watches));
 
   compact_queue (solver);
+  compact_sweep (solver);
   compact_cache (solver, vars);
-  compact_scores (solver, vars);
+  for (all_scores (scores))
+    compact_scores (solver, scores, vars);
   compact_frames (solver);
   compact_export (solver, vars);
   compact_best_and_target_values (solver, vars);

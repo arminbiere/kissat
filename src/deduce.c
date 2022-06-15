@@ -15,8 +15,9 @@ mark_clause_as_used (kissat * solver, clause * c)
   c->used = 1;
   if (c->hyper)
     return;
-  const unsigned new_glue = kissat_recompute_glue (solver, c);
-  if (new_glue < c->glue)
+  const unsigned old_glue = c->glue;
+  const unsigned new_glue = kissat_recompute_glue (solver, c, old_glue);
+  if (new_glue < old_glue)
     kissat_promote_clause (solver, c, new_glue);
   else if (used && c->glue <= (unsigned) GET_OPTION (tier2))
     c->used = 2;

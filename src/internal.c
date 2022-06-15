@@ -77,7 +77,9 @@ kissat_release (kissat * solver)
 {
   kissat_require_initialized (solver);
 
-  kissat_release_heap (solver, &solver->scores);
+  for (all_scores (scores))
+    kissat_release_heap (solver, scores);
+
   kissat_release_heap (solver, &solver->schedule);
 
   kissat_release_clueue (solver, &solver->clueue);
@@ -91,6 +93,7 @@ kissat_release (kissat * solver)
   RELEASE_STACK (solver->import);
 
   DEALLOC_VARIABLE_INDEXED (assigned);
+  DEALLOC_VARIABLE_INDEXED (conflicted);
   DEALLOC_VARIABLE_INDEXED (flags);
   DEALLOC_VARIABLE_INDEXED (links);
 
@@ -130,6 +133,8 @@ kissat_release (kissat * solver)
   RELEASE_STACK (solver->shrinkable);
   RELEASE_STACK (solver->xorted[0]);
   RELEASE_STACK (solver->xorted[1]);
+
+  RELEASE_STACK (solver->sweep);
 
   RELEASE_STACK (solver->ranks);
 

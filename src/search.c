@@ -1,4 +1,5 @@
 #include "analyze.h"
+#include "branching.h"
 #include "bump.h"
 #include "decide.h"
 #include "eliminate.h"
@@ -35,8 +36,14 @@ start_search (kissat * solver)
 
   kissat_init_averages (solver, &AVERAGES);
 
+  if (GET_OPTION (stable))
+    kissat_init_branching (solver);
+
   if (solver->stable)
-    kissat_init_reluctant (solver);
+    {
+      kissat_init_reluctant (solver);
+      kissat_update_scores (solver);
+    }
 
   kissat_init_limits (solver);
 

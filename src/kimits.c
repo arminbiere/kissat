@@ -44,37 +44,6 @@ kissat_logn (uint64_t count)
   return res;
 }
 
-static double
-kissat_lognlogn (uint64_t count)
-{
-  assert (count > 0);
-  const double tmp = log10 (count + 9);
-  const double res = tmp * tmp;
-  assert (res >= 1);
-  return res;
-}
-
-static double
-kissat_lognlognlogn (uint64_t count)
-{
-  assert (count > 0);
-  const double tmp = log10 (count + 9);
-  const double res = tmp * tmp * tmp;
-  assert (res >= 1);
-  return res;
-}
-
-double
-kissat_ndivlogn (uint64_t count)
-{
-  assert (count > 0);
-  const double div = kissat_logn (count);
-  assert (div > 0);
-  const double res = count / div;
-  assert (res >= 1);
-  return res;
-}
-
 double
 kissat_sqrt (uint64_t count)
 {
@@ -85,40 +54,13 @@ kissat_sqrt (uint64_t count)
 }
 
 double
-kissat_linear (uint64_t count)
+kissat_nlogpown (uint64_t count, unsigned exponent)
 {
   assert (count > 0);
-  const double res = count;
-  assert (res >= 1);
-  return res;
-}
-
-double
-kissat_nlogn (uint64_t count)
-{
-  assert (count > 0);
-  const double factor = kissat_logn (count);
-  assert (factor >= 1);
-  const double res = count * factor;
-  assert (res >= 1);
-  return res;
-}
-
-double
-kissat_nlognlogn (uint64_t count)
-{
-  assert (count > 0);
-  const double factor = kissat_lognlogn (count);
-  const double res = count * factor;
-  assert (res >= 1);
-  return res;
-}
-
-double
-kissat_nlognlognlogn (uint64_t count)
-{
-  assert (count > 0);
-  const double factor = kissat_lognlognlogn (count);
+  const double tmp = log10 (count + 9);
+  double factor = 1;
+  while (exponent--)
+    factor *= tmp;
   assert (factor >= 1);
   const double res = count * factor;
   assert (res >= 1);
@@ -152,24 +94,6 @@ kissat_scale_delta (kissat * solver, const char *pretty, uint64_t delta)
     " = log10^2(%" PRIu64 ") * %" PRIu64,
     pretty, scaled, ff, delta, f, delta, C, delta);
 // *INDENT-ON*
-  (void) pretty;
-  return scaled;
-}
-
-uint64_t
-kissat_scale_limit (kissat * solver,
-		    const char *pretty, uint64_t count, int base)
-{
-  assert (base >= 0);
-  assert (count > 0);
-  const double f = kissat_logn (count);
-  assert (f >= 1);
-  uint64_t scaled = f * base;
-  kissat_very_verbose (solver,
-		       "scaled %s limit %" PRIu64 " = "
-		       "log10 (%" PRIu64 ") * %d = %g * %d",
-		       pretty, scaled, count, base, f, base);
-  (void) solver;
   (void) pretty;
   return scaled;
 }

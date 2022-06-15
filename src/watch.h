@@ -206,6 +206,9 @@ do { \
 
 void kissat_remove_blocking_watch (struct kissat *, watches *, reference);
 
+void kissat_substitute_large_watch (struct kissat *, watches *,
+				    watch src, watch dst);
+
 void kissat_flush_large_watches (struct kissat *);
 void kissat_watch_large_clauses (struct kissat *);
 

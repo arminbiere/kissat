@@ -191,17 +191,6 @@ compacting (kissat * solver)
   return compact;
 }
 
-static void
-force_restart_before_reduction (kissat * solver)
-{
-  if (!GET_OPTION (reducerestart))
-    return;
-  if (!solver->stable && (GET_OPTION (reducerestart) < 2))
-    return;
-  LOG ("forcing restart before reduction");
-  kissat_restart_and_flush_trail (solver);
-}
-
 int
 kissat_reduce (kissat * solver)
 {
@@ -210,7 +199,6 @@ kissat_reduce (kissat * solver)
   kissat_phase (solver, "reduce", GET (reductions),
 		"reduce limit %" PRIu64 " hit after %" PRIu64
 		" conflicts", solver->limits.reduce.conflicts, CONFLICTS);
-  force_restart_before_reduction (solver);
   bool compact = compacting (solver);
   reference start = compact ? 0 : solver->first_reducible;
   if (start != INVALID_REF)

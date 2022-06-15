@@ -29,7 +29,7 @@ backward_subsume_lits (kissat * solver, reference ignore,
 
   assert (min_lit != INVALID_LIT);
 
-  const unsigned occlim = solver->bounds.subsume.occurrences;
+  const unsigned occlim = GET_OPTION (subsumeocclim);
   if (min_occs > occlim)
     return true;
 
@@ -40,7 +40,7 @@ backward_subsume_lits (kissat * solver, reference ignore,
   const value *const values = solver->values;
   ward *const arena = BEGIN_STACK (solver->arena);
 
-  const unsigned clslim = solver->bounds.subsume.clause_size;
+  const unsigned clslim = GET_OPTION (subsumeclslim);
 
   const unsigned match =
     (size > 2 ? INVALID_LIT : (lits[0] ^ lits[1] ^ min_lit));
@@ -90,7 +90,6 @@ backward_subsume_lits (kissat * solver, reference ignore,
 	      INC (duplicated);
 	      kissat_disconnect_binary (solver, other, min_lit);
 	      kissat_delete_binary (solver, false, false, min_lit, other);
-	      kissat_update_after_removing_variable (solver, IDX (other));
 	      q--;
 	    }
 	  else
@@ -136,8 +135,6 @@ backward_subsume_lits (kissat * solver, reference ignore,
 		{
 		  LOGCLS (c, "satisfied by %s", LOGLIT (lit));
 		  kissat_mark_clause_as_garbage (solver, c);
-		  kissat_update_after_removing_clause (solver, c,
-						       INVALID_LIT);
 		  break;
 		}
 	      if (value < 0)
@@ -180,7 +177,6 @@ backward_subsume_lits (kissat * solver, reference ignore,
 	      INC (subsumed);
 	      INC (backward_subsumed);
 	      kissat_mark_clause_as_garbage (solver, c);
-	      kissat_update_after_removing_clause (solver, c, INVALID_LIT);
 	      q--;
 	      continue;
 	    }
@@ -206,7 +202,6 @@ backward_subsume_lits (kissat * solver, reference ignore,
 	  if (satisfied)
 	    {
 	      kissat_mark_clause_as_garbage (solver, c);
-	      kissat_update_after_removing_clause (solver, c, INVALID_LIT);
 	      q--;
 	      continue;
 	    }
@@ -272,7 +267,6 @@ backward_subsume_lits (kissat * solver, reference ignore,
 	      q--;
 	    }
 	  kissat_mark_removed_literal (solver, remove);
-	  kissat_update_after_removing_variable (solver, IDX (remove));
 	}
     }
 

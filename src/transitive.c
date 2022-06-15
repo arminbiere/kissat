@@ -301,7 +301,7 @@ static void
 sort_stable_transitive (kissat * solver, unsigneds * probes)
 {
   const flags *const flags = solver->flags;
-  const heap *const scores = &solver->scores;
+  const heap *const scores = SCORES;
   SORT_STACK (unsigned, *probes, LESS_STABLE_PROBE);
 }
 

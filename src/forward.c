@@ -130,7 +130,7 @@ remove_all_duplicated_binary_clauses (kissat * solver)
 static void
 find_forward_subsumption_candidates (kissat * solver, references * candidates)
 {
-  const unsigned clslim = solver->bounds.subsume.clause_size;
+  const unsigned clslim = GET_OPTION (subsumeclslim);
 
   const value *const values = solver->values;
   const flags *const flags = solver->flags;
@@ -196,21 +196,20 @@ sort_forward_subsumption_candidates (kissat * solver, references * candidates)
 
 static inline bool
 forward_literal (kissat * solver, unsigned lit, bool binaries,
-		 unsigned *remove)
+		 unsigned *remove, unsigned limit)
 {
   watches *watches = &WATCHES (lit);
-  const unsigned occs = SIZE_WATCHES (*watches);
+  const size_t size_watches = SIZE_WATCHES (*watches);
 
-  if (!occs)
+  if (!size_watches)
     return false;
 
-  if (occs > solver->bounds.subsume.occurrences)
+  if (size_watches > limit)
     return false;
 
   watch *begin = BEGIN_WATCHES (*watches), *q = begin;
   const watch *const end = END_WATCHES (*watches), *p = q;
 
-  const size_t size_watches = SIZE_WATCHES (*watches);
   uint64_t steps = 1 + kissat_cache_lines (size_watches, sizeof (watch));
   uint64_t checks = 0;
 
@@ -220,7 +219,7 @@ forward_literal (kissat * solver, unsigned lit, bool binaries,
 
   bool subsume = false;
 
-  while (p != end)
+  while (p != end && steps <= limit)
     {
       const watch watch = *q++ = *p++;
 
@@ -321,10 +320,13 @@ forward_literal (kissat * solver, unsigned lit, bool binaries,
 	}
     }
 
-  while (p != end)
-    *q++ = *p++;
+  if (p != q)
+    {
+      while (p != end)
+	*q++ = *p++;
 
-  SET_END_OF_WATCHES (*watches, q);
+      SET_END_OF_WATCHES (*watches, q);
+    }
 
   ADD (subsumption_checks, checks);
   ADD (forward_checks, checks);
@@ -336,6 +338,7 @@ forward_literal (kissat * solver, unsigned lit, bool binaries,
 static inline bool
 forward_marked_clause (kissat * solver, clause * c, unsigned *remove)
 {
+  const unsigned limit = GET_OPTION (subsumeocclim);
   const flags *const flags = solver->flags;
   INC (forward_steps);
 
@@ -347,9 +350,10 @@ forward_marked_clause (kissat * solver, clause * c, unsigned *remove)
 
       assert (!VALUE (lit));
 
-      if (forward_literal (solver, lit, true, remove))
+      if (forward_literal (solver, lit, true, remove, limit))
 	return true;
-      if (forward_literal (solver, NOT (lit), false, remove))
+
+      if (forward_literal (solver, NOT (lit), false, remove, limit))
 	return true;
     }
   return false;
@@ -357,7 +361,7 @@ forward_marked_clause (kissat * solver, clause * c, unsigned *remove)
 
 static bool
 forward_subsumed_clause (kissat * solver, clause * c,
-			 bool * removed, unsigneds * new_binaries)
+			 bool *removed, unsigneds * new_binaries)
 {
   assert (!c->garbage);
   LOGCLS2 (c, "trying to forward subsume");
@@ -580,14 +584,14 @@ forward_subsume_all_clauses (kissat * solver)
 #ifndef QUIET
   size_t checked = 0;
 #endif
-  const unsigned occlim = solver->bounds.subsume.occurrences;
+  const unsigned occlim = GET_OPTION (subsumeocclim);
 
   unsigneds new_binaries;
   INIT_STACK (new_binaries);
 
   {
     SET_EFFORT_LIMIT (steps_limit, forward, forward_steps,
-		      kissat_nlogn (1 + scheduled));
+		      NLOGN (1 + scheduled));
 
     ward *arena = BEGIN_STACK (solver->arena);
 
@@ -742,6 +746,12 @@ forward_marked_temporary (kissat * solver, unsigned *remove)
 {
   const flags *const flags = solver->flags;
 
+  unsigned steps_limit_per_literal = GET_OPTION (subsumeocclim);
+  const uint64_t started = solver->statistics.forward_steps;
+  const uint64_t total_steps_limit = started + steps_limit_per_literal;
+  const unsigned size = SIZE_STACK (solver->clause);
+  steps_limit_per_literal /= size;
+
   for (all_stack (unsigned, lit, solver->clause))
     {
       const unsigned idx = IDX (lit);
@@ -750,8 +760,12 @@ forward_marked_temporary (kissat * solver, unsigned *remove)
 
       assert (!VALUE (lit));
 
-      if (forward_literal (solver, lit, true, remove))
+      if (forward_literal (solver, lit, true, remove,
+			   steps_limit_per_literal))
 	return true;
+
+      if (solver->statistics.forward_steps > total_steps_limit)
+	return false;
     }
 
   return false;
@@ -776,6 +790,7 @@ forward_subsumed_temporary (kissat * solver)
     }
 
   unsigned remove = INVALID_LIT;
+  uint64_t steps = solver->statistics.forward_steps;
   const bool subsume = forward_marked_temporary (solver, &remove);
 
   for (all_stack (unsigned, lit, *clause))
@@ -803,6 +818,16 @@ forward_subsumed_temporary (kissat * solver)
       LOGTMP ("forward strengthened");
     }
 
+  steps = solver->statistics.forward_steps - steps;
+  if (solver->budget.forward < steps)
+    solver->budget.forward = 0;
+  else
+    solver->budget.forward -= steps;
+
+  LOG ("temporary forward subsumption used %" PRIu64 " steps", steps);
+  LOG ("new temporary forward subsumption budget %" PRIu64,
+       solver->budget.forward);
+
   return subsume;
 }
 
@@ -811,6 +836,15 @@ kissat_forward_subsume_temporary (kissat * solver)
 {
   assert (!solver->inconsistent);
   if (!GET_OPTION (forward))
+    return false;
+  if (!solver->budget.forward)
+    {
+      LOG ("temporary forward subsumption budget exhausted");
+      return false;
+    }
+  const unsigned subsumeclslim = GET_OPTION (subsumeclslim);
+  const size_t size = SIZE_STACK (solver->clause);
+  if (size > subsumeclslim)
     return false;
   START (forward);
   bool res = forward_subsumed_temporary (solver);

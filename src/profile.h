@@ -46,6 +46,7 @@ PROF(total,0) \
 PROF(transitive,2) \
 PROF(vivify,2) \
 PROF(walking,2) \
+PROF(warmup,2) \
 
 struct profile
 {

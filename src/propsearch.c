@@ -1,3 +1,4 @@
+#include "bump.h"
 #include "fastassign.h"
 #include "propsearch.h"
 #include "trail.h"
@@ -60,6 +61,8 @@ kissat_search_propagate (kissat * solver)
   clause *conflict = search_propagate (solver);
   update_search_propagation_statistics (solver, saved_propagate);
   kissat_update_conflicts_and_trail (solver, conflict, true);
+  if (solver->stable && solver->branching)
+    kissat_bump_propagated (solver);
 
   STOP (propagate);
 

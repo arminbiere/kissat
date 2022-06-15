@@ -396,7 +396,7 @@ compute_backbone (kissat * solver)
   unsigned inconsistent = INVALID_LIT;
 
   SET_EFFORT_LIMIT (ticks_limit, backbone, backbone_ticks,
-		    kissat_linear (1 + solver->active));
+		    1 + solver->active);
 
   size_t round_limit = GET_OPTION (backbonerounds);
   assert (solver->statistics.backbone_computations);

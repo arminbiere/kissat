@@ -266,7 +266,7 @@ add_representative_equivalences (kissat * solver, unsigned *repr)
 
 static void
 remove_representative_equivalences (kissat * solver,
-				    unsigned *repr, bool * eliminate)
+				    unsigned *repr, bool *eliminate)
 {
   if (!solver->inconsistent)
     {

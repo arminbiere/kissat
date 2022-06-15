@@ -16,7 +16,7 @@ static inline size_t
 kissat_bits_size_in_words (size_t size)
 {
   assert (sizeof (bits) == 4);
-  return (size >> 5) + ! !(size & 31);
+  return (size >> 5) + !!(size & 31);
 }
 
 static inline bool
@@ -29,7 +29,7 @@ kissat_get_bit (const bits * bits, size_t size, size_t bit)
   const unsigned y = (bit & 31);
   const unsigned mask = (1u << y);
   const unsigned masked = word & mask;
-  const bool res = ! !masked;
+  const bool res = !!masked;
   (void) size;
   return res;
 }

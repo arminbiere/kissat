@@ -210,7 +210,7 @@ shrink_along_binary (kissat * solver, assigned * assigned, reap * reap,
 static inline unsigned
 shrink_along_large (kissat * solver, assigned * assigned, reap * reap,
 		    unsigned level, unsigned max_trail,
-		    unsigned uip, reference ref, bool * failed_ptr)
+		    unsigned uip, reference ref, bool *failed_ptr)
 {
   unsigned open = 0;
   LOGREF2 (ref, "shrinking along %s reason", LOGLIT (uip));
@@ -238,7 +238,7 @@ shrink_along_large (kissat * solver, assigned * assigned, reap * reap,
 static inline unsigned
 shrink_along_reason (kissat * solver, assigned * assigned, reap * reap,
 		     unsigned level, unsigned uip, unsigned max_trail,
-		     bool resolve_large_clauses, bool * failed_ptr)
+		     bool resolve_large_clauses, bool *failed_ptr)
 {
   unsigned open = 0;
   const unsigned uip_idx = IDX (uip);

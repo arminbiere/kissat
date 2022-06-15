@@ -445,7 +445,7 @@ really_ternary (kissat * solver)
   if (!GET_OPTION (really))
     return true;
 
-  const uint64_t limit = 2 * CLAUSES + kissat_nlogn (1 + CLAUSES);
+  const uint64_t limit = 2 * CLAUSES + NLOGN (1 + CLAUSES);
   const uint64_t search_ticks = solver->statistics.search_ticks;
 
   if (limit >= search_ticks)
@@ -589,7 +589,7 @@ kissat_ternary (kissat * solver)
   if (scheduled)
     {
       SET_EFFORT_LIMIT (steps_limit, ternary, hyper_ternary_steps,
-			2 * CLAUSES + kissat_nlogn (1 + scheduled));
+			2 * CLAUSES + NLOGN (1 + scheduled));
 
       resolved = ternary_round (solver, resolved_limit,
 				steps_limit, scheduled);

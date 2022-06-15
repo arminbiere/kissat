@@ -16,8 +16,8 @@
 #include "format.h"
 #include "frames.h"
 #include "heap.h"
+#include "kimits.h"
 #include "kissat.h"
-#include "limits.h"
 #include "literal.h"
 #include "mode.h"
 #include "nonces.h"
@@ -136,7 +136,10 @@ struct kissat
 
   rephased rephased;
 
-  heap scores;
+  unsigned branching;
+  heap scores[2];
+  uint64_t *conflicted;
+  double alphachb;
   double scinc;
 
   heap schedule;
@@ -195,6 +198,7 @@ struct kissat
   reluctant reluctant;
 
   bounds bounds;
+  budget budget;
   delays delays;
   enabled enabled;
   effort last;
@@ -222,6 +226,7 @@ struct kissat
 #else
   bool gate_eliminated;
 #endif
+  unsigneds sweep;
 
 #if !defined(NDEBUG) || !defined(NPROOFS)
   unsigneds added;
@@ -253,6 +258,9 @@ struct kissat
 #define VARS (solver->vars)
 #define LITS (2*solver->vars)
 
+#define SCORES  \
+  (&solver->scores[assert (solver->branching < 2), solver->branching])
+
 static inline unsigned
 kissat_assigned (kissat * solver)
 {
@@ -276,5 +284,8 @@ kissat_assigned (kissat * solver)
 	 * C ## _NEXT; \
   C != C ## _END && (C ## _NEXT = kissat_next_clause (C), true); \
   C = C ## _NEXT
+
+#define all_scores(S) \
+  heap * S = solver->scores; S != solver->scores + 2; S++
 
 #endif

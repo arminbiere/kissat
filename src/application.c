@@ -14,6 +14,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define SOLVER_NAME "Kissat SAT Solver"
+
 typedef struct application application;
 
 struct application
@@ -261,7 +263,7 @@ parsed_one_option_and_return_zero_exit_code (char *arg)
     }
   if (!strcmp (arg, "--banner"))
     {
-      kissat_banner (0, "KISSAT SAT Solver");
+      kissat_banner (0, SOLVER_NAME);
       return true;
     }
   if (!strcmp (arg, "--build"))
@@ -271,7 +273,8 @@ parsed_one_option_and_return_zero_exit_code (char *arg)
     }
   if (!strcmp (arg, "--copyright"))
     {
-      printf ("%s\n", kissat_copyright ());
+      for (const char **p = kissat_copyright (), *line; (line = *p); p++)
+	printf ("%s\n", line);
       return true;
     }
   if (!strcmp (arg, "--compiler"))
@@ -841,7 +844,7 @@ print_limits (application * application)
 
 static int
 run_application (kissat * solver,
-		 int argc, char **argv, bool * cancel_alarm_ptr)
+		 int argc, char **argv, bool *cancel_alarm_ptr)
 {
   *cancel_alarm_ptr = false;
   if (argc == 2)
@@ -858,7 +861,7 @@ run_application (kissat * solver,
   kissat_section (solver, "banner");
   if (!GET_OPTION (quiet))
     {
-      kissat_banner ("c ", "KISSAT SAT Solver");
+      kissat_banner ("c ", SOLVER_NAME);
       fflush (stdout);
     }
 #endif

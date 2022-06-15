@@ -8,6 +8,7 @@
 #include "rephase.h"
 #include "terminate.h"
 #include "walk.h"
+#include "warmup.h"
 
 #include <string.h>
 
@@ -228,10 +229,10 @@ import_decision_phases (walker * walker)
   kissat *solver = walker->solver;
   INC (walk_decisions);
   value *const saved = solver->phases.saved;
-  const value *const target = solver->phases.target;
+  const value *const target =
+    (solver->stable && !GET_OPTION (warmup)) ? solver->phases.target : 0;
   const value initial_phase = INITIAL_PHASE;
   const flags *const flags = solver->flags;
-  const bool stable = solver->stable;
   value *values = solver->values;
 #ifndef QUIET
   unsigned imported = 0;
@@ -242,7 +243,7 @@ import_decision_phases (walker * walker)
       if (!flags[idx].active)
 	continue;
       value value = 0;
-      if (stable)
+      if (target)
 	value = target[idx];
       if (!value)
 	value = saved[idx];
@@ -1179,6 +1180,9 @@ walk (kissat * solver, bool first_time, bool use_previous_phase)
       return;
     }
 
+  if (!use_previous_phase && GET_OPTION (warmup))
+    kissat_warmup (solver);
+
   STOP_SEARCH_AND_START_SIMPLIFIER (walking);
   walking_phase (solver, first_time, use_previous_phase);
   STOP_SIMPLIFIER_AND_RESUME_SEARCH (walking);
@@ -1205,7 +1209,7 @@ kissat_walk (kissat * solver)
   const uint64_t walks = GET (walks);
   const bool first_time = !walks;
   const int reuse = GET_OPTION (walkreuse);
-  const bool decisions_used = ! !(solver->walked & mask);
+  const bool decisions_used = !!(solver->walked & mask);
 
   bool use_previous_phases;
 

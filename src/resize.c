@@ -62,6 +62,7 @@ kissat_increase_size (kissat * solver, unsigned new_size)
        FORMAT_BYTES (kissat_allocated (solver)), old_size, new_size);
 #endif
   CREALLOC_VARIABLE_INDEXED (assigned, assigned);
+  CREALLOC_VARIABLE_INDEXED (uint64_t, conflicted);
   CREALLOC_VARIABLE_INDEXED (flags, flags);
   NREALLOC_VARIABLE_INDEXED (links, links);
 
@@ -71,7 +72,9 @@ kissat_increase_size (kissat * solver, unsigned new_size)
 
   reallocate_trail (solver, old_size, new_size);
 
-  kissat_resize_heap (solver, &solver->scores, new_size);
+  for (all_scores (scores))
+    kissat_resize_heap (solver, scores, new_size);
+
   kissat_increase_phases (solver, new_size);
 
   solver->size = new_size;
@@ -94,6 +97,7 @@ kissat_decrease_size (kissat * solver)
 #endif
 
   NREALLOC_VARIABLE_INDEXED (assigned, assigned);
+  NREALLOC_VARIABLE_INDEXED (uint64_t, conflicted);
   NREALLOC_VARIABLE_INDEXED (flags, flags);
   NREALLOC_VARIABLE_INDEXED (links, links);
 
@@ -103,7 +107,9 @@ kissat_decrease_size (kissat * solver)
 
   reallocate_trail (solver, old_size, new_size);
 
-  kissat_resize_heap (solver, &solver->scores, new_size);
+  for (all_scores (scores))
+    kissat_resize_heap (solver, scores, new_size);
+
   kissat_decrease_phases (solver, new_size);
 
   solver->size = new_size;

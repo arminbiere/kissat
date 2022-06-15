@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #define OPTIONS \
+OPTION( acids, 0, 0, 1, "use ACIDS instead of VSIDS") \
 OPTION( ands, 1, 0, 1, "extract and eliminate and gates") \
 OPTION( autarky, 1, 0, 1, "enable autarky reasoning") \
 OPTION( autarkydelay, 0, 0, 1, "delay autarky reasoning") \
@@ -16,10 +17,12 @@ OPTION( backbonekeep, 1, 0, 1, "keep backbone candidates") \
 OPTION( backbonemaxrounds, 1e3, 1, INT_MAX, "maximum backbone rounds") \
 OPTION( backbonerounds, 100, 1, INT_MAX, "backbone rounds limit") \
 OPTION( backward, 1, 0, 1, "backward subsumption in BVE") \
+OPTION( bump, 1, 0, 1, "enable variable bumping") \
 OPTION( bumpreasons, 1, 0, 1, "bump reason side literals too") \
 OPTION( bumpreasonslimit, 10, 1, INT_MAX, "relative reason literals limit") \
 OPTION( bumpreasonsrate, 10, 1, INT_MAX, "decision rate limit") \
 OPTION( cachesample, 1, 0, 1, "sample cached assignments") \
+OPTION( chb, 0, 0, 2, "use CHB in stable mode (1=alternating,2=only)") \
 DBGOPT( check, 2, 0, 2, "check model (1) and derived clauses (2)") \
 OPTION( chrono, 1, 0, 1, "allow chronological backtracking") \
 OPTION( chronolevels, 100, 0, INT_MAX, "maximum jumped over levels") \
@@ -28,6 +31,7 @@ OPTION( compactlim, 10, 0, 100, "compact inactive limit (in percent)") \
 OPTION( decay, 50, 1, 200, "per mille scores decay") \
 OPTION( definitioncores, 2, 1, 100, "how many cores") \
 OPTION( definitions, 1, 0, 1, "extract general definitions") \
+OPTION( definitionticks, 1e6, 0, INT_MAX, "kitten ticks limits") \
 OPTION( defraglim, 75, 50, 100, "usable defragmentation limit in percent") \
 OPTION( defragsize, 1<<18, 10, INT_MAX, "size defragmentation limit") \
 OPTION( delay, 2, 0, 10, "maximum delay (autarky, failed, ...)") \
@@ -37,12 +41,11 @@ OPTION( eliminatebound, 16 ,0 , 1<<13, "maximum elimination bound") \
 OPTION( eliminateclslim, 100, 1, INT_MAX, "elimination clause size limit") \
 OPTION( eliminatedelay, 0, 0, 1, "delay variable elimination") \
 OPTION( eliminateeffort, 100, 0, 2e3, "effort in per mille") \
-OPTION( eliminateheap, 0, 0, 1, "use heap to schedule elimination") \
 OPTION( eliminateinit, 500, 0, INT_MAX, "initial elimination interval") \
 OPTION( eliminateint, 500, 10, INT_MAX, "base elimination interval") \
-OPTION( eliminatekeep, 1, 0, 1, "keep elimination candidates") \
-OPTION( eliminateocclim, 1e3, 0, INT_MAX, "elimination occurrence limit") \
-OPTION( eliminaterounds, 2, 1, 1000, "elimination rounds limit") \
+OPTION( eliminateocclim, 2e3, 0, INT_MAX, "elimination occurrence limit") \
+OPTION( eliminaterounds, 2, 1, 1e4, "elimination rounds limit") \
+OPTION( emachb, 17, 2, 1e6, "CHB moving average window") \
 OPTION( emafast, 33, 10, 1e6, "fast exponential moving average window") \
 OPTION( emaslow, 1e5, 100, 1e6, "slow exponential moving average window") \
 EMBOPT( embedded, 1, 0, 1, "parse and apply embedded options") \
@@ -60,7 +63,7 @@ OPTION( hyper, 1, 0, 1, "on-the-fly hyper binary resolution") \
 OPTION( ifthenelse, 1, 0, 1, "extract and eliminate if-then-else gates") \
 OPTION( incremental, 0, 0, 1, "enable incremental solving") \
 LOGOPT( log, 0, 0, 5, "logging level (1=on,2=more,3=check,4/5=mem)") \
-OPTION( mineffort, 1e4, 0, INT_MAX, "minimum absolute effort") \
+OPTION( mineffort, 10, 0, INT_MAX, "minimum absolute effort") \
 OPTION( minimize, 1, 0, 1, "learned clause minimization") \
 OPTION( minimizedepth, 1e3, 1, 1e6, "minimization depth") \
 OPTION( minimizeticks, 1, 0, 1, "count ticks in minimize and shrink") \
@@ -69,7 +72,7 @@ OPTION( modeticks, 1e8, 1e3, INT_MAX, "initial focused ticks limit") \
 OPTION( otfs, 1, 0, 1, "on-the-fly strengthening") \
 OPTION( phase, 1, 0, 1, "initial decision phase") \
 OPTION( phasesaving, 1, 0, 1, "enable phase saving") \
-OPTION( probe, 1, 0, 1, "enable probing") \
+OPTION( probe, 2, 0, 2, "enable probing (1=alternating,2=all)") \
 OPTION( probedelay, 0, 0, 1, "delay probing") \
 OPTION( probeinit, 100, 0, INT_MAX, "initial probing interval") \
 OPTION( probeint, 100, 2, INT_MAX, "probing interval") \
@@ -82,7 +85,6 @@ OPTION( reduce, 1, 0, 1, "learned clause reduction") \
 OPTION( reducefraction, 75, 10, 100, "reduce fraction in percent") \
 OPTION( reduceinit, 3e2, 2, 1e5, "initial reduce interval") \
 OPTION( reduceint, 1e3, 2, 1e5, "base reduce interval") \
-OPTION( reducerestart, 0, 0, 2, "restart at reduce (1=stable,2=always)") \
 OPTION( reluctant, 1, 0, 1, "stable reluctant doubling restarting") \
 OPTION( reluctantint, 1<<10, 2, 1<<15, "reluctant interval") \
 OPTION( reluctantlim, 1<<20, 0, 1<<30, "reluctant limit (0=unlimited)") \
@@ -97,7 +99,7 @@ OPTION( rephasewalking, 1, 0, 1, "rephase walking phase") \
 OPTION( restart, 1, 0, 1, "enable restarts") \
 OPTION( restartint, RESTARTINT_DEFAULT, 1, 1e4, "base restart interval") \
 OPTION( restartmargin, 10, 0, 25, "fast/slow margin in percent") \
-OPTION( restartreusetrail, 1, 0, 1, "restarts reuse trail") \
+OPTION( reusetrail, 0, 0, 2, "restarts reuse trail (1=focused,2=always)") \
 OPTION( seed, 0, 0, INT_MAX, "random seed") \
 OPTION( shrink, 3, 0, 3, "learned clauses (1=bin,2=lrg,3=rec)") \
 OPTION( shrinkminimize, 1, 0, 1, "minimize during shrinking") \
@@ -110,13 +112,17 @@ OPTION( substituterounds, 2, 1, 100, "maximum substitution rounds") \
 OPTION( subsumeclslim, 1e3, 1, INT_MAX, "subsumption clause size limit") \
 OPTION( subsumeocclim, 1e3, 0, INT_MAX, "subsumption occurrence limit") \
 OPTION( sweep, 1, 0, 1, "enable SAT sweeping") \
-OPTION( sweepclauses, 1000, 0, INT_MAX, "maximum environment clauses") \
-OPTION( sweepdepth, 2, 0, INT_MAX, "environment depth") \
-OPTION( sweepeffort, 20, 0, 1e4, "effort in per mille") \
-OPTION( sweepmaxdepth, 4, 2, INT_MAX, "maximum environment depth") \
-OPTION( sweepvars, 100, 0, INT_MAX, "maximum environment variables") \
+OPTION( sweepboost, 0, 0, 2048, "SAT sweeping boost") \
+OPTION( sweepclauses, 1024, 0, INT_MAX, "environment clauses") \
+OPTION( sweepdepth, 1, 0, INT_MAX, "environment depth") \
+OPTION( sweepeffort, 10, 0, 1e4, "effort in per mille") \
+OPTION( sweepfliprounds, 1, 0, INT_MAX, "flipping rounds") \
+OPTION( sweepmaxclauses, 4096, 2, INT_MAX, "maximum environment clauses") \
+OPTION( sweepmaxdepth, 2, 1, INT_MAX, "maximum environment depth") \
+OPTION( sweepmaxvars, 128, 2, INT_MAX, "maximum environment variables") \
+OPTION( sweepvars, 128, 0, INT_MAX, "environment variables") \
 OPTION( target, TARGET_DEFAULT, 0, 2, "target phases (1=stable,2=focused)") \
-OPTION( ternary, 1, 0, 1, "enable hyper ternary resolution") \
+OPTION( ternary, 0, 0, 1, "enable hyper ternary resolution") \
 OPTION( ternarydelay, 1, 0, 1, "delay hyper ternary resolution") \
 OPTION( ternaryeffort, 70, 0, 2e3, "effort in per mille") \
 OPTION( ternaryheap, 1, 0, 1, "use heap to schedule ternary resolution") \
@@ -130,18 +136,18 @@ OPTION( tumble, 1, 0, 1, "tumbled external indices order") \
 NQTOPT( verbose, 0, 0, 3, "verbosity level") \
 OPTION( vivify, 1, 0, 1, "vivify clauses") \
 OPTION( vivifyeffort, 100, 0, 1e3, "effort in per mille") \
-OPTION( vivifyimply, 2, 0, 2, "remove implied redundant clauses") \
+OPTION( vivifyimply, 3, 0, 3, "remove implied redundant clauses") \
 OPTION( vivifyirred, 1, 1, 100, "relative irredundant effort") \
-OPTION( vivifykeep, 0, 0, 1, "keep vivification candidates") \
+OPTION( vivifykeep, 1, 0, 1, "keep vivification candidates") \
 OPTION( vivifytier1, 3, 1, 100, "relative tier1 effort") \
 OPTION( vivifytier2, 6, 1, 100, "relative tier2 effort") \
-OPTION( walkeffort, 5, 0, 1e6, "effort in per mille") \
+OPTION( walkeffort, 50, 0, 1e6, "effort in per mille") \
 OPTION( walkfit, 1, 0, 1, "fit CB value to average clause length") \
 OPTION( walkinitially, 0, 0, 1, "initial local search") \
 OPTION( walkreuse, 1, 0, 2, "reuse walking results (2=always)") \
 OPTION( walkweighted, 1, 0, 1, "use clause weights") \
+OPTION( warmup, 1, 0, 1, "initialize phases by unit propagation") \
 OPTION( xors, 1, 0, 1, "extract and eliminate XOR gates") \
-OPTION( xorsbound, 1 ,0 , 1<<13, "minimum elimination bound") \
 OPTION( xorsclslim, 5, 3, 31, "XOR extraction clause size limit") \
 
 // *INDENT-OFF*

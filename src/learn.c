@@ -100,7 +100,7 @@ learn_reference (kissat * solver, unsigned not_uip, unsigned glue)
   const reference ref = kissat_new_redundant_clause (solver, glue);
   assert (ref != INVALID_REF);
   clause *c = kissat_dereference_clause (solver, ref);
-  c->used = 1 + (glue <= (unsigned) GET_OPTION (tier2));
+  c->used = 0;			//1 + (glue <= (unsigned) GET_OPTION (tier2));
   const unsigned new_level = determine_new_level (solver, jump_level);
   kissat_backtrack_after_conflict (solver, new_level);
   kissat_assign_reference (solver, not_uip, ref, c);

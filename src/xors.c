@@ -67,7 +67,7 @@ copy_literals (kissat * solver, unsigned lit,
 	  const value value = values[other];
 	  if (value > 0)
 	    {
-	      kissat_eliminate_clause (solver, c, other);
+	      kissat_mark_clause_as_garbage (solver, c);
 	      LOG ("found satisfied %s", LOGLIT (other));
 	      return UINT_MAX;
 	    }
@@ -160,7 +160,7 @@ match_lits_ref (kissat * solver, const value * marks, const value * values,
       const value value = values[lit];
       if (value > 0)
 	{
-	  kissat_eliminate_clause (solver, c, INVALID_LIT);
+	  kissat_mark_clause_as_garbage (solver, c);
 	  return false;
 	}
       if (value < 0)
@@ -229,7 +229,7 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
   if (!GET_OPTION (xors))
     return false;
 
-  const unsigned size_limit = solver->bounds.xor.clause_size;
+  const unsigned size_limit = GET_OPTION (xorsclslim);
   if (size_limit < 3)
     return false;
   assert (size_limit < 32);
@@ -264,7 +264,7 @@ kissat_find_xor_gate (kissat * solver, unsigned lit, unsigned negative)
   const value *const values = solver->values;
   value *marks = solver->marks;
 
-  const unsigned steps_limit = solver->bounds.eliminate.occurrences;
+  const unsigned steps_limit = GET_OPTION (eliminateocclim);
 
   uint64_t steps = 0;
 

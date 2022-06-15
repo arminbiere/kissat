@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 typedef struct bounds bounds;
+typedef struct budget budget;
 typedef struct changes changes;
 typedef struct delays delays;
 typedef struct delay delay;
@@ -20,20 +21,12 @@ struct bounds
   {
     uint64_t max_bound_completed;
     unsigned additional_clauses;
-    unsigned clause_size;
-    unsigned occurrences;
   } eliminate;
+};
 
-  struct
-  {
-    unsigned clause_size;
-    unsigned occurrences;
-  } subsume;
-
-  struct
-  {
-    unsigned clause_size;
-  } xor;
+struct budget
+{
+  uint64_t forward;
 };
 
 struct changes
@@ -137,28 +130,15 @@ void kissat_init_limits (struct kissat *);
 
 uint64_t kissat_scale_delta (struct kissat *, const char *, uint64_t);
 
-uint64_t kissat_scale_limit (struct kissat *,
-			     const char *, uint64_t count, int base);
-
-#define SCALE_LIMIT(COUNT,NAME) \
-  kissat_scale_limit (solver, #NAME, \
-                      solver->statistics.COUNT, GET_OPTION (NAME))
-
-double kissat_linear (uint64_t);
-double kissat_logn (uint64_t);
-double kissat_ndivlogn (uint64_t);
-double kissat_nlognlognlogn (uint64_t);
-double kissat_nlognlogn (uint64_t);
-double kissat_nlogn (uint64_t);
 double kissat_quadratic (uint64_t);
+double kissat_nlogpown (uint64_t, unsigned);
 double kissat_sqrt (uint64_t);
+double kissat_logn (uint64_t);
 
-#define LINEAR(COUNT) kissat_linear (COUNT)
-#define NDIVLOGN(COUNT) kissat_ndivlogn (COUNT)
-#define NLOGN(COUNT) kissat_nlogn (COUNT)
-#define NLOGNLOGN(COUNT) kissat_nlognlogn (COUNT)
-#define NLOGNLOGNLOGN(COUNT) kissat_nlognlognlogn (COUNT)
-#define QUADRATIC(COUNT) kissat_quadratic (COUNT)
+#define NLOGN(COUNT) kissat_nlogpown (COUNT,1)
+#define NLOG2N(COUNT) kissat_nlogpown (COUNT,2)
+#define NLOG3N(COUNT) kissat_nlogpown (COUNT,3)
+
 #define SQRT(COUNT) kissat_sqrt (COUNT)
 
 #define INIT_CONFLICT_LIMIT(NAME,SCALE) \
@@ -202,7 +182,7 @@ do { \
     const uint64_t LAST = \
       solver->probing ? solver->last.probe : solver->last.eliminate; \
     uint64_t REFERENCE = TICKS - LAST; \
-    const uint64_t MINEFFORT = GET_OPTION (mineffort); \
+    const uint64_t MINEFFORT = 1e3 * GET_OPTION (mineffort); \
     if (REFERENCE < MINEFFORT) \
       { \
 	REFERENCE = MINEFFORT; \

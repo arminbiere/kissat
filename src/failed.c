@@ -193,7 +193,7 @@ static void
 sort_stable_probes (kissat * solver, unsigneds * probes)
 {
   const flags *const flags = solver->flags;
-  const heap *const scores = &solver->scores;
+  const heap *const scores = SCORES;
   SORT_STACK (unsigned, *probes, LESS_STABLE_PROBE);
 }
 
@@ -258,7 +258,7 @@ probe_round (kissat * solver, unsigned round,
 	continue;
       if (solver->stable)
 	LOG ("probing %s[%g]", LOGLIT (probe),
-	     kissat_get_heap_score (&solver->scores, IDX (probe)));
+	     kissat_get_heap_score (SCORES, IDX (probe)));
       else
 	LOG ("probing %s{%u}", LOGLIT (probe), LINK (IDX (probe)).stamp);
       probed++;
@@ -485,8 +485,7 @@ kissat_failed_literal_computation (kissat * solver)
   unsigneds roots;
   INIT_STACK (roots);
 
-  SET_EFFORT_LIMIT (ticks_limit, failed, probing_ticks,
-		    kissat_linear (1 + solver->active));
+  SET_EFFORT_LIMIT (ticks_limit, failed, probing_ticks, 1 + solver->active);
 
   const unsigned max_rounds = GET_OPTION (failedrounds);
   unsigned round = 1;

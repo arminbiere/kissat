@@ -18,7 +18,7 @@ get_ternary_clause (kissat * solver, reference ref,
       const value value = values[other];
       if (value > 0)
 	{
-	  kissat_eliminate_clause (solver, clause, INVALID_LIT);
+	  kissat_mark_clause_as_garbage (solver, clause);
 	  return false;
 	}
       if (value < 0)
@@ -57,7 +57,7 @@ match_ternary_ref (kissat * solver, reference ref,
       const value value = values[other];
       if (value > 0)
 	{
-	  kissat_eliminate_clause (solver, clause, INVALID_LIT);
+	  kissat_mark_clause_as_garbage (solver, clause);
 	  return false;
 	}
       if (value < 0)
@@ -122,7 +122,7 @@ kissat_find_if_then_else_gate (kissat * solver,
   for (const watch * p = begin; p != end; p++)
     if (!p->type.binary)
       large_clauses++;
-  const uint64_t limit = solver->bounds.eliminate.occurrences;
+  const uint64_t limit = GET_OPTION (eliminateocclim);
   if (large_clauses * large_clauses > limit)
     return false;
   const watch *const last = end - 1;

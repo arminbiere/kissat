@@ -41,7 +41,7 @@ kissat_find_and_gate (kissat * solver, unsigned lit, unsigned negative)
 	  const value value = values[other];
 	  if (value > 0)
 	    {
-	      kissat_eliminate_clause (solver, c, INVALID_LIT);
+	      kissat_mark_clause_as_garbage (solver, c);
 	      base = 0;
 	      break;
 	    }

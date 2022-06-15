@@ -1,3 +1,4 @@
+#include "bump.h"
 #include "inline.h"
 #include "inlineheap.h"
 #include "inlinequeue.h"
@@ -31,7 +32,7 @@ new_mode_limit (kissat * solver)
   assert (interval > 0);
 
   const uint64_t count = (statistics->switched_modes + 1) / 2;
-  const uint64_t scaled = interval * kissat_quadratic (count);
+  const uint64_t scaled = interval * kissat_nlogpown (count, 4);
   limits->mode.ticks = statistics->search_ticks + scaled;
 #ifndef QUIET
   if (solver->stable)
@@ -108,15 +109,6 @@ switch_to_focused_mode (kissat * solver)
   REPORT (0, '{');
   kissat_reset_queue (solver);
   kissat_new_focused_restart_limit (solver);
-}
-
-void
-kissat_update_scores (kissat * solver)
-{
-  heap *scores = &solver->scores;
-  for (all_variables (idx))
-    if (ACTIVE (idx) && !kissat_heap_contains (scores, idx))
-      kissat_push_heap (solver, scores, idx);
 }
 
 static void

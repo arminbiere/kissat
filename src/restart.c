@@ -1,9 +1,10 @@
 #include "backtrack.h"
+#include "branching.h"
 #include "bump.h"
 #include "decide.h"
 #include "internal.h"
-#include "limits.h"
 #include "logging.h"
+#include "kimits.h"
 #include "print.h"
 #include "reluctant.h"
 #include "report.h"
@@ -54,7 +55,7 @@ reuse_stable_trail (kissat * solver)
 {
   const unsigned next_idx = kissat_next_decision_variable (solver);
   const struct assigned *assigned = solver->assigned;
-  const heap *const scores = &solver->scores;
+  const heap *const scores = SCORES;
   const unsigned next_idx_score = kissat_get_heap_score (scores, next_idx);
   LOG ("next decision variable score %u", next_idx_score);
   double decision_score = MAX_SCORE;
@@ -130,7 +131,10 @@ reuse_trail (kissat * solver)
   assert (solver->level);
   assert (!EMPTY_STACK (solver->trail));
 
-  if (!GET_OPTION (restartreusetrail))
+  const int option = GET_OPTION (reusetrail);
+  if (!option)
+    return 0;
+  if (option < 2 && solver->stable)
     return 0;
 
   unsigned res;
@@ -179,6 +183,8 @@ kissat_restart (kissat * solver)
   kissat_backtrack_in_consistent_state (solver, level);
   if (!solver->stable)
     kissat_new_focused_restart_limit (solver);
+  else if (kissat_toggle_branching (solver))
+    kissat_update_scores (solver);
   REPORT (1, 'R');
   STOP (restart);
 }

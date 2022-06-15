@@ -99,16 +99,13 @@ exec ./build.sh
 EOF
 chmod 755 $starexec_build
 
-for config in default sat unsat
-do 
-
 build=$dir/build/build.sh
 cat <<EOF > $build
 #!/bin/sh
 tar xf ../archive/kissat*
 mv kissat* kissat
 cd kissat
-./configure --competition --$config --test
+./configure --competition --test
 make all || exit 1
 build/tissat || exit 1
 exec install -s build/kissat ../../bin/
@@ -118,22 +115,23 @@ chmod 755 $build
 starexec_run_default=$dir/bin/starexec_run_default
 cat <<EOF >$starexec_run_default
 #!/bin/sh
-exec ./kissat --$config \$1 \$2/proof.out
+exec ./kissat \$1 \$2/proof.out
 EOF
 chmod 755 $starexec_run_default
 
-msg "generated '$config' build and run scripts"
+msg "generated build and run scripts"
+version=`cat VERSION`
 
 description=$dir/starexec_description.txt
 cat <<EOF>$description
-Keep it Simple bare metal SAT solver with $config configuration
+Keep it simple bare metal SAT Solver
 EOF
 msg "included the following description:"
 printf $BOLD
 cat $description
 printf $NORMAL
  
-zipfile=/tmp/$base-$config.zip
+zipfile=/tmp/$base.zip
 rm -f $zipfile
 
 cd $dir
@@ -145,5 +143,3 @@ BYTES="`ls --block-size=1 -s $zipfile 2>/dev/null |awk '{print $1}'`"
 msg "zip file has $BYTES bytes"
 
 echo $zipfile
-
-done

@@ -18,13 +18,8 @@
 static inline bool
 more_occurrences (unsigned *counts, unsigned a, unsigned b)
 {
-  const unsigned s = counts[a];
-  const unsigned t = counts[b];
-  if (s > t)
-    return true;
-  if (s < t)
-    return false;
-  return a < b;
+  const unsigned s = counts[a], t = counts[b];
+  return ((t - s) | ((b - a) & ~(s - t))) >> 31;
 }
 
 #define MORE_OCCURRENCES(A,B) \
@@ -55,10 +50,7 @@ vivify_sort_clause_by_counts (kissat * solver, clause * c, unsigned *counts)
 static void
 count_literal (unsigned lit, unsigned *counts)
 {
-  const unsigned old_count = counts[lit];
-  const unsigned new_count =
-    (old_count < UINT_MAX) ? old_count + 1 : UINT_MAX;
-  counts[lit] = new_count;
+  counts[lit] += counts[lit] < (unsigned) INT_MAX;
 }
 
 static void
@@ -174,6 +166,8 @@ schedule_vivification_candidates (kissat * solver,
 	{
 	  if (c->garbage)
 	    continue;
+	  if (prioritize)
+	    count_clause (c, counts);
 	  if (redundant)
 	    {
 	      if (!c->redundant)
@@ -193,7 +187,6 @@ schedule_vivification_candidates (kissat * solver,
 	    continue;
 	  if (prioritize)
 	    prioritized++;
-	  count_clause (c, counts);
 	  const reference ref = (ward *) c - arena;
 	  PUSH_STACK (*schedule, ref);
 	}
@@ -221,12 +214,6 @@ schedule_vivification_candidates (kissat * solver,
     }
 }
 
-static unsigned *
-new_vivification_candidates_counts (kissat * solver)
-{
-  return kissat_calloc (solver, LITS, sizeof (unsigned));
-}
-
 static inline bool
 worse_candidate (kissat * solver, unsigned *counts, reference r, reference s)
 {
@@ -248,21 +235,23 @@ worse_candidate (kissat * solver, unsigned *counts, reference r, reference s)
     {
       const unsigned a = *p++;
       const unsigned b = *q++;
-      if (a == b)
-	continue;
       const unsigned u = counts[a];
       const unsigned v = counts[b];
       if (u < v)
 	return true;
       if (u > v)
 	return false;
-      return a < b;
+      if (a < b)
+	return true;
+      if (a > b)
+	return false;
     }
 
   if (p != e && q == f)
-    return true;
-  if (p == e && q != f)
     return false;
+
+  if (p == e && q != f)
+    return true;
 
   return r < s;
 }
@@ -335,7 +324,7 @@ vivify_binary_or_large_conflict (kissat * solver, clause * conflict)
 
 static bool
 vivify_analyze (kissat * solver, clause * c,
-		clause * conflict, bool * irredundant_ptr)
+		clause * conflict, bool *irredundant_ptr)
 {
   assert (conflict);
   assert (!EMPTY_STACK (solver->analyzed));
@@ -691,8 +680,17 @@ vivify_learn (kissat * solver, clause * c,
   return res;
 }
 
+enum round
+{
+  REDUNDANT_TIER1_ROUND = 1,
+  REDUNDANT_TIER2_ROUND = 2,
+  IRREDUNDANT_ROUND = 3
+};
+
+typedef enum round round;
+
 static bool
-vivify_clause (kissat * solver, clause * c,
+vivify_clause (kissat * solver, round round, clause * c,
 	       unsigneds * sorted, unsigned *counts)
 {
   assert (!c->garbage);
@@ -700,7 +698,7 @@ vivify_clause (kissat * solver, clause * c,
   assert (solver->watching);
   assert (!solver->inconsistent);
 
-  LOGCLS (c, "trying to vivify candidate");
+  LOGCOUNTEDCLS (c, counts, "vivifying unsorted candidate");
 
   CLEAR_STACK (*sorted);
 
@@ -790,6 +788,8 @@ vivify_clause (kissat * solver, clause * c,
   assert (EMPTY_STACK (solver->clause));
 
   vivify_sort_stack_by_counts (solver, sorted, counts);
+  LOGCOUNTEDLITS (SIZE_STACK (*sorted), sorted->begin, counts,
+		  "vivifying sorted candidate");
 
 #if defined(LOGGING) && !defined(NOPTIONS)
   if (solver->options.log)
@@ -798,7 +798,7 @@ vivify_clause (kissat * solver, clause * c,
       COLOR (MAGENTA);
       printf ("c LOG %u vivify sorted size %zu candidate clause",
 	      solver->level, SIZE_STACK (*sorted));
-      heap *scores = &solver->scores;
+      heap *scores = SCORES;
       links *links = solver->links;
       for (all_stack (unsigned, lit, *sorted))
 	{
@@ -880,14 +880,15 @@ vivify_clause (kissat * solver, clause * c,
       assert (value > 0);
       assert (LEVEL (lit));
       LOG ("literal %s already satisfied", LOGLIT (lit));
-      if (!c->redundant || GET_OPTION (vivifyimply) == 1)
+      if (!c->redundant || GET_OPTION (vivifyimply) == 1 ||
+	  (GET_OPTION (vivifyimply) == 2 && round == REDUNDANT_TIER1_ROUND))
 	{
 	  implied = lit;
 	  conflict = vivify_unit_conflict (solver, lit);
 	  assert (!EMPTY_STACK (solver->analyzed));
 	  assert (conflict);
 	}
-      else if (GET_OPTION (vivifyimply) == 2)
+      else if (GET_OPTION (vivifyimply) == 3)
 	{
 	  LOGCLS (c, "vivify implied");
 	  kissat_mark_clause_as_garbage (solver, c);
@@ -965,15 +966,6 @@ vivify_clause (kissat * solver, clause * c,
   return true;
 }
 
-enum round
-{
-  REDUNDANT_TIER1_ROUND = 1,
-  REDUNDANT_TIER2_ROUND = 2,
-  IRREDUNDANT_ROUND = 3
-};
-
-typedef enum round round;
-
 static size_t
 vivify_round (kissat * solver, round round,
 	      bool sort, uint64_t delta, double effort)
@@ -1006,23 +998,13 @@ vivify_round (kissat * solver, round round,
     }
 #endif
 
-  const uint64_t scaled = effort * delta;
-  kissat_extremely_verbose (solver, "%s effort delta %" PRIu64
-			    " = %g * %" PRIu64 " 'probing_ticks'",
-			    mode, scaled, effort, delta);
-  uint64_t start = solver->statistics.probing_ticks;
-  const uint64_t ticks_limit = start + scaled;
-  kissat_very_verbose (solver,
-		       "%s effort limit %" PRIu64
-		       " = %" PRIu64 " + %" PRIu64 " 'probing_ticks'",
-		       mode, ticks_limit, start, scaled);
   references schedule;
   INIT_STACK (schedule);
 
-  unsigned *counts = 0;
   kissat_flush_large_watches (solver);
 
-  counts = new_vivification_candidates_counts (solver);
+  unsigned *counts = kissat_calloc (solver, LITS, sizeof (unsigned));
+
   {
     bool redundant, tier2;
 
@@ -1048,6 +1030,17 @@ vivify_round (kissat * solver, round round,
   kissat_watch_large_clauses (solver);
 
   const size_t scheduled = SIZE_STACK (schedule);
+  const size_t adjusted = NLOGN (scheduled + 1);
+  const uint64_t scaled = effort * delta;
+  kissat_extremely_verbose (solver, "%s effort delta %" PRIu64
+			    " = %g * %" PRIu64 " 'probing_ticks'",
+			    mode, scaled, effort, delta);
+  uint64_t start = solver->statistics.probing_ticks;
+  uint64_t ticks_limit = start + scaled + adjusted;
+  kissat_very_verbose (solver,
+		       "%s effort limit %" PRIu64
+		       " = %" PRIu64 " + %" PRIu64 " + %zu 'probing_ticks'",
+		       mode, ticks_limit, start, scaled, adjusted);
 #ifndef QUIET
   const size_t total =
     (round == IRREDUNDANT_ROUND) ? IRREDUNDANT_CLAUSES : REDUNDANT_CLAUSES;
@@ -1075,7 +1068,7 @@ vivify_round (kissat * solver, round round,
       if (c->garbage)
 	continue;
       tried++;
-      if (vivify_clause (solver, c, &sorted, counts))
+      if (vivify_clause (solver, round, c, &sorted, counts))
 	vivified++;
       c->vivify = false;
       if (solver->inconsistent)
@@ -1217,7 +1210,7 @@ vivify_irredundant (kissat * solver, uint64_t redundant_scheduled,
 static uint64_t
 vivify_adjustment (kissat * solver)
 {
-  return kissat_nlogn (1 + CLAUSES);
+  return 1 + CLAUSES;
 }
 
 static bool

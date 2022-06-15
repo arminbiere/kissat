@@ -165,6 +165,8 @@ struct statistics
 {
   uint64_t learned;
   uint64_t original;
+  uint64_t kitten_flip;
+  uint64_t kitten_flipped;
   uint64_t kitten_sat;
   uint64_t kitten_solved;
   uint64_t kitten_conflicts;
@@ -357,7 +359,7 @@ reference_klause (kitten * kitten, const klause * c)
 
 static void
 log_basic (kitten *, const char *, ...)
-__attribute__ ((format (printf, 2, 3)));
+__attribute__((format (printf, 2, 3)));
 
 static void
 log_basic (kitten * kitten, const char *fmt, ...)
@@ -374,7 +376,7 @@ log_basic (kitten * kitten, const char *fmt, ...)
 
 static void
 log_reference (kitten *, unsigned, const char *, ...)
-__attribute__ ((format (printf, 3, 4)));
+__attribute__((format (printf, 3, 4)));
 
 static void
 log_reference (kitten * kitten, unsigned ref, const char *fmt, ...)
@@ -729,19 +731,32 @@ kitten_randomize_phases (kitten * kitten)
 
   LOG ("randomizing phases");
 
-  uint64_t random = kissat_next_random64 (&kitten->generator);
   unsigned char *phases = kitten->phases;
   const unsigned vars = kitten->size / 2;
 
-  for (unsigned i = 0, shift = 0; i < vars; i++)
+  uint64_t random = kissat_next_random64 (&kitten->generator);
+
+  unsigned i = 0;
+  const unsigned rest = vars & ~63u;
+
+  while (i != rest)
     {
-      phases[i] = (random >> shift) & 1;
-      if (++shift == 64)
-	{
-	  shift = 0;
-	  random = kissat_next_random64 (&kitten->generator);
-	}
+      uint64_t *p = (uint64_t *) (phases + i);
+      p[0] = (random >> 0) & 0x0101010101010101;
+      p[1] = (random >> 1) & 0x0101010101010101;
+      p[2] = (random >> 2) & 0x0101010101010101;
+      p[3] = (random >> 3) & 0x0101010101010101;
+      p[4] = (random >> 4) & 0x0101010101010101;
+      p[5] = (random >> 5) & 0x0101010101010101;
+      p[6] = (random >> 6) & 0x0101010101010101;
+      p[7] = (random >> 7) & 0x0101010101010101;
+      random = kissat_next_random64 (&kitten->generator);
+      i += 64;
     }
+
+  unsigned shift = 0;
+  while (i != vars)
+    phases[i++] = (random >> shift++) & 1;
 }
 
 void
@@ -754,8 +769,27 @@ kitten_flip_phases (kitten * kitten)
   unsigned char *phases = kitten->phases;
   const unsigned vars = kitten->size / 2;
 
-  for (unsigned i = 0; i < vars; i++)
-    phases[i] = !phases[i];
+  unsigned i = 0;
+  const unsigned rest = vars & ~7u;
+
+  while (i != rest)
+    {
+      uint64_t *p = (uint64_t *) (phases + i);
+      *p ^= 0x0101010101010101;
+      i += 8;
+    }
+
+  while (i != vars)
+    phases[i++] ^= 1;
+}
+
+
+void
+kitten_no_ticks_limit (kitten * kitten)
+{
+  REQUIRE_INITIALIZED ();
+  LOG ("forcing no ticks limit");
+  kitten->limits.ticks = UINT64_MAX;
 }
 
 void
@@ -792,7 +826,6 @@ shuffle_unsigned_array (kitten * kitten, size_t size, unsigned *a)
       a[j] = first;
     }
 }
-
 
 static void
 shuffle_unsigned_stack (kitten * kitten, unsigneds * stack)
@@ -1152,22 +1185,21 @@ propagate_literal (kitten * kitten, unsigned lit)
   const unsigned *const end_watches = END_STACK (*watches);
   unsigned const *p = q;
   uint64_t ticks = (((char *) end_watches - (char *) q) >> 7) + 1;
-  while (conflict == INVALID && p != end_watches)
+  while (p != end_watches)
     {
       const unsigned ref = *q++ = *p++;
       klause *c = dereference_klause (kitten, ref);
       assert (c->size > 1);
       unsigned *lits = c->lits;
       const unsigned other = lits[0] ^ lits[1] ^ not_lit;
-      lits[0] = other, lits[1] = not_lit;
       const value other_value = values[other];
+      ticks++;
       if (other_value > 0)
 	continue;
       value replacement_value = -1;
       unsigned replacement = INVALID;
       const unsigned *const end_lits = lits + c->size;
       unsigned *r;
-      ticks++;
       for (r = lits + 2; r != end_lits; r++)
 	{
 	  replacement = *r;
@@ -1178,7 +1210,8 @@ propagate_literal (kitten * kitten, unsigned lit)
       if (replacement_value >= 0)
 	{
 	  assert (replacement != INVALID);
-	  ROG (ref, "unwatching %u in", lit);
+	  ROG (ref, "unwatching %u in", not_lit);
+	  lits[0] = other;
 	  lits[1] = replacement;
 	  *r = not_lit;
 	  watch_klause (kitten, replacement, ref);
@@ -1189,6 +1222,7 @@ propagate_literal (kitten * kitten, unsigned lit)
 	  ROG (ref, "conflict");
 	  INC (kitten_conflicts);
 	  conflict = ref;
+	  break;
 	}
       else
 	{
@@ -1237,8 +1271,8 @@ static inline void
 unassign (kitten * kitten, value * values, unsigned lit)
 {
   const unsigned not_lit = lit ^ 1;
-  assert (values[lit] > 0);
-  assert (values[not_lit] < 0);
+  assert (values[lit]);
+  assert (values[not_lit]);
   const unsigned idx = lit / 2;
 #ifdef LOGGING
   kar *var = kitten->vars + idx;
@@ -1263,18 +1297,40 @@ backtrack (kitten * kitten, unsigned jump)
        (kitten->level == jump + 1 ? "tracking" : "jumping"), jump);
   kar *vars = kitten->vars;
   value *values = kitten->values;
-  while (!EMPTY_STACK (kitten->trail))
+  unsigneds *trail = &kitten->trail;
+  while (!EMPTY_STACK (*trail))
     {
-      const unsigned lit = TOP_STACK (kitten->trail);
+      const unsigned lit = TOP_STACK (*trail);
       const unsigned idx = lit / 2;
       const unsigned level = vars[idx].level;
       if (level == jump)
 	break;
-      (void) POP_STACK (kitten->trail);
+      (void) POP_STACK (*trail);
       unassign (kitten, values, lit);
     }
-  kitten->propagated = SIZE_STACK (kitten->trail);
+  kitten->propagated = SIZE_STACK (*trail);
   kitten->level = jump;
+  check_queue (kitten);
+}
+
+void
+completely_backtrack_to_root_level (kitten * kitten)
+{
+  check_queue (kitten);
+  LOG ("completely backtracking to level 0");
+  value *values = kitten->values;
+  unsigneds *trail = &kitten->trail;
+#ifndef NDEBUG
+  kar *vars = kitten->vars;
+#endif
+  for (all_stack (unsigned, lit, *trail))
+    {
+      assert (vars[lit / 2].level);
+      unassign (kitten, values, lit);
+    }
+  CLEAR_STACK (*trail);
+  kitten->propagated = 0;
+  kitten->level = 0;
   check_queue (kitten);
 }
 
@@ -1397,9 +1453,9 @@ failing (kitten * kitten)
   LOG ("first failed assumption %u", failed);
   kitten->failed[failed] = true;
 
-  if (!failed_var->level &&
-      dereference_klause (kitten, failed_reason)->size == 1)
+  if (failed_unit != INVALID)
     {
+      assert (dereference_klause (kitten, failed_reason)->size == 1);
       LOG ("root-level falsified assumption %u", failed);
       kitten->failing = failed_reason;
       ROG (kitten->failing, "failing reason");
@@ -1407,7 +1463,7 @@ failing (kitten * kitten)
     }
 
   const unsigned not_failed = failed ^ 1;
-  if (failed_reason == INVALID)
+  if (failed_clashing != INVALID)
     {
       LOG ("clashing with negated assumption %u", not_failed);
       kitten->failed[not_failed] = true;
@@ -1479,9 +1535,22 @@ failing (kitten * kitten)
   CLEAR_STACK (kitten->klause);
 }
 
+static void
+flush_trail (kitten * kitten)
+{
+  unsigneds *trail = &kitten->trail;
+  LOG ("flushing %zu root-level literals from trail", SIZE_STACK (*trail));
+  assert (!kitten->level);
+  kitten->propagated = 0;
+  CLEAR_STACK (*trail);
+}
+
 static int
 decide (kitten * kitten)
 {
+  if (!kitten->level && !EMPTY_STACK (kitten->trail))
+    flush_trail (kitten);
+
   const value *const values = kitten->values;
   unsigned decision = INVALID;
   const size_t assumptions = SIZE_STACK (kitten->assumptions);
@@ -1665,14 +1734,6 @@ end_original_klauses (kitten * kitten)
 		     kitten->end_original_ref);
 }
 
-#if 0
-static klause *
-begin_learned_klauses (kitten * kitten)
-{
-  return end_original_klauses (kitten);
-}
-#endif
-
 static klause *
 end_klauses (kitten * kitten)
 {
@@ -1729,7 +1790,7 @@ static void
 reset_incremental (kitten * kitten)
 {
   if (kitten->level)
-    backtrack (kitten, 0);
+    completely_backtrack_to_root_level (kitten);
   if (!EMPTY_STACK (kitten->assumptions))
     reset_assumptions (kitten);
   else
@@ -1737,6 +1798,81 @@ reset_incremental (kitten * kitten)
   if (kitten->status == 21)
     reset_core (kitten);
   UPDATE_STATUS (0);
+}
+
+/*------------------------------------------------------------------------*/
+
+static bool
+flip_literal (kitten * kitten, unsigned lit)
+{
+  INC (kitten_flip);
+  signed char *values = kitten->values;
+  if (values[lit] < 0)
+    lit ^= 1;
+  LOG ("trying to flip value of satisfied literal %u", lit);
+  assert (values[lit] > 0);
+  katches *watches = kitten->watches + lit;
+  unsigned *q = BEGIN_STACK (*watches);
+  const unsigned *const end_watches = END_STACK (*watches);
+  unsigned const *p = q;
+  uint64_t ticks = (((char *) end_watches - (char *) q) >> 7) + 1;
+  bool res = true;
+  while (p != end_watches)
+    {
+      const unsigned ref = *q++ = *p++;
+      klause *c = dereference_klause (kitten, ref);
+      unsigned *lits = c->lits;
+      const unsigned other = lits[0] ^ lits[1] ^ lit;
+      const value other_value = values[other];
+      ticks++;
+      if (other_value > 0)
+	continue;
+      value replacement_value = -1;
+      unsigned replacement = INVALID;
+      const unsigned *const end_lits = lits + c->size;
+      unsigned *r;
+      for (r = lits + 2; r != end_lits; r++)
+	{
+	  replacement = *r;
+	  assert (replacement != lit);
+	  replacement_value = values[replacement];
+	  assert (replacement_value);
+	  if (replacement_value > 0)
+	    break;
+	}
+      if (replacement_value > 0)
+	{
+	  assert (replacement != INVALID);
+	  ROG (ref, "unwatching %u in", lit);
+	  lits[0] = other;
+	  lits[1] = replacement;
+	  *r = lit;
+	  watch_klause (kitten, replacement, ref);
+	  q--;
+	}
+      else
+	{
+	  assert (replacement_value < 0);
+	  ROG (ref, "single satisfied");
+	  res = false;
+	  break;
+	}
+    }
+  while (p != end_watches)
+    *q++ = *p++;
+  SET_END_OF_STACK (*watches, q);
+  ADD (kitten_ticks, ticks);
+  if (res)
+    {
+      LOG ("flipping value of %u", lit);
+      values[lit] = -1;
+      const unsigned not_lit = lit ^ 1;
+      values[not_lit] = 1;
+      INC (kitten_flipped);
+    }
+  else
+    LOG ("failed to flip value of %u", lit);
+  return res;
 }
 
 /*------------------------------------------------------------------------*/
@@ -1807,8 +1943,10 @@ kitten_solve (kitten * kitten)
   REQUIRE_INITIALIZED ();
   if (kitten->status)
     reset_incremental (kitten);
+  else if (kitten->level)
+    completely_backtrack_to_root_level (kitten);
 
-  LOG ("solving start under %zu assumptions",
+  LOG ("starting solving under %zu assumptions",
        SIZE_STACK (kitten->assumptions));
 
   INC (kitten_solved);
@@ -1846,9 +1984,15 @@ kitten_solve (kitten * kitten)
   else
     INC (kitten_unknown);
 
-  LOG ("solving result %d", res);
+  LOG ("finished solving with result %d", res);
 
   return res;
+}
+
+int
+kitten_status (kitten * kitten)
+{
+  return kitten->status;
 }
 
 unsigned
@@ -1988,8 +2132,7 @@ kitten_traverse_core_clauses (kitten * kitten, void *state,
 	}
       const size_t size = SIZE_STACK (*eclause);
       const unsigned *elits = eclause->begin;
-      ROG (reference_klause (kitten, c), "traversing %s",
-	   (learned ? "learned" : "original"));
+      ROG (reference_klause (kitten, c), "traversing");
       traverse (state, learned, size, elits);
       CLEAR_STACK (*eclause);
       traversed++;
@@ -2094,6 +2237,20 @@ kitten_value (kitten * kitten, unsigned elit)
 }
 
 bool
+kitten_flip_literal (kitten * kitten, unsigned elit)
+{
+  REQUIRE_STATUS (10);
+  const unsigned eidx = elit / 2;
+  if (eidx >= kitten->evars)
+    return false;
+  unsigned iidx = kitten->import[eidx];
+  if (!iidx)
+    return false;
+  const unsigned ilit = 2 * (iidx - 1) + (elit & 1);
+  return flip_literal (kitten, ilit);
+}
+
+bool
 kitten_failed (kitten * kitten, unsigned elit)
 {
   REQUIRE_STATUS (20);
@@ -2140,7 +2297,7 @@ maximum_resident_set_size (void)
 
 #include "attribute.h"
 
-static void msg (const char *, ...) __attribute__ ((format (printf, 1, 2)));
+static void msg (const char *, ...) __attribute__((format (printf, 1, 2)));
 
 static void
 msg (const char *fmt, ...)
@@ -2713,8 +2870,8 @@ main (int argc, char **argv)
   else if (!(dimacs_file = fopen (dimacs_path, "r")))
     die ("can not open '%s' for reading", dimacs_path);
   msg ("Kitten SAT Solver");
-  msg ("Copyright (c) 2020-2021, Armin Biere, "
-       "Johannes Kepler University Linz");
+  msg ("Copyright (c) 2021-2022 Armin Biere University of Freiburg");
+  msg ("Copyright (c) 2020-2021 Armin Biere Johannes Kepler University Linz");
   msg ("reading '%s'", dimacs_path);
   ints originals;
   INIT_STACK (originals);

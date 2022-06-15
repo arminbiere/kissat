@@ -83,12 +83,16 @@ kissat_log_var (kissat * solver, unsigned idx)
 }
 
 static void
-log_lits (kissat * solver, size_t size, const unsigned *lits)
+log_lits (kissat * solver, size_t size,
+	  const unsigned *lits, const unsigned *counts)
 {
   for (size_t i = 0; i < size; i++)
     {
+      const unsigned lit = lits[i];
       fputc (' ', stdout);
-      fputs (LOGLIT (lits[i]), stdout);
+      if (counts)
+	printf ("%u*", counts[lit]);
+      fputs (LOGLIT (lit), stdout);
     }
 }
 
@@ -101,7 +105,67 @@ kissat_log_lits (kissat * solver, const char *prefix, size_t size,
   begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   printf (" size %zu clause", size);
-  log_lits (solver, size, lits);
+  log_lits (solver, size, lits, 0);
+  end_logging ();
+}
+
+void
+kissat_log_litset (kissat * solver, const char *prefix, size_t size,
+		   const unsigned *const lits, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  begin_logging (solver, prefix, fmt, &ap);
+  va_end (ap);
+  printf (" size %zu literal set {", size);
+  log_lits (solver, size, lits, 0);
+  fputs (" }", stdout);
+  end_logging ();
+}
+
+void
+kissat_log_litpart (kissat * solver, const char *prefix, size_t size,
+		    const unsigned *const lits, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  begin_logging (solver, prefix, fmt, &ap);
+  va_end (ap);
+  size_t classes = 0;
+  for (size_t i = 0; i < size; i++)
+    if (lits[i] == INVALID_LIT)
+      classes++;
+  printf (" %zu literals %zu classes literal partition [",
+	  size - classes, classes);
+  for (size_t i = 0; i < size; i++)
+    {
+      const unsigned lit = lits[i];
+      if (lit == INVALID_LIT)
+	{
+	  if (i + 1 != size)
+	    fputs (" |", stdout);
+	}
+      else
+	{
+	  fputc (' ', stdout);
+	  fputs (LOGLIT (lit), stdout);
+	}
+    }
+  fputs (" ]", stdout);
+  end_logging ();
+}
+
+void
+kissat_log_counted_lits (kissat * solver, const char *prefix,
+			 size_t size, const unsigned *const lits,
+			 const unsigned *const counts, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  begin_logging (solver, prefix, fmt, &ap);
+  va_end (ap);
+  printf (" size %zu clause", size);
+  log_lits (solver, size, lits, counts);
   end_logging ();
 }
 
@@ -116,7 +180,7 @@ kissat_log_resolvent (kissat * solver, const char *prefix,
   const size_t size = SIZE_STACK (solver->resolvent);
   printf (" size %zu resolvent", size);
   const unsigned *const lits = BEGIN_STACK (solver->resolvent);
-  log_lits (solver, size, lits);
+  log_lits (solver, size, lits, 0);
   end_logging ();
 }
 
@@ -212,7 +276,21 @@ kissat_log_clause (kissat * solver, const char *prefix,
   begin_logging (solver, prefix, fmt, &ap);
   va_end (ap);
   log_clause (solver, c);
-  log_lits (solver, c->size, c->lits);
+  log_lits (solver, c->size, c->lits, 0);
+  end_logging ();
+}
+
+void
+kissat_log_counted_clause (kissat * solver, const char *prefix,
+			   const clause * c, const unsigned *counts,
+			   const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  begin_logging (solver, prefix, fmt, &ap);
+  va_end (ap);
+  log_clause (solver, c);
+  log_lits (solver, c->size, c->lits, counts);
   end_logging ();
 }
 
@@ -251,7 +329,7 @@ log_ref (kissat * solver, reference ref)
 {
   clause *c = kissat_dereference_clause (solver, ref);
   log_clause (solver, c);
-  log_lits (solver, c->size, c->lits);
+  log_lits (solver, c->size, c->lits, 0);
 }
 
 void
