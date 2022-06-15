@@ -70,8 +70,7 @@ flush_large_watches (kissat * solver,
 		  if (lit < other)
 		    {
 		      const bool red = watch.binary.redundant;
-		      const bool hyper = watch.binary.hyper;
-		      kissat_delete_binary (solver, red, hyper, lit, other);
+		      kissat_delete_binary (solver, red, lit, other);
 		      collected++;
 		    }
 		}
@@ -143,8 +142,7 @@ resume_watching_binaries_after_elimination (kissat * solver,
       else
 	{
 	  const bool redundant = watch.binary.redundant;
-	  const bool hyper = watch.binary.hyper;
-	  kissat_delete_binary (solver, redundant, hyper, first, second);
+	  kissat_delete_binary (solver, redundant, first, second);
 #ifdef LOGGING
 	  flushed_eliminated++;
 #endif
@@ -198,11 +196,11 @@ resume_watching_irredundant_binaries (kissat * solver, litpairs * binaries)
       assert (!ELIMINATED (IDX (second)));
 
       watches *first_watches = all_watches + first;
-      watch first_watch = kissat_binary_watch (second, false, false);
+      watch first_watch = kissat_binary_watch (second, false);
       PUSH_WATCHES (*first_watches, first_watch);
 
       watches *second_watches = all_watches + second;
-      watch second_watch = kissat_binary_watch (first, false, false);
+      watch second_watch = kissat_binary_watch (first, false);
       PUSH_WATCHES (*second_watches, second_watch);
 
 #ifdef LOGGING

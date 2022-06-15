@@ -404,9 +404,8 @@ substitute_binaries (kissat * solver, unsigned *repr)
       const watch watch = litwatch.watch;
       assert (watch.type.binary);
       const bool redundant = watch.binary.redundant;
-      const bool hyper = watch.binary.hyper;
       const unsigned other = watch.binary.lit;
-      kissat_delete_binary (solver, redundant, hyper, lit, other);
+      kissat_delete_binary (solver, redundant, lit, other);
     }
   RELEASE_STACK (delayed_deleted);
 #ifdef CHECKING_OR_PROVING

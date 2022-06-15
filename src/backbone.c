@@ -619,8 +619,7 @@ compute_backbone (kissat * solver)
 		  "inconsistent binary clauses");
   else
     {
-      if (GET_OPTION (backbonekeep))
-	keep_backbone_candidates (solver, &candidates);
+      keep_backbone_candidates (solver, &candidates);
 #if defined(METRICS) && (!defined(QUIET) || !defined(NDEBUG))
       assert (implied_before <= solver->statistics.backbone_implied);
 #endif

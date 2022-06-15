@@ -8,7 +8,6 @@
 OPTION( ands, 1, 0, 1, "extract and eliminate and gates") \
 OPTION( backbone, 1, 0, 2, "binary clause backbone (2=eager)") \
 OPTION( backboneeffort, 20, 0, 1e5, "effort in per mille") \
-OPTION( backbonekeep, 1, 0, 1, "keep backbone candidates") \
 OPTION( backbonemaxrounds, 1e3, 1, INT_MAX, "maximum backbone rounds") \
 OPTION( backbonerounds, 100, 1, INT_MAX, "backbone rounds limit") \
 OPTION( bump, 1, 0, 1, "enable variable bumping") \
@@ -39,15 +38,9 @@ OPTION( emaslow, 1e5, 100, 1e6, "slow exponential moving average window") \
 EMBOPT( embedded, 1, 0, 1, "parse and apply embedded options") \
 OPTION( equivalences, 1, 0, 1, "extract and eliminate equivalence gates") \
 OPTION( extract, 1, 0, 1, "extract gates in variable elimination") \
-OPTION( failed, 1, 0, 1, "failed literal probing") \
-OPTION( failedcont, 90, 0, 100, "continue if many failed (in percent)") \
-OPTION( faileddelay, 1, 0, 1, "delay failed literal probing") \
-OPTION( failedeffort, 50, 0, 1e8, "effort in per mille") \
-OPTION( failedrounds, 2, 1, 100, "failed literal probing rounds") \
 OPTION( forcephase, 0, 0, 1, "force initial phase") \
 OPTION( forward, 1, 0, 1, "forward subsumption in BVE") \
 OPTION( forwardeffort, 100, 0, 1e6, "effort in per mille") \
-OPTION( hyper, 1, 0, 1, "on-the-fly hyper binary resolution") \
 OPTION( ifthenelse, 1, 0, 1, "extract and eliminate if-then-else gates") \
 OPTION( incremental, 0, 0, 1, "enable incremental solving") \
 LOGOPT( log, 0, 0, 5, "logging level (1=on,2=more,3=check,4/5=mem)") \
@@ -59,8 +52,7 @@ OPTION( modeinit, 1e3, 10, 1e8, "initial focused conflicts limit") \
 OPTION( otfs, 1, 0, 1, "on-the-fly strengthening") \
 OPTION( phase, 1, 0, 1, "initial decision phase") \
 OPTION( phasesaving, 1, 0, 1, "enable phase saving") \
-OPTION( probe, 2, 0, 2, "enable probing (1=alternating,2=all)") \
-OPTION( probedelay, 0, 0, 1, "delay probing") \
+OPTION( probe, 1, 0, 1, "enable probing") \
 OPTION( probeinit, 100, 0, INT_MAX, "initial probing interval") \
 OPTION( probeint, 100, 2, INT_MAX, "probing interval") \
 NQTOPT( profile, 2, 0, 4, "profile level") \
@@ -101,16 +93,11 @@ OPTION( sweepvars, 128, 0, INT_MAX, "environment variables") \
 OPTION( target, TARGET_DEFAULT, 0, 2, "target phases (1=stable,2=focused)") \
 OPTION( tier1, 2, 1, 100, "learned clause tier one glue limit") \
 OPTION( tier2, 6, 1,1e3, "learned clause tier two glue limit") \
-OPTION( transitive, 1, 0, 1, "transitive reduction of binary clauses") \
-OPTION( transitiveeffort, 20, 0, 2e3, "effort in per mille") \
-OPTION( transitivekeep, 1, 0, 1, "keep transitivity candidates") \
 OPTION( tumble, 1, 0, 1, "tumbled external indices order") \
 NQTOPT( verbose, 0, 0, 3, "verbosity level") \
 OPTION( vivify, 1, 0, 1, "vivify clauses") \
 OPTION( vivifyeffort, 100, 0, 1e3, "effort in per mille") \
-OPTION( vivifyimply, 3, 0, 3, "remove implied redundant clauses") \
 OPTION( vivifyirred, 1, 1, 100, "relative irredundant effort") \
-OPTION( vivifykeep, 1, 0, 1, "keep vivification candidates") \
 OPTION( vivifytier1, 3, 1, 100, "relative tier1 effort") \
 OPTION( vivifytier2, 6, 1, 100, "relative tier2 effort") \
 OPTION( walkeffort, 50, 0, 1e6, "effort in per mille") \

@@ -47,7 +47,7 @@ void
 kissat_eliminate_binary (kissat * solver, unsigned lit, unsigned other)
 {
   kissat_disconnect_binary (solver, other, lit);
-  kissat_delete_binary (solver, false, false, lit, other);
+  kissat_delete_binary (solver, false, lit, other);
 }
 
 void

@@ -266,7 +266,6 @@ kissat_check_statistics (kissat * solver)
 
   size_t redundant_binary_watches = 0;
   size_t irredundant_binary_watches = 0;
-  size_t hyper_binaries = 0;
 
   if (solver->watching)
     {
@@ -281,8 +280,6 @@ kissat_check_statistics (kissat * solver)
 		  if (watch.binary.redundant)
 		    {
 		      redundant_binary_watches++;
-		      if (watch.binary.hyper)
-			hyper_binaries++;
 		    }
 		  else
 		    irredundant_binary_watches++;
@@ -303,8 +300,6 @@ kissat_check_statistics (kissat * solver)
 		  if (watch.binary.redundant)
 		    {
 		      redundant_binary_watches++;
-		      if (watch.binary.hyper)
-			hyper_binaries++;
 		    }
 		  else
 		    irredundant_binary_watches++;
@@ -315,20 +310,16 @@ kissat_check_statistics (kissat * solver)
 
   assert (!(redundant_binary_watches & 1));
   assert (!(irredundant_binary_watches & 1));
-  assert (!(hyper_binaries & 1));
 
   redundant += redundant_binary_watches / 2;
   irredundant += irredundant_binary_watches / 2;
-  hyper_binaries /= 2;
 
   statistics *statistics = &solver->statistics;
   assert (statistics->clauses_redundant == redundant);
   assert (statistics->clauses_irredundant == irredundant);
 #ifdef METRICS
-  assert (statistics->hyper_binaries == hyper_binaries);
   assert (statistics->arena_garbage == arena_garbage);
 #else
-  (void) hyper_binaries;
   (void) arena_garbage;
 #endif
 }

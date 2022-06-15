@@ -1042,7 +1042,7 @@ substitute_connected_clauses (sweeper * sweeper, unsigned lit, unsigned repr)
 		const unsigned other = first ^ second ^ repr;
 		const watch src = {.raw = head.raw };
 		const bool redundant = c->redundant;
-		watch dst = kissat_binary_watch (repr, redundant, false);
+		watch dst = kissat_binary_watch (repr, redundant);
 		watches *other_watches = &WATCHES (other);
 		kissat_substitute_large_watch (solver, other_watches,
 					       src, dst);

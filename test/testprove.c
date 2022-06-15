@@ -119,12 +119,17 @@ schedule_prove_job_with_option (int expected,
   if (drat_trim)
     {
       if (expected == 10)
-	sprintf (cmd, "drat-trim %s %s -S", cnf, proof);
+	{
+	  sprintf (cmd, "drat-trim %s %s -S", cnf, proof);
+	  assert (strlen (cmd) < sizeof cmd);
+	  tissat_schedule_command (0, cmd, job);
+	}
       else
-	sprintf (cmd, "drat-trim %s %s", cnf, proof);
-      assert (strlen (cmd) < sizeof cmd);
-
-      tissat_schedule_command (0, cmd, job);
+	{
+	  sprintf (cmd, "drat-trim %s %s", cnf, proof);
+	  assert (strlen (cmd) < sizeof cmd);
+	  tissat_schedule_command (0, cmd, job);
+	}
     }
 }
 

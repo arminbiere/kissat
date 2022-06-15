@@ -3,14 +3,12 @@
 
 #include <limits.h>
 
-#define LD_MAX_VAR 28u
+#define LD_MAX_VAR 29u
 
 #define EXTERNAL_MAX_VAR ((1<<LD_MAX_VAR) - 1)
 #define INTERNAL_MAX_VAR ((1u<<LD_MAX_VAR) - 2)
 
 #define INTERNAL_MAX_LIT ((INTERNAL_MAX_VAR<<1) + 1)
-
-#define ILLEGAL_LIT (INTERNAL_MAX_LIT + 1)
 
 #define INVALID_IDX UINT_MAX
 #define INVALID_LIT UINT_MAX

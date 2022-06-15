@@ -4,7 +4,6 @@
 #include "decide.h"
 #include "inline.h"
 #include "print.h"
-#include "prophyper.h"
 #include "proprobe.h"
 #include "promote.h"
 #include "report.h"
@@ -804,10 +803,7 @@ vivify_clause (kissat * solver, clause * c,
 	  INC (vivify_probes);
 	  kissat_internal_assume (solver, not_lit);
 	  assert (solver->level >= 1);
-	  if (solver->level == 1)
-	    conflict = kissat_hyper_propagate (solver, c);
-	  else
-	    conflict = kissat_probing_propagate (solver, c, true);
+	  conflict = kissat_probing_propagate (solver, c, true);
 	  if (!conflict)
 	    continue;
 	  vivify_binary_or_large_conflict (solver, conflict);
@@ -1000,29 +996,20 @@ vivify_round (kissat * solver, bool tier2, uint64_t delta, double effort)
 
 	  ward *const arena = BEGIN_STACK (solver->arena);
 	  size_t prioritized = 0;
-	  const bool keep = GET_OPTION (vivifykeep);
 	  while (!EMPTY_STACK (schedule))
 	    {
 	      const unsigned ref = POP_STACK (schedule);
 	      clause *c = (clause *) (arena + ref);
-	      if (!c->vivify)
-		continue;
-	      prioritized++;
-	      if (!keep)
-		c->vivify = false;
+	      if (c->vivify)
+		prioritized++;
 	    }
 	  if (!prioritized)
 	    kissat_phase (solver, mode, GET (vivifications),
 			  "no prioritized clauses left");
-	  else if (keep)
+	  else
 	    kissat_phase (solver, mode, GET (vivifications),
 			  "keeping %zu clauses prioritized %.0f%%",
 			  prioritized, kissat_percent (prioritized, remain));
-	  else
-	    kissat_very_verbose (solver,
-				 "dropping %zu %s candidate clauses %.0f%%",
-				 prioritized, mode,
-				 kissat_percent (prioritized, remain));
 	}
       else
 	kissat_phase (solver, mode, GET (vivifications),

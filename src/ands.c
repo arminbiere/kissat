@@ -73,7 +73,7 @@ kissat_find_and_gate (kissat * solver, unsigned lit, unsigned negative)
       assert (marks[not_other]);
       marks[not_other] = 0;
     }
-  watch tmp = kissat_binary_watch (0, false, false);
+  watch tmp = kissat_binary_watch (0, false);
   watches *watches = &WATCHES (lit);
   for (all_binary_large_watches (watch, *watches))
     {

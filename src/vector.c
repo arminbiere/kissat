@@ -299,13 +299,15 @@ kissat_resize_vector (kissat * solver, vector * vector, size_t new_size)
 #ifdef CHECK_VECTORS
 
 void
-kissat_check_vector (vectors * vectors, vector * vector)
+kissat_check_vector (kissat * solver, vector * vector)
 {
-  assert (vectors == solver->vectors);
-  const unsigned *const begin = kissat_begin_vector (vectors, vector);
-  const unsigned *const end = kissat_end_vector (vectors, vector);
+  const unsigned *const begin = kissat_begin_vector (solver, vector);
+  const unsigned *const end = kissat_end_vector (solver, vector);
   for (const unsigned *p = begin; p != end; p++)
     assert (*p != INVALID_VECTOR_ELEMENT);
+#ifdef NDEBUG
+  (void) solver;
+#endif
 }
 
 void
@@ -314,7 +316,7 @@ kissat_check_vectors (kissat * solver)
   for (all_literals (lit))
     {
       vector *vector = &WATCHES (lit);
-      kissat_check_vector (&solver->vectors, vector);
+      kissat_check_vector (solver, vector);
     }
   vectors *vectors = &solver->vectors;
   unsigneds *stack = &vectors->stack;

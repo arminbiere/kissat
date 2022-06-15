@@ -1,5 +1,3 @@
-#ifndef HYPER_PROPAGATION
-
 static inline void
 kissat_watch_large_delayed (kissat * solver,
 			    watches * all_watches, unsigneds * delayed)
@@ -26,9 +24,7 @@ kissat_watch_large_delayed (kissat * solver,
   CLEAR_STACK (*delayed);
 }
 
-#endif
-
-#if defined(HYPER_PROPAGATION) || defined (PROBING_PROPAGATION)
+#if defined (PROBING_PROPAGATION)
 
 static inline void
 kissat_update_probing_propagation_statistics (kissat * solver,
@@ -46,16 +42,6 @@ kissat_update_probing_propagation_statistics (kissat * solver,
     {
       ADD (backbone_propagations, propagated);
       ADD (backbone_ticks, ticks);
-    }
-  if (solver->failed_probing)
-    {
-      ADD (failed_propagations, propagated);
-      ADD (failed_ticks, ticks);
-    }
-  if (solver->transitive_reducing)
-    {
-      ADD (transitive_propagations, propagated);
-      ADD (transitive_ticks, ticks);
     }
   if (solver->vivifying)
     {
@@ -112,7 +98,7 @@ kissat_delay_watching_large (kissat * solver, unsigneds * const delayed,
 
 static inline clause *
 PROPAGATE_LITERAL (kissat * solver,
-#if defined(HYPER_PROPAGATION) || defined(PROBING_PROPAGATION)
+#if defined(PROBING_PROPAGATION)
 		   const clause * const ignore,
 #endif
 		   const unsigned lit)
@@ -128,9 +114,6 @@ PROPAGATE_LITERAL (kissat * solver,
   value *const values = solver->values;
 
   const unsigned not_lit = NOT (lit);
-#ifdef HYPER_PROPAGATION
-  const bool hyper = GET_OPTION (hyper);
-#endif
 
   assert (not_lit < LITS);
   watches *watches = all_watches + not_lit;
@@ -146,12 +129,10 @@ PROPAGATE_LITERAL (kissat * solver,
 
   const size_t size_watches = SIZE_WATCHES (*watches);
   uint64_t ticks = 1 + kissat_cache_lines (size_watches, sizeof (watch));
-#ifndef HYPER_PROPAGATION
   const unsigned idx = IDX (lit);
   struct assigned *const a = assigned + idx;
   const bool probing = solver->probing;
   const unsigned level = a->level;
-#endif
   clause *res = 0;
 
   while (p != end_watches)
@@ -168,9 +149,6 @@ PROPAGATE_LITERAL (kissat * solver,
 	continue;
       if (binary)
 	{
-#ifdef HYPER_PROPAGATION
-	  assert (blocking_value > 0);
-#else
 	  const bool redundant = head.binary.redundant;
 	  if (blocking_value < 0)
 	    {
@@ -188,14 +166,13 @@ PROPAGATE_LITERAL (kissat * solver,
 					 redundant, blocking, not_lit);
 	      ticks++;
 	    }
-#endif
 	}
       else
 	{
 	  const reference ref = tail.raw;
 	  assert (ref < SIZE_STACK (solver->arena));
 	  clause *const c = (clause *) (arena + ref);
-#if defined(HYPER_PROPAGATION) || defined(PROBING_PROPAGATION)
+#if defined(PROBING_PROPAGATION)
 	  if (c == ignore)
 	    continue;
 #endif
@@ -268,43 +245,6 @@ PROPAGATE_LITERAL (kissat * solver,
 	      break;
 #endif
 	    }
-#ifdef HYPER_PROPAGATION
-	  else if (hyper)
-	    {
-	      assert (replacement_value < 0);
-	      unsigned dom = kissat_find_dominator (solver, other, c);
-	      if (dom != INVALID_LIT)
-		{
-		  LOGBINARY (dom, other, "hyper binary resolvent");
-
-		  INC (hyper_binary_resolved);
-		  INC (clauses_added);
-
-		  INC (hyper_binaries);
-		  INC (clauses_redundant);
-
-		  CHECK_AND_ADD_BINARY (dom, other);
-		  ADD_BINARY_TO_PROOF (dom, other);
-
-		  kissat_assign_binary_at_level_one (solver,
-						     values, assigned,
-						     true, other, dom);
-
-		  delay_watching_hyper (solver, delayed, dom, other);
-		  delay_watching_hyper (solver, delayed, other, dom);
-
-		  kissat_delay_watching_large (solver, delayed,
-					       not_lit, other, ref);
-
-		  LOGREF (ref, "unwatching %s in", LOGLIT (not_lit));
-		  q -= 2;
-		}
-	      else
-		kissat_fast_assign_reference (solver, values,
-					      assigned, other, ref, c);
-	      ticks++;
-	    }
-#endif
 	  else
 	    {
 	      assert (replacement_value < 0);
@@ -320,16 +260,10 @@ PROPAGATE_LITERAL (kissat * solver,
     *q++ = *p++;
   SET_END_OF_WATCHES (*watches, q);
 
-#ifdef HYPER_PROPAGATION
-  watch_hyper_delayed (solver, all_watches, delayed);
-#else
   kissat_watch_large_delayed (solver, all_watches, delayed);
-#endif
 
   return res;
 }
-
-#ifndef HYPER_PROPAGATION
 
 static inline void
 kissat_update_conflicts_and_trail (kissat * solver,
@@ -349,5 +283,3 @@ kissat_update_conflicts_and_trail (kissat * solver,
   else if (flush && !solver->level && solver->unflushed)
     kissat_flush_trail (solver);
 }
-
-#endif

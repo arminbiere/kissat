@@ -200,7 +200,6 @@ kissat_on_the_fly_subsume (kissat * solver, clause * c, clause * d)
 	  assert (p->binary.redundant);
 	  assert (p->binary.lit == lits[!i]);
 	  p->binary.redundant = false;
-	  assert (!p->binary.hyper);
 	}
     }
   else

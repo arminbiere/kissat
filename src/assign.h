@@ -8,25 +8,20 @@
 
 #define INVALID_LEVEL UINT_MAX
 
-#define MAX_LEVEL ((1u<<28)-1)
-#define MAX_TRAIL ((1u<<30)-1)
-
 typedef struct assigned assigned;
 struct clause;
 
 struct assigned
 {
-  unsigned level:28;
+  unsigned level;
+  unsigned trail;
 
   bool analyzed:1;
+  bool binary:1;
   bool poisoned:1;
+  bool redundant:1;
   bool removable:1;
   bool shrinkable:1;
-
-  unsigned trail:30;
-
-  bool binary:1;
-  bool redundant:1;
 
   unsigned reason;
 };

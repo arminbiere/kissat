@@ -103,12 +103,12 @@ do { \
   memset (refs, 0, sizeof refs); \
 } while (0)
 
-  kissat_push_binary_watch (solver, watches, true, false, 0);
+  kissat_push_binary_watch (solver, watches, true, 0);
   kissat_push_blocking_watch (solver, watches, 1, 0);
-  kissat_push_binary_watch (solver, watches, false, false, 2);
+  kissat_push_binary_watch (solver, watches, false, 2);
   kissat_push_blocking_watch (solver, watches, 3, 1);
-  kissat_push_binary_watch (solver, watches, true, false, 4);
-  kissat_push_binary_watch (solver, watches, false, false, 5);
+  kissat_push_binary_watch (solver, watches, true, 4);
+  kissat_push_binary_watch (solver, watches, false, 5);
 
   SETUP_FOUND_AND_CLAUSES ();
 

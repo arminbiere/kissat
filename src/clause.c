@@ -73,7 +73,7 @@ new_binary_clause (kissat * solver,
   assert (first != second);
   assert (first != NOT (second));
   assert (!original || !redundant);
-  kissat_watch_binary (solver, redundant, false, first, second);
+  kissat_watch_binary (solver, redundant, first, second);
   if (!redundant)
     {
       kissat_mark_added_literal (solver, first);
@@ -204,8 +204,7 @@ kissat_delete_clause (kissat * solver, clause * c)
 }
 
 void
-kissat_delete_binary (kissat * solver,
-		      bool redundant, bool hyper, unsigned a, unsigned b)
+kissat_delete_binary (kissat * solver, bool redundant, unsigned a, unsigned b)
 {
   LOGBINARY (a, b, "delete");
   if (!redundant)
@@ -213,8 +212,6 @@ kissat_delete_binary (kissat * solver,
       kissat_mark_removed_literal (solver, a);
       kissat_mark_removed_literal (solver, b);
     }
-  else if (hyper)
-    DEC (hyper_binaries);
   REMOVE_CHECKER_BINARY (a, b);
   DELETE_BINARY_FROM_PROOF (a, b);
   dec_clause (solver, redundant);

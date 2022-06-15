@@ -84,9 +84,6 @@ struct kissat
   bool compacting;
 #endif
   bool extended;
-#if !defined(NDEBUG) || defined(METRICS)
-  bool failed_probing;
-#endif
   bool inconsistent;
   bool iterating;
   bool probing;
@@ -95,7 +92,6 @@ struct kissat
 #endif
   bool stable;
 #if !defined(NDEBUG) || defined(METRICS)
-  bool transitive_reducing;
   bool vivifying;
 #endif
   bool watching;

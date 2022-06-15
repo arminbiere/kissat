@@ -36,7 +36,7 @@ remove_duplicated_binaries_with_literal (kissat * solver, unsigned lit)
 	  q--;
 	  if (lit < other)
 	    {
-	      kissat_delete_binary (solver, false, false, lit, other);
+	      kissat_delete_binary (solver, false, lit, other);
 	      INC (duplicated);
 	      INC (subsumed);
 	    }
@@ -506,8 +506,8 @@ forward_subsumed_clause (kissat * solver, clause * c,
 	      assert (first != INVALID_LIT);
 	      assert (second != INVALID_LIT);
 	      LOGBINARY (first, second, "forward strengthened");
-	      kissat_watch_other (solver, false, false, first, second);
-	      kissat_watch_other (solver, false, false, second, first);
+	      kissat_watch_other (solver, false, first, second);
+	      kissat_watch_other (solver, false, second, first);
 	      assert (new_binaries);
 	      PUSH_STACK (*new_binaries, first);
 	      PUSH_STACK (*new_binaries, second);

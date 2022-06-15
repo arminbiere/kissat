@@ -21,7 +21,7 @@ METRIC( backbone_probes, 2, PER_VARIABLE, "", "per variable") \
 METRIC( backbone_propagations, 2, PCNT_PROPS, "%", "propagations") \
 METRIC( backbone_rounds, 2, PER_BACKBONE, 0, "per backbone") \
 COUNTER( backbone_ticks, 2, PCNT_TICKS, "%", "ticks") \
-METRIC( backbone_units, 1, PCNT_VARIABLES, "%", "variables") \
+STATISTIC( backbone_units, 1, PCNT_VARIABLES, "%", "variables") \
 METRIC( best_saved, 1, CONF_INT, "", "interval") \
 STATISTIC( chronological, 1, PCNT_CONFLICTS, "%", "conflicts") \
 METRIC( clauses_added, 2, PCNT_CLS_ADDED, "%", "added") \
@@ -56,11 +56,6 @@ STATISTIC( eliminate_units, 1, PCNT_VARIABLES, "%", "variables") \
 STATISTIC( equivalences_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
 METRIC( equivalences_extracted, 1, PCNT_EXTRACTED, "%", "extracted") \
 METRIC( extensions, 1, PCNT_SEARCHES, "%", "searches") \
-METRIC( failed_computations, 1, CONF_INT, "", "interval") \
-METRIC( failed_probes, 1, PER_VARIABLE, "", "variable") \
-METRIC( failed_propagations, 2, PCNT_PROPS, "%", "propagations") \
-METRIC( failed_ticks, 2, PCNT_TICKS, "%", "ticks") \
-COUNTER( failed_units, 1, PCNT_VARIABLES, "%", "variables") \
 STATISTIC( flipped, 1, PER_WALKS, 0, "per walk") \
 METRIC( flushed, 2, PER_FIXED, 0, "per fixed") \
 METRIC( focused_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
@@ -77,10 +72,6 @@ METRIC( garbage_collections, 2, CONF_INT, "", "interval") \
 METRIC( gates_checked, 1, PCNT_ELIM_ATTEMPTS, "%", "attempts") \
 STATISTIC( gates_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
 METRIC( gates_extracted, 1, PCNT_ELIM_ATTEMPTS, "%", "attempts") \
-METRIC( hyper_binaries, 2, PCNT_REDUNDANT_CLAUSES, "%", "redundant") \
-COUNTER( hyper_binary_resolved, 1, NO_SECONDARY, 0, 0) \
-METRIC( hyper_propagations, 2, PCNT_PROPS, "%", "propagations") \
-METRIC( hyper_ticks, 2, PCNT_TICKS, "%", "ticks") \
 STATISTIC( if_then_else_eliminated, 1, PCNT_ELIMINATED, "%", "eliminated") \
 METRIC( if_then_else_extracted, 1, PCNT_EXTRACTED, "%", "extracted") \
 METRIC( initial_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
@@ -145,12 +136,6 @@ COUNTER( switched_modes, 2, CONF_INT, "", "interval") \
 METRIC( target_decisions, 1, PCNT_DECISIONS, "%", "decisions") \
 METRIC( target_saved, 1, CONF_INT, "", "interval") \
 STATISTIC( ticks, 2, PER_PROPAGATION, 0, "per prop") \
-COUNTER( transitive_probes, 2, PER_VARIABLE, "", "per variable") \
-COUNTER( transitive_propagations, 2, PCNT_PROPS, "%", "propagations") \
-METRIC( transitive_reduced, 1, PCNT_CLS_ADDED, "%", "added") \
-METRIC( transitive_reductions, 1, CONF_INT, "", "interval") \
-COUNTER( transitive_ticks, 2, PCNT_TICKS, "%", "ticks") \
-COUNTER( transitive_units, 1, PCNT_VARIABLES, "%", "variables") \
 COUNTER( units, 2, PCNT_VARIABLES, "%", "variables") \
 COUNTER( variables_activated, 2, PER_VARIABLE, 0, "per variable") \
 COUNTER( variables_added, 2, PER_VARIABLE, 0, "per variable") \

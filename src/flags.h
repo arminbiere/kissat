@@ -13,10 +13,8 @@ struct flags
   bool eliminate:1;
   bool eliminated:1;
   bool fixed:1;
-  bool probe:1;
   bool subsume:1;
   bool sweep:1;
-  bool transitive:1;
 };
 
 #define FLAGS(IDX) \
