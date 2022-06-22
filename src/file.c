@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#define stat _stat64
+
 bool
 kissat_file_exists (const char *path)
 {

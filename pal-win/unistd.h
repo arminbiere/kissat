@@ -21,7 +21,6 @@
 #define R_OK 04
 #define W_OK 02
 
-
 #define S_ISDIR(x) (((x)&_S_IFDIR)!=0)
 
 typedef struct timeval {
