@@ -24,15 +24,17 @@ fix_vector_pointers_after_moving_stack (kissat * solver, ptrdiff_t moved)
   struct vector *end_watches = begin_watches + LITS;
   for (struct vector * p = begin_watches; p != end_watches; p++)
     {
+
 #define FIX_POINTER(PTR) \
 do { \
-char * old_char_ptr_value = (char*) (PTR); \
-if (!old_char_ptr_value) \
-break; \
-char * new_char_ptr_value = old_char_ptr_value + moved; \
-unsigned * new_unsigned_ptr_value = (unsigned *) new_char_ptr_value; \
-(PTR) = new_unsigned_ptr_value; \
+  char * old_char_ptr_value = (char*) (PTR); \
+  if (!old_char_ptr_value) \
+    break; \
+  char * new_char_ptr_value = old_char_ptr_value + moved; \
+  unsigned * new_unsigned_ptr_value = (unsigned *) new_char_ptr_value; \
+  (PTR) = new_unsigned_ptr_value; \
 } while (0)
+
       FIX_POINTER (p->begin);
       FIX_POINTER (p->end);
     }
@@ -297,13 +299,15 @@ kissat_resize_vector (kissat * solver, vector * vector, size_t new_size)
 #ifdef CHECK_VECTORS
 
 void
-kissat_check_vector (vectors * vectors, vector * vector)
+kissat_check_vector (kissat * solver, vector * vector)
 {
-  assert (vectors == solver->vectors);
-  const unsigned *const begin = kissat_begin_vector (vectors, vector);
-  const unsigned *const end = kissat_end_vector (vectors, vector);
+  const unsigned *const begin = kissat_begin_vector (solver, vector);
+  const unsigned *const end = kissat_end_vector (solver, vector);
   for (const unsigned *p = begin; p != end; p++)
     assert (*p != INVALID_VECTOR_ELEMENT);
+#ifdef NDEBUG
+  (void) solver;
+#endif
 }
 
 void
@@ -312,7 +316,7 @@ kissat_check_vectors (kissat * solver)
   for (all_literals (lit))
     {
       vector *vector = &WATCHES (lit);
-      kissat_check_vector (&solver->vectors, vector);
+      kissat_check_vector (solver, vector);
     }
   vectors *vectors = &solver->vectors;
   unsigneds *stack = &vectors->stack;

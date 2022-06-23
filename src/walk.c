@@ -8,6 +8,7 @@
 #include "rephase.h"
 #include "terminate.h"
 #include "walk.h"
+#include "warmup.h"
 
 #include <string.h>
 
@@ -35,7 +36,6 @@ make_tagged (bool binary, unsigned ref)
 struct counter
 {
   unsigned count;
-  unsigned weight;
   unsigned pos;
 };
 
@@ -56,8 +56,6 @@ struct walker
   unsigned initial;
   unsigned minimum;
   unsigned offset;
-
-  int weighted;
 
   generator random;
 
@@ -189,9 +187,7 @@ init_score_table (walker * walker)
 {
   kissat *solver = walker->solver;
 
-  const double cb =
-    (GET_OPTION (walkfit) && (solver->statistics.walks & 1)) ?
-    fit_cbval (walker->size) : 2.0;
+  const double cb = (GET (walks) & 1) ? fit_cbval (walker->size) : 2.0;
   const double base = 1 / cb;
 
   double next;
@@ -228,10 +224,10 @@ import_decision_phases (walker * walker)
   kissat *solver = walker->solver;
   INC (walk_decisions);
   value *const saved = solver->phases.saved;
-  const value *const target = solver->phases.target;
+  const value *const target =
+    (solver->stable && !GET_OPTION (warmup)) ? solver->phases.target : 0;
   const value initial_phase = INITIAL_PHASE;
   const flags *const flags = solver->flags;
-  const bool stable = solver->stable;
   value *values = solver->values;
 #ifndef QUIET
   unsigned imported = 0;
@@ -242,7 +238,7 @@ import_decision_phases (walker * walker)
       if (!flags[idx].active)
 	continue;
       value value = 0;
-      if (stable)
+      if (target)
 	value = target[idx];
       if (!value)
 	value = saved[idx];
@@ -272,75 +268,6 @@ import_decision_phases (walker * walker)
 		overwritten, kissat_percent (overwritten, solver->active));
 }
 
-static void
-import_previous_phases (walker * walker, const bits * bits)
-{
-  kissat *solver = walker->solver;
-  INC (walk_previous);
-  value *const saved = solver->phases.saved;
-  const value *const target = solver->phases.target;
-  const value initial_phase = INITIAL_PHASE;
-  const flags *const flags = solver->flags;
-  const bool stable = solver->stable;
-  value *values = solver->values;
-  const unsigned vars = VARS;
-#ifndef QUIET
-  unsigned imported = 0;
-  unsigned overwritten = 0;
-#endif
-  for (all_variables (idx))
-    {
-      if (!flags[idx].active)
-	continue;
-      value value;
-      if (bits)
-	value = kissat_get_bit (bits, vars, idx) ? 1 : -1;
-      else
-	value = 0;
-      if (!value && stable)
-	value = target[idx];
-      if (!value)
-	value = saved[idx];
-      if (!value)
-	value = initial_phase;
-      assert (value);
-      if (saved[idx] != value)
-	{
-	  saved[idx] = value;
-#ifndef QUIET
-	  overwritten++;
-#endif
-	}
-      const unsigned lit = LIT (idx);
-      const unsigned not_lit = NOT (lit);
-      values[lit] = value;
-      values[not_lit] = -value;
-#ifndef QUIET
-      imported++;
-#endif
-      LOG ("copied %s previous phase %d", LOGVAR (idx), (int) value);
-      saved[idx] = value;
-    }
-  kissat_phase (solver, "walk", GET (walks),
-		"imported %u previous phases %.0f%% (saved %u phases %.0f%%)",
-		imported, kissat_percent (imported, solver->active),
-		overwritten, kissat_percent (overwritten, solver->active));
-}
-
-static unsigned
-clause_weight (walker * walker, unsigned size)
-{
-  const int weighted = walker->weighted;
-  unsigned weight;
-  if (weighted > 0)
-    weight = MIN (size, 5);
-  else if (weighted < 0 && size < 6)
-    weight = 7 - size;
-  else
-    weight = 1;
-  return weight;
-}
-
 static unsigned
 connect_binary_counters (walker * walker)
 {
@@ -354,8 +281,6 @@ connect_binary_counters (walker * walker)
   const unsigned size = SIZE_STACK (*walker->binaries);
   litpair *binaries = BEGIN_STACK (*walker->binaries);
   unsigned unsat = 0, counter_ref = 0;
-
-  const unsigned weight = clause_weight (walker, 2);
 
   for (unsigned binary_ref = 0; binary_ref < size; binary_ref++)
     {
@@ -376,7 +301,6 @@ connect_binary_counters (walker * walker)
       const unsigned count = (first_value > 0) + (second_value > 0);
       counter *counter = counters + counter_ref;
       counter->count = count;
-      counter->weight = weight;
       if (!count)
 	{
 	  push_unsat (solver, walker, counters, counter_ref);
@@ -455,7 +379,6 @@ connect_large_counters (walker * walker, unsigned counter_ref)
 	}
       counter *counter = walker->counters + counter_ref;
       counter->count = count;
-      counter->weight = clause_weight (walker, size);
 
       if (!count)
 	{
@@ -500,8 +423,7 @@ report_minimum (const char *type, kissat * solver, walker * walker)
 #endif
 
 static void
-init_walker (kissat * solver, walker * walker,
-	     litpairs * binaries, bool use_previous_phase)
+init_walker (kissat * solver, walker * walker, litpairs * binaries)
 {
   assert (IRREDUNDANT_CLAUSES <= MAX_WALK_REF);
   const unsigned clauses = IRREDUNDANT_CLAUSES;
@@ -516,31 +438,7 @@ init_walker (kissat * solver, walker * walker,
   walker->saved = solver->values;
   solver->values = kissat_calloc (solver, LITS, 1);
 
-  const bits *bits = 0;
-  if (use_previous_phase && (bits = kissat_lookup_cache (solver)))
-    import_previous_phases (walker, bits);
-  else
-    import_decision_phases (walker);
-
-  if (GET_OPTION (walkweighted))
-    switch (GET (walks) % 3)
-      {
-      case 1:
-      UNIFORM:
-	kissat_very_verbose (solver, "uniform clause weight one");
-	walker->weighted = 0;
-	break;
-      case 2:
-	kissat_very_verbose (solver, "monotone increasing clause weights");
-	walker->weighted = 1;
-	break;
-      default:
-	kissat_very_verbose (solver, "monotone decreasing clause weights");
-	walker->weighted = -1;
-	break;
-      }
-  else
-    goto UNIFORM;
+  import_decision_phases (walker);
 
   walker->counters = kissat_malloc (solver, clauses * sizeof (counter));
   walker->refs = kissat_malloc (solver, clauses * sizeof (tagged));
@@ -565,9 +463,6 @@ init_walker (kissat * solver, walker * walker,
   init_score_table (walker);
 
   report_initial_minimum (solver, walker);
-
-  if (bits)
-    kissat_update_cache (solver, walker->minimum);
 }
 
 static void
@@ -614,8 +509,7 @@ break_value (kissat * solver, walker * walker, value * values, unsigned lit)
       reference counter_ref = watch.large.ref;
       assert (counter_ref < walker->clauses);
       counter *counter = walker->counters + counter_ref;
-      if (counter->count == 1)
-	res += counter->weight;
+      res += (counter->count == 1);
     }
   ADD (walk_steps, steps);
 #ifdef NDEBUG
@@ -985,31 +879,21 @@ local_search_round (walker * walker)
 }
 
 static void
-save_final_minimum (walker * walker, bool first_time)
+save_final_minimum (walker * walker)
 {
   kissat *solver = walker->solver;
 
   assert (walker->minimum <= walker->initial);
   if (walker->minimum == walker->initial)
     {
-      if (first_time)
-	kissat_phase (solver, "walk", GET (walks),
-		      "saving first assignment falsifying %u clauses",
-		      walker->minimum);
-      else if (!walker->minimum)
-	kissat_phase (solver, "walk", GET (walks),
-		      "saving assignment satisfying all clauses");
-      else
-	{
-	  kissat_phase (solver, "walk", GET (walks),
-			"no improvement thus keeping saved phases");
-	  return;
-	}
+      kissat_phase (solver, "walk", GET (walks),
+		    "no improvement thus keeping saved phases");
+      return;
     }
-  else
-    kissat_phase (solver, "walk", GET (walks),
-		  "saving improved assignment of %u unsatisfied clauses",
-		  walker->minimum);
+
+  kissat_phase (solver, "walk", GET (walks),
+		"saving improved assignment of %u unsatisfied clauses",
+		walker->minimum);
 
   if (!walker->best || walker->best == INVALID_BEST)
     LOG ("minimum already saved");
@@ -1017,9 +901,6 @@ save_final_minimum (walker * walker, bool first_time)
     save_walker_trail (solver, walker, false);
 
   INC (walk_improved);
-
-  if (GET_OPTION (walkreuse))
-    kissat_insert_cache (solver, walker->minimum);
 }
 
 #ifdef CHECK_WALK
@@ -1101,7 +982,7 @@ check_walk (kissat * solver, unsigned expected)
 #endif
 
 static void
-walking_phase (kissat * solver, bool first_time, bool use_previous_phase)
+walking_phase (kissat * solver)
 {
   INC (walks);
   litpairs irredundant;
@@ -1110,10 +991,10 @@ walking_phase (kissat * solver, bool first_time, bool use_previous_phase)
   INIT_STACK (redundant);
   kissat_enter_dense_mode (solver, &irredundant, &redundant);
   walker walker;
-  init_walker (solver, &walker, &irredundant, use_previous_phase);
+  init_walker (solver, &walker, &irredundant);
   init_walker_limit (solver, &walker);
   local_search_round (&walker);
-  save_final_minimum (&walker, first_time);
+  save_final_minimum (&walker);
 #ifdef CHECK_WALK
   unsigned expected = walker.minimum;
 #endif
@@ -1152,12 +1033,13 @@ kissat_walking (kissat * solver)
   return true;
 }
 
-static void
-walk (kissat * solver, bool first_time, bool use_previous_phase)
+void
+kissat_walk (kissat * solver)
 {
   assert (!solver->level);
   assert (!solver->inconsistent);
   assert (kissat_propagated (solver));
+  assert (kissat_walking (solver));
 
   reference last_irredundant = solver->last_irredundant;
   if (last_irredundant == INVALID_REF)
@@ -1179,67 +1061,10 @@ walk (kissat * solver, bool first_time, bool use_previous_phase)
       return;
     }
 
+  if (GET_OPTION (warmup))
+    kissat_warmup (solver);
+
   STOP_SEARCH_AND_START_SIMPLIFIER (walking);
-  walking_phase (solver, first_time, use_previous_phase);
+  walking_phase (solver);
   STOP_SIMPLIFIER_AND_RESUME_SEARCH (walking);
-}
-
-void
-kissat_walk (kissat * solver)
-{
-  assert (kissat_walking (solver));
-  const char last = solver->rephased.last;
-  assert (last);
-
-  unsigned bit = 0;
-#define REPHASE(NAME,TYPE,INDEX) \
-  if (last == TYPE) \
-    bit = INDEX; \
-  else
-  REPHASES
-#undef REPHASE
-    bit = 32;
-  assert (bit < 32);
-  const unsigned mask = (1u << bit);
-
-  const uint64_t walks = GET (walks);
-  const bool first_time = !walks;
-  const int reuse = GET_OPTION (walkreuse);
-  const bool decisions_used = ! !(solver->walked & mask);
-
-  bool use_previous_phases;
-
-  if (first_time || !reuse)
-    use_previous_phases = false;
-  else if (reuse > 1)
-    use_previous_phases = true;
-  else if (!decisions_used)
-    use_previous_phases = false;
-  else
-    use_previous_phases = walks & 1;
-
-  kissat_extremely_verbose (solver,
-			    "walking uses %s phases after last '%c' rephase",
-			    use_previous_phases ? "previous" : "decision",
-			    last);
-
-  walk (solver, first_time, use_previous_phases);
-
-  solver->walked |= mask;
-}
-
-int
-kissat_walk_initially (kissat * solver)
-{
-  if (solver->inconsistent)
-    return 20;
-  if (TERMINATED (walk_terminated_2))
-    return 0;
-  if (!GET_OPTION (walkinitially))
-    return 0;
-  if (!kissat_walking (solver))
-    return 0;
-  walk (solver, true, false);
-  REPORT (0, 'W');
-  return 0;
 }

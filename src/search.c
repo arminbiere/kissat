@@ -36,7 +36,10 @@ start_search (kissat * solver)
   kissat_init_averages (solver, &AVERAGES);
 
   if (solver->stable)
-    kissat_init_reluctant (solver);
+    {
+      kissat_init_reluctant (solver);
+      kissat_update_scores (solver);
+    }
 
   kissat_init_limits (solver);
 
@@ -44,9 +47,6 @@ start_search (kissat * solver)
   solver->random = seed;
   LOG ("initialized random number generator with seed %u", seed);
 
-  const unsigned eagersubsume = GET_OPTION (eagersubsume);
-  if (eagersubsume && !solver->clueue.elements)
-    kissat_init_clueue (solver, &solver->clueue, eagersubsume);
 #ifndef QUIET
   limits *limits = &solver->limits;
   limited *limited = &solver->limited;
@@ -161,7 +161,7 @@ int
 kissat_search (kissat * solver)
 {
   start_search (solver);
-  int res = kissat_walk_initially (solver);
+  int res = solver->inconsistent ? 20 : 0;
   while (!res)
     {
       clause *conflict = kissat_search_propagate (solver);

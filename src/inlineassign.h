@@ -51,7 +51,7 @@ kissat_assign (kissat * solver, const bool probing, const unsigned level,
 
   const unsigned idx = IDX (lit);
 
-#if !defined(HYPER_PROPAGATION) && !defined(PROBING_PROPAGATION)
+#if !defined(PROBING_PROPAGATION)
   if (!probing)
     {
       const bool negated = NEGATED (lit);
@@ -60,19 +60,18 @@ kissat_assign (kissat * solver, const bool probing, const unsigned level,
     }
 #endif
 
-  assert (level <= MAX_LEVEL);
-  assert (trail <= MAX_TRAIL);
-
   struct assigned b;
+
   b.level = level;
+  b.trail = trail;
+
   b.analyzed = false;
+  b.binary = binary;
   b.poisoned = false;
+  b.reason = reason;
+  b.redundant = redundant;
   b.removable = false;
   b.shrinkable = false;
-  b.trail = trail;
-  b.binary = binary;
-  b.redundant = redundant;
-  b.reason = reason;
 
 #ifndef FAST_ASSIGN
   assigned *assigned = solver->assigned;

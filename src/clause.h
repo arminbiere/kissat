@@ -10,7 +10,7 @@
 
 typedef struct clause clause;
 
-#define LD_MAX_GLUE 21u
+#define LD_MAX_GLUE 22u
 #define MAX_GLUE ((1u<<LD_MAX_GLUE)-1)
 
 struct clause
@@ -18,7 +18,6 @@ struct clause
   unsigned glue:LD_MAX_GLUE;
 
   unsigned garbage:1;
-  unsigned hyper:1;
   unsigned keep:1;
   unsigned reason:1;
   unsigned redundant:1;
@@ -86,8 +85,8 @@ void kissat_sort_literals (struct kissat *, unsigned size, unsigned *lits);
 void kissat_connect_clause (struct kissat *, clause *);
 
 clause *kissat_delete_clause (struct kissat *, clause *);
-void kissat_delete_binary (struct kissat *,
-			   bool redundant, bool hyper, unsigned, unsigned);
+void kissat_delete_binary (struct kissat *, bool redundant, unsigned,
+			   unsigned);
 
 void kissat_mark_clause_as_garbage (struct kissat *, clause *);
 

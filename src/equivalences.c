@@ -29,10 +29,10 @@ kissat_find_equivalence_gate (kissat * solver, unsigned lit)
     return false;
   LOG ("found equivalence gate %s = %s", LOGLIT (lit), LOGLIT (replace));
 
-  const watch watch1 = kissat_binary_watch (replace, false, false);
+  const watch watch1 = kissat_binary_watch (replace, false);
   PUSH_STACK (solver->gates[1], watch1);
 
-  const watch watch0 = kissat_binary_watch (NOT (replace), false, false);
+  const watch watch0 = kissat_binary_watch (NOT (replace), false);
   PUSH_STACK (solver->gates[0], watch0);
   solver->gate_eliminated = GATE_ELIMINATED (equivalences);
   INC (equivalences_extracted);

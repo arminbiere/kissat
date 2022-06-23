@@ -42,16 +42,10 @@
     <ClCompile Include="src\assign.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\autarky.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\averages.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\backtrack.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\backward.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\build.c">
@@ -64,9 +58,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\clause.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\clueue.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\collect.c">
@@ -90,9 +81,6 @@
     <ClCompile Include="src\dense.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\dominate.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\dump.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -106,9 +94,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\extend.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\failed.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\file.c">
@@ -142,9 +127,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\learn.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\limits.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\logging.c">
@@ -184,9 +166,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\propdense.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\prophyper.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\proprobe.c">
@@ -246,13 +225,7 @@
     <ClCompile Include="src\terminate.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\ternary.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\trail.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\transitive.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\utilities.c">
@@ -276,16 +249,7 @@
     <ClCompile Include="src\witness.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\xors.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\backbone.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\bits.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\cache.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\definition.c">
@@ -294,16 +258,19 @@
     <ClCompile Include="src\kitten.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\nonces.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\reap.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\shrink.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\sweep.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\kimits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\propbeyond.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\warmup.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -338,16 +305,10 @@
     <ClInclude Include="src\assign.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\autarky.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\averages.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\backtrack.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\backward.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\build.h">
@@ -360,9 +321,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\clause.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\clueue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\collect.h">
@@ -389,9 +347,6 @@
     <ClInclude Include="src\dense.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\dominate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\eliminate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -402,9 +357,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\extend.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\failed.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\file.h">
@@ -449,9 +401,6 @@
     <ClInclude Include="src\learn.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\limits.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\literal.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -489,9 +438,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\propdense.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\prophyper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\proplit.h">
@@ -566,13 +512,7 @@
     <ClInclude Include="src\terminate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\ternary.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\trail.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\transitive.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\utilities.h">
@@ -599,9 +539,6 @@
     <ClInclude Include="src\witness.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\xors.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\array.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -609,12 +546,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\backbone.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\bits.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\cache.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\definition.h">
@@ -638,28 +569,28 @@
     <ClInclude Include="src\inlinequeue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\inlinereap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\inlinescore.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\inlinevector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\kitten.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\nonces.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\reap.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\shrink.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\sweep.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\branching.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\kimits.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\propbeyond.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\warmup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -138,6 +138,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -166,6 +167,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -195,6 +197,7 @@
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -217,6 +220,7 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -245,6 +249,7 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -274,6 +279,7 @@
       <CreateHotpatchableImage>false</CreateHotpatchableImage>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -289,18 +295,13 @@
     <ClCompile Include="src\application.c" />
     <ClCompile Include="src\arena.c" />
     <ClCompile Include="src\assign.c" />
-    <ClCompile Include="src\autarky.c" />
     <ClCompile Include="src\averages.c" />
     <ClCompile Include="src\backbone.c" />
     <ClCompile Include="src\backtrack.c" />
-    <ClCompile Include="src\backward.c" />
-    <ClCompile Include="src\bits.c" />
     <ClCompile Include="src\build.c" />
     <ClCompile Include="src\bump.c" />
-    <ClCompile Include="src\cache.c" />
     <ClCompile Include="src\check.c" />
     <ClCompile Include="src\clause.c" />
-    <ClCompile Include="src\clueue.c" />
     <ClCompile Include="src\collect.c" />
     <ClCompile Include="src\colors.c" />
     <ClCompile Include="src\compact.c" />
@@ -309,13 +310,11 @@
     <ClCompile Include="src\deduce.c" />
     <ClCompile Include="src\definition.c" />
     <ClCompile Include="src\dense.c" />
-    <ClCompile Include="src\dominate.c" />
     <ClCompile Include="src\dump.c" />
     <ClCompile Include="src\eliminate.c" />
     <ClCompile Include="src\equivalences.c" />
     <ClCompile Include="src\error.c" />
     <ClCompile Include="src\extend.c" />
-    <ClCompile Include="src\failed.c" />
     <ClCompile Include="src\file.c" />
     <ClCompile Include="src\flags.c" />
     <ClCompile Include="src\format.c" />
@@ -326,14 +325,13 @@
     <ClCompile Include="src\ifthenelse.c" />
     <ClCompile Include="src\import.c" />
     <ClCompile Include="src\internal.c" />
+    <ClCompile Include="src\kimits.c" />
     <ClCompile Include="src\kitten.c" />
     <ClCompile Include="src\learn.c" />
-    <ClCompile Include="src\limits.c" />
     <ClCompile Include="src\logging.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\minimize.c" />
     <ClCompile Include="src\mode.c" />
-    <ClCompile Include="src\nonces.c" />
     <ClCompile Include="src\options.c" />
     <ClCompile Include="pal-win\unistd.c" />
     <ClCompile Include="src\parse.c" />
@@ -343,12 +341,11 @@
     <ClCompile Include="src\profile.c" />
     <ClCompile Include="src\promote.c" />
     <ClCompile Include="src\proof.c" />
+    <ClCompile Include="src\propbeyond.c" />
     <ClCompile Include="src\propdense.c" />
-    <ClCompile Include="src\prophyper.c" />
     <ClCompile Include="src\proprobe.c" />
     <ClCompile Include="src\propsearch.c" />
     <ClCompile Include="src\queue.c" />
-    <ClCompile Include="src\reap.c" />
     <ClCompile Include="src\reduce.c" />
     <ClCompile Include="src\reluctant.c" />
     <ClCompile Include="src\rephase.c" />
@@ -367,17 +364,15 @@
     <ClCompile Include="src\substitute.c" />
     <ClCompile Include="src\sweep.c" />
     <ClCompile Include="src\terminate.c" />
-    <ClCompile Include="src\ternary.c" />
     <ClCompile Include="src\trail.c" />
-    <ClCompile Include="src\transitive.c" />
     <ClCompile Include="src\utilities.c" />
     <ClCompile Include="src\vector.c" />
     <ClCompile Include="src\vivify.c" />
     <ClCompile Include="src\walk.c" />
+    <ClCompile Include="src\warmup.c" />
     <ClCompile Include="src\watch.c" />
     <ClCompile Include="src\weaken.c" />
     <ClCompile Include="src\witness.c" />
-    <ClCompile Include="src\xors.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\allocate.h" />
@@ -388,18 +383,14 @@
     <ClInclude Include="src\array.h" />
     <ClInclude Include="src\assign.h" />
     <ClInclude Include="src\attribute.h" />
-    <ClInclude Include="src\autarky.h" />
     <ClInclude Include="src\averages.h" />
     <ClInclude Include="src\backbone.h" />
     <ClInclude Include="src\backtrack.h" />
-    <ClInclude Include="src\backward.h" />
-    <ClInclude Include="src\bits.h" />
+    <ClInclude Include="src\branching.h" />
     <ClInclude Include="src\build.h" />
     <ClInclude Include="src\bump.h" />
-    <ClInclude Include="src\cache.h" />
     <ClInclude Include="src\check.h" />
     <ClInclude Include="src\clause.h" />
-    <ClInclude Include="src\clueue.h" />
     <ClInclude Include="src\collect.h" />
     <ClInclude Include="src\colors.h" />
     <ClInclude Include="src\compact.h" />
@@ -409,13 +400,11 @@
     <ClInclude Include="src\deduce.h" />
     <ClInclude Include="src\definition.h" />
     <ClInclude Include="src\dense.h" />
-    <ClInclude Include="src\dominate.h" />
     <ClInclude Include="src\eliminate.h" />
     <ClInclude Include="src\endianness.h" />
     <ClInclude Include="src\equivalences.h" />
     <ClInclude Include="src\error.h" />
     <ClInclude Include="src\extend.h" />
-    <ClInclude Include="src\failed.h" />
     <ClInclude Include="src\fastassign.h" />
     <ClInclude Include="src\file.h" />
     <ClInclude Include="src\flags.h" />
@@ -432,19 +421,16 @@
     <ClInclude Include="src\inlineframes.h" />
     <ClInclude Include="src\inlineheap.h" />
     <ClInclude Include="src\inlinequeue.h" />
-    <ClInclude Include="src\inlinereap.h" />
-    <ClInclude Include="src\inlinescore.h" />
     <ClInclude Include="src\inlinevector.h" />
     <ClInclude Include="src\internal.h" />
+    <ClInclude Include="src\kimits.h" />
     <ClInclude Include="src\kissat.h" />
     <ClInclude Include="src\kitten.h" />
     <ClInclude Include="src\learn.h" />
-    <ClInclude Include="src\limits.h" />
     <ClInclude Include="src\literal.h" />
     <ClInclude Include="src\logging.h" />
     <ClInclude Include="src\minimize.h" />
     <ClInclude Include="src\mode.h" />
-    <ClInclude Include="src\nonces.h" />
     <ClInclude Include="src\options.h" />
     <ClInclude Include="pal-win\strings.h" />
     <ClInclude Include="pal-win\sys\resource.h" />
@@ -457,15 +443,14 @@
     <ClInclude Include="src\profile.h" />
     <ClInclude Include="src\promote.h" />
     <ClInclude Include="src\proof.h" />
+    <ClInclude Include="src\propbeyond.h" />
     <ClInclude Include="src\propdense.h" />
-    <ClInclude Include="src\prophyper.h" />
     <ClInclude Include="src\proplit.h" />
     <ClInclude Include="src\proprobe.h" />
     <ClInclude Include="src\propsearch.h" />
     <ClInclude Include="src\queue.h" />
     <ClInclude Include="src\random.h" />
     <ClInclude Include="src\rank.h" />
-    <ClInclude Include="src\reap.h" />
     <ClInclude Include="src\reduce.h" />
     <ClInclude Include="src\reference.h" />
     <ClInclude Include="src\reluctant.h" />
@@ -486,18 +471,16 @@
     <ClInclude Include="src\substitute.h" />
     <ClInclude Include="src\sweep.h" />
     <ClInclude Include="src\terminate.h" />
-    <ClInclude Include="src\ternary.h" />
     <ClInclude Include="src\trail.h" />
-    <ClInclude Include="src\transitive.h" />
     <ClInclude Include="src\utilities.h" />
     <ClInclude Include="src\value.h" />
     <ClInclude Include="src\vector.h" />
     <ClInclude Include="src\vivify.h" />
     <ClInclude Include="src\walk.h" />
+    <ClInclude Include="src\warmup.h" />
     <ClInclude Include="src\watch.h" />
     <ClInclude Include="src\weaken.h" />
     <ClInclude Include="src\witness.h" />
-    <ClInclude Include="src\xors.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

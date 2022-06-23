@@ -262,13 +262,8 @@ check_repeated_proof_lines (proof * proof)
       const int eunit = PEEK_STACK (proof->line, 0);
       const unsigned punit = external_to_proof_literal (eunit);
       assert (punit != INVALID_LIT);
-      if (!proof->size_units || proof->size_units < punit)
+      if (!proof->size_units || proof->size_units <= punit)
 	resize_proof_units (proof, punit);
-      else
-	{
-	  COVER (proof->units[punit]);
-	  assert (!proof->units[punit]);
-	}
       proof->units[punit] = 1;
     }
 }

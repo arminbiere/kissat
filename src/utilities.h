@@ -122,7 +122,7 @@ kissat_log2_ceiling_of_word (word x)
   if (!x)
     return 0;
   unsigned tmp = kissat_log2_floor_of_word (x);
-  return tmp + ! !(x ^ (((word) 1) << tmp));
+  return tmp + !!(x ^ (((word) 1) << tmp));
 }
 
 static inline unsigned
@@ -150,7 +150,7 @@ kissat_log2_ceiling_of_uint64 (uint64_t x)
   if (!x)
     return 0;
   unsigned tmp = kissat_log2_floor_of_uint64 (x);
-  return tmp + ! !(x ^ (((uint64_t) 1) << tmp));
+  return tmp + !!(x ^ (((uint64_t) 1) << tmp));
 }
 
 #define SWAP(TYPE,A,B) \

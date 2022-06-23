@@ -36,15 +36,16 @@ last_enqueued_unassigned_variable (kissat * solver)
 static unsigned
 largest_score_unassigned_variable (kissat * solver)
 {
-  unsigned res = kissat_max_heap (&solver->scores);
+  heap *scores = SCORES;
+  unsigned res = kissat_max_heap (scores);
   const value *const values = solver->values;
   while (values[LIT (res)])
     {
-      kissat_pop_max_heap (solver, &solver->scores);
-      res = kissat_max_heap (&solver->scores);
+      kissat_pop_max_heap (solver, scores);
+      res = kissat_max_heap (scores);
     }
 #if defined(LOGGING) || defined(CHECK_HEAP)
-  const double score = kissat_get_heap_score (&solver->scores, res);
+  const double score = kissat_get_heap_score (scores, res);
 #endif
   LOG ("largest score unassigned %s score %g", LOGVAR (res), score);
 #ifdef CHECK_HEAP
@@ -54,7 +55,7 @@ largest_score_unassigned_variable (kissat * solver)
 	continue;
       if (VALUE (LIT (idx)))
 	continue;
-      const double idx_score = kissat_get_heap_score (&solver->scores, idx);
+      const double idx_score = kissat_get_heap_score (scores, idx);
       assert (score >= idx_score);
     }
 #endif

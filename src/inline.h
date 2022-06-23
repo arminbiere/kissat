@@ -81,9 +81,9 @@ kissat_push_large_watch (kissat * solver, watches * watches, reference ref)
 
 static inline void
 kissat_push_binary_watch (kissat * solver, watches * watches,
-			  bool redundant, bool hyper, unsigned other)
+			  bool redundant, unsigned other)
 {
-  const watch watch = kissat_binary_watch (other, redundant, hyper);
+  const watch watch = kissat_binary_watch (other, redundant);
   PUSH_WATCHES (*watches, watch);
 }
 
@@ -100,22 +100,21 @@ kissat_push_blocking_watch (kissat * solver, watches * watches,
 
 static inline void
 kissat_watch_other (kissat * solver,
-		    bool redundant, bool hyper, unsigned lit, unsigned other)
+		    bool redundant, unsigned lit, unsigned other)
 {
   LOGBINARY (lit, other,
 	     "watching %s blocking %s in %s",
 	     LOGLIT (lit), LOGLIT (other),
 	     (redundant ? "redundant" : "irredundant"));
   watches *watches = &WATCHES (lit);
-  kissat_push_binary_watch (solver, watches, redundant, hyper, other);
+  kissat_push_binary_watch (solver, watches, redundant, other);
 }
 
 static inline void
-kissat_watch_binary (kissat * solver,
-		     bool redundant, bool hyper, unsigned a, unsigned b)
+kissat_watch_binary (kissat * solver, bool redundant, unsigned a, unsigned b)
 {
-  kissat_watch_other (solver, redundant, hyper, a, b);
-  kissat_watch_other (solver, redundant, hyper, b, a);
+  kissat_watch_other (solver, redundant, a, b);
+  kissat_watch_other (solver, redundant, b, a);
 }
 
 static inline void
@@ -142,7 +141,7 @@ kissat_disconnect_binary (kissat * solver, unsigned lit, unsigned other)
 {
   assert (!solver->watching);
   watches *watches = &WATCHES (lit);
-  const watch watch = kissat_binary_watch (other, false, false);
+  const watch watch = kissat_binary_watch (other, false);
   REMOVE_WATCHES (*watches, watch);
 }
 
@@ -321,16 +320,6 @@ kissat_push_shrinkable (kissat * solver, assigned * assigned, unsigned idx)
   a->shrinkable = true;
   PUSH_STACK (solver->shrinkable, idx);
   LOG2 ("%s shrinkable", LOGVAR (idx));
-}
-
-static inline void
-kissat_invalidate_cache (kissat * solver)
-{
-  cache *cache = &solver->cache;
-  if (!cache->valid)
-    return;
-  cache->valid = false;
-  LOG ("invalidated cache");
 }
 
 static inline int

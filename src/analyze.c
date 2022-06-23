@@ -177,6 +177,8 @@ analyze_reason_side_literal (kissat * solver, size_t limit, ward * arena,
 static void
 analyze_reason_side_literals (kissat * solver)
 {
+  if (!GET_OPTION (bump))
+    return;
   if (!GET_OPTION (bumpreasons))
     return;
   if (solver->probing)
@@ -244,21 +246,6 @@ analyze_reason_side_literals (kissat * solver)
   LOG ("next bump reasons delayed %u times",
        solver->delays.bumpreasons.count);
 }
-
-#if 0
-
-#define RANK_LITERAL_BY_INVERSE_LEVEL(LIT) \
-  (~assigned[IDX (LIT)].level)
-
-static void
-sort_deduced_clause (kissat * solver)
-{
-  unsigneds *clause = &solver->clause;
-  assigned *assigned = solver->assigned;
-  RADIX_STACK (unsigned, unsigned, *clause, RANK_LITERAL_BY_INVERSE_LEVEL);
-}
-
-#else
 
 #define RADIX_SORT_LEVELS_LIMIT 32
 
@@ -364,8 +351,6 @@ sort_deduced_clause (kissat * solver)
     }
 #endif
 }
-
-#endif
 
 static void
 reset_levels (kissat * solver)
@@ -653,8 +638,8 @@ kissat_analyze (kissat * solver, clause * conflict)
 	}
       if (!EMPTY_STACK (solver->analyzed))
 	{
-	  if (!solver->probing)
-	    kissat_bump (solver);
+	  if (!solver->probing && GET_OPTION (bump))
+	    kissat_bump_analyzed (solver);
 	  kissat_reset_only_analyzed_literals (solver);
 	}
     }

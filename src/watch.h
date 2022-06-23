@@ -19,12 +19,12 @@ typedef struct large_watch large_watch;
 struct watch_type
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
-    unsigned binary:1;
-  unsigned padding:2;
-  unsigned lit:29;
+  unsigned binary:1;
+  unsigned padding:1;
+  unsigned lit:30;
 #else
-  unsigned lit:29;
-  unsigned padding:2;
+  unsigned lit:30;
+  unsigned padding:1;
   unsigned binary:1;
 #endif
 };
@@ -32,13 +32,11 @@ struct watch_type
 struct binary_watch
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
-    unsigned binary:1;
-    unsigned redundant:1;
-    unsigned hyper:1;
-  unsigned lit:29;
+  unsigned binary:1;
+  unsigned redundant:1;
+  unsigned lit:30;
 #else
-  unsigned lit:29;
-  unsigned hyper:1;
+  unsigned lit:30;
   unsigned redundant:1;
   unsigned binary:1;
 #endif
@@ -58,12 +56,12 @@ struct large_watch
 struct blocking_watch
 {
 #ifdef KISSAT_IS_BIG_ENDIAN
-    unsigned binary:1;
-  unsigned padding:2;
-  unsigned lit:29;
+  unsigned binary:1;
+  unsigned padding:1;
+  unsigned lit:30;
 #else
-  unsigned lit:29;
-  unsigned padding:2;
+  unsigned lit:30;
+  unsigned padding:1;
   unsigned binary:1;
 #endif
 };
@@ -110,13 +108,11 @@ kissat_litpair (unsigned lit, unsigned other)
 }
 
 static inline watch
-kissat_binary_watch (unsigned lit, bool redundant, bool hyper)
+kissat_binary_watch (unsigned lit, bool redundant)
 {
-  assert (redundant || !hyper);
   watch res;
   res.binary.lit = lit;
   res.binary.redundant = redundant;
-  res.binary.hyper = hyper;
   res.binary.binary = true;
   assert (res.type.binary);
   return res;
@@ -208,6 +204,9 @@ do { \
   ++WATCH ## _PTR
 
 void kissat_remove_blocking_watch (struct kissat *, watches *, reference);
+
+void kissat_substitute_large_watch (struct kissat *, watches *,
+				    watch src, watch dst);
 
 void kissat_flush_large_watches (struct kissat *);
 void kissat_watch_large_clauses (struct kissat *);

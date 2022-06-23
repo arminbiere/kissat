@@ -11,22 +11,6 @@
 
 #include <string.h>
 
-static uint64_t
-substitute_effort (kissat * solver)
-{
-  return 10 * CLAUSES;
-}
-
-static bool
-really_substitute (kissat * solver)
-{
-  if (!GET_OPTION (really))
-    return true;
-  const uint64_t needed = substitute_effort (solver);
-  const uint64_t search_ticks = solver->statistics.search_ticks;
-  return needed < search_ticks;
-}
-
 static void
 assign_and_propagate_units (kissat * solver, unsigneds * units)
 {
@@ -266,7 +250,7 @@ add_representative_equivalences (kissat * solver, unsigned *repr)
 
 static void
 remove_representative_equivalences (kissat * solver,
-				    unsigned *repr, bool * eliminate)
+				    unsigned *repr, bool *eliminate)
 {
   if (!solver->inconsistent)
     {
@@ -420,9 +404,8 @@ substitute_binaries (kissat * solver, unsigned *repr)
       const watch watch = litwatch.watch;
       assert (watch.type.binary);
       const bool redundant = watch.binary.redundant;
-      const bool hyper = watch.binary.hyper;
       const unsigned other = watch.binary.lit;
-      kissat_delete_binary (solver, redundant, hyper, lit, other);
+      kissat_delete_binary (solver, redundant, lit, other);
     }
   RELEASE_STACK (delayed_deleted);
 #ifdef CHECKING_OR_PROVING
@@ -690,8 +673,6 @@ kissat_substitute (kissat * solver)
   if (!GET_OPTION (substitute))
     return;
   if (TERMINATED (substitute_terminated_1))
-    return;
-  if (!really_substitute (solver))
     return;
   substitute_rounds (solver);
 }

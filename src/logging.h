@@ -19,6 +19,10 @@ ATTRIBUTE_FORMAT (3, 4);
 void kissat_log_clause (kissat *, const char*, const clause *, const char *, ...)
 ATTRIBUTE_FORMAT (4, 5);
 
+void kissat_log_counted_clause (kissat *, const char*, const clause *,
+                                const unsigned *, const char *, ...)
+ATTRIBUTE_FORMAT (5, 6);
+
 void kissat_log_binary (kissat *, const char*,
                         unsigned, unsigned, const char *, ...)
 ATTRIBUTE_FORMAT (5, 6);
@@ -29,6 +33,19 @@ ATTRIBUTE_FORMAT (4, 5);
 void kissat_log_lits (kissat *, const char*,
                       size_t, const unsigned *, const char *, ...)
 ATTRIBUTE_FORMAT (5, 6);
+
+void kissat_log_litset (kissat *, const char*,
+                        size_t, const unsigned *, const char *, ...)
+ATTRIBUTE_FORMAT (5, 6);
+
+void kissat_log_litpart (kissat *, const char*,
+                         size_t, const unsigned *, const char *, ...)
+ATTRIBUTE_FORMAT (5, 6);
+
+void kissat_log_counted_lits (kissat *, const char*,
+                              size_t, const unsigned *,
+			      const unsigned * counts, const char *, ...)
+ATTRIBUTE_FORMAT (6, 7);
 
 void kissat_log_unsigneds (kissat *, const char*,
                            size_t, const unsigned *, const char *, ...)
@@ -55,9 +72,6 @@ ATTRIBUTE_FORMAT (3, 4);
 void kissat_log_watch (kissat *, const char*,
                        unsigned, watch, const char *, ...)
 ATTRIBUTE_FORMAT (5, 6);
-
-void kissat_log_line (kissat *, const char*, const line *, const char *, ...)
-ATTRIBUTE_FORMAT (4, 5);
 
 // *INDENT-ON*
 
@@ -99,6 +113,24 @@ do { \
 do { \
   if (solver && GET_OPTION (log)) \
     kissat_log_lits (solver, LOGPREFIX, __VA_ARGS__); \
+} while (0)
+
+#define LOGLITSET(...) \
+do { \
+  if (solver && GET_OPTION (log)) \
+    kissat_log_litset (solver, LOGPREFIX, __VA_ARGS__); \
+} while (0)
+
+#define LOGLITPART(...) \
+do { \
+  if (solver && GET_OPTION (log)) \
+    kissat_log_litpart (solver, LOGPREFIX, __VA_ARGS__); \
+} while (0)
+
+#define LOGCOUNTEDLITS(...) \
+do { \
+  if (solver && GET_OPTION (log)) \
+    kissat_log_counted_lits (solver, LOGPREFIX, __VA_ARGS__); \
 } while (0)
 
 #define LOGLITS3(...) \
@@ -153,6 +185,12 @@ do { \
 do { \
   if (solver && GET_OPTION (log)) \
     kissat_log_clause (solver, LOGPREFIX, __VA_ARGS__); \
+} while (0)
+
+#define LOGCOUNTEDCLS(...) \
+do { \
+  if (solver && GET_OPTION (log)) \
+    kissat_log_counted_clause (solver, LOGPREFIX, __VA_ARGS__); \
 } while (0)
 
 #define LOGLINE(...) \
@@ -234,7 +272,10 @@ do { \
 #define LOGRES(...) do { } while (0)
 #define LOGRES2(...) do { } while (0)
 #define LOGLITS(...) do { } while (0)
+#define LOGLITSET(...) do { } while (0)
+#define LOGLITPART(...) do { } while (0)
 #define LOGLITS3(...) do { } while (0)
+#define LOGCOUNTEDLITS(...) do { } while (0)
 #define LOGEXT(...) do { } while (0)
 #define LOGEXT2(...) do { } while (0)
 #define LOGINTS(...) do { } while (0)
@@ -243,6 +284,7 @@ do { \
 #define LOGCLS(...) do { } while (0)
 #define LOGCLS2(...) do { } while (0)
 #define LOGCLS3(...) do { } while (0)
+#define LOGCOUNTEDCLS(...) do { } while (0)
 #define LOGLINE(...) do { } while (0)
 #define LOGREF(...) do { } while (0)
 #define LOGREF2(...) do { } while (0)

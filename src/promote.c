@@ -13,13 +13,11 @@ kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
   assert (new_glue < old_glue);
   const unsigned tier1 = GET_OPTION (tier1);
   const unsigned tier2 = MAX (GET_OPTION (tier2), GET_OPTION (tier1));
-  if (c->hyper)
-    LOGCLS (c, "promoting to new glue %u", new_glue);
-  else if (new_glue <= tier1)
+  if (new_glue <= tier1)
     {
       assert (tier1 < old_glue);
       assert (new_glue <= tier1);
-      LOGCLS (c, "promoting to new glue %u to tier1", new_glue);
+      LOGCLS (c, "promoting with new glue %u to tier1", new_glue);
       INC (clauses_promoted1);
       c->keep = true;
     }
@@ -27,7 +25,7 @@ kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
     {
       assert (tier2 < old_glue);
       assert (tier1 < new_glue && new_glue <= tier2);
-      LOGCLS (c, "promoting to new glue %u to tier2", new_glue);
+      LOGCLS (c, "promoting with new glue %u to tier2", new_glue);
       INC (clauses_promoted2);
       c->used = 2;
     }
@@ -36,14 +34,14 @@ kissat_promote_clause (kissat * solver, clause * c, unsigned new_glue)
       INC (clauses_kept2);
       assert (tier1 < old_glue && old_glue <= tier2);
       assert (tier1 < new_glue && new_glue <= tier2);
-      LOGCLS (c, "keeping to new glue %u in tier2", new_glue);
+      LOGCLS (c, "keeping with new glue %u in tier2", new_glue);
     }
   else
     {
       INC (clauses_kept3);
       assert (tier2 < old_glue);
       assert (tier2 < new_glue);
-      LOGCLS (c, "keeping to new glue %u in tier3", new_glue);
+      LOGCLS (c, "keeping with new glue %u in tier3", new_glue);
     }
   INC (clauses_improved);
   c->glue = new_glue;

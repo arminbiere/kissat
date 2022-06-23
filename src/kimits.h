@@ -20,33 +20,6 @@ struct bounds
   {
     uint64_t max_bound_completed;
     unsigned additional_clauses;
-    unsigned clause_size;
-    unsigned occurrences;
-  } eliminate;
-
-  struct
-  {
-    unsigned clause_size;
-    unsigned occurrences;
-  } subsume;
-
-  struct
-  {
-    unsigned clause_size;
-  } xor;
-};
-
-struct changes
-{
-  struct
-  {
-    uint64_t added;
-    uint64_t removed;
-    unsigned units;
-  } variables;
-  struct
-  {
-    unsigned additional_clauses;
   } eliminate;
 };
 
@@ -87,12 +60,10 @@ struct limited
 
 struct enabled
 {
-  bool autarky;
   bool eliminate;
   bool focus;
   bool mode;
   bool probe;
-  bool rephase;
 };
 
 struct delay
@@ -103,14 +74,12 @@ struct delay
 
 struct delays
 {
-  delay autarky;
   delay backbone;
   delay bumpreasons;
   delay eliminate;
   delay failed;
   delay probe;
   delay substitute;
-  delay ternary;
 };
 
 struct effort
@@ -137,40 +106,16 @@ void kissat_init_limits (struct kissat *);
 
 uint64_t kissat_scale_delta (struct kissat *, const char *, uint64_t);
 
-uint64_t kissat_scale_limit (struct kissat *,
-			     const char *, uint64_t count, int base);
-
-#define SCALE_LIMIT(COUNT,NAME) \
-  kissat_scale_limit (solver, #NAME, \
-                      solver->statistics.COUNT, GET_OPTION (NAME))
-
-double kissat_linear (uint64_t);
-double kissat_logn (uint64_t);
-double kissat_ndivlogn (uint64_t);
-double kissat_nlognlognlogn (uint64_t);
-double kissat_nlognlogn (uint64_t);
-double kissat_nlogn (uint64_t);
 double kissat_quadratic (uint64_t);
+double kissat_nlogpown (uint64_t, unsigned);
 double kissat_sqrt (uint64_t);
+double kissat_logn (uint64_t);
 
-#define LINEAR(COUNT) kissat_linear (COUNT)
-#define NDIVLOGN(COUNT) kissat_ndivlogn (COUNT)
-#define NLOGN(COUNT) kissat_nlogn (COUNT)
-#define NLOGNLOGN(COUNT) kissat_nlognlogn (COUNT)
-#define NLOGNLOGNLOGN(COUNT) kissat_nlognlognlogn (COUNT)
-#define QUADRATIC(COUNT) kissat_quadratic (COUNT)
+#define NLOGN(COUNT) kissat_nlogpown (COUNT,1)
+#define NLOG2N(COUNT) kissat_nlogpown (COUNT,2)
+#define NLOG3N(COUNT) kissat_nlogpown (COUNT,3)
+
 #define SQRT(COUNT) kissat_sqrt (COUNT)
-
-#define INIT_CONFLICT_LIMIT(NAME,SCALE) \
-do { \
-  const uint64_t DELTA = GET_OPTION (NAME ## init); \
-  const uint64_t SCALED = !(SCALE) ? DELTA : \
-    kissat_scale_delta (solver, #NAME, DELTA); \
-  limits->NAME.conflicts = CONFLICTS + SCALED; \
-  kissat_very_verbose (solver, \
-    "initial " #NAME " limit of %s conflicts", \
-    FORMAT_COUNT (limits->NAME.conflicts)); \
-} while (0)
 
 #define UPDATE_CONFLICT_LIMIT(NAME,COUNT,SCALE_COUNT_FUNCTION,SCALE_DELTA) \
 do { \
@@ -202,7 +147,7 @@ do { \
     const uint64_t LAST = \
       solver->probing ? solver->last.probe : solver->last.eliminate; \
     uint64_t REFERENCE = TICKS - LAST; \
-    const uint64_t MINEFFORT = GET_OPTION (mineffort); \
+    const uint64_t MINEFFORT = 1e3 * GET_OPTION (mineffort); \
     if (REFERENCE < MINEFFORT) \
       { \
 	REFERENCE = MINEFFORT; \
@@ -239,58 +184,5 @@ do { \
     LIMIT = NEW_LIMIT; \
     \
   } while (0)
-
-#define RETURN_IF_DELAYED(NAME) \
-do { \
-  assert (!solver->inconsistent); \
-  if (!GET_OPTION (NAME ## delay)) \
-    break; \
-  delay * DELAY = &solver->delays.NAME; \
-  assert (DELAY->count <= DELAY->current); \
-  if (!DELAY->count) \
-    break; \
-  kissat_very_verbose (solver, \
-                       #NAME " delayed %u more time%s", \
-		       DELAY->count, DELAY->count > 1 ? "s" : ""); \
-  DELAY->count--; \
-  return; \
-} while (0)
-
-#define UPDATE_DELAY(SUCCESS,NAME) \
-do { \
-  if (solver->inconsistent) \
-    break; \
-  if (!GET_OPTION (NAME ## delay)) \
-    break; \
-  delay * DELAY = &solver->delays.NAME; \
-  unsigned MAX_DELAY = GET_OPTION (delay); \
-  assert (DELAY->count <= DELAY->current); \
-  if (SUCCESS) \
-    { \
-      if (DELAY->current) \
-	{ \
-	  kissat_very_verbose (solver, #NAME " delay reset"); \
-	  DELAY->current = DELAY->count = 0; \
-	} \
-      else \
-	assert (!DELAY->count); \
-    } \
-  else \
-    { \
-      if (DELAY->current < MAX_DELAY) \
-	{ \
-	  DELAY->current++; \
-	  kissat_very_verbose (solver, \
-			       #NAME " delay increased to %u", \
-			       DELAY->current); \
-	} \
-      else \
-	kissat_very_verbose (solver, \
-			     "keeping " #NAME " delay at maximum %u", \
-			     DELAY->current); \
-      DELAY->count = DELAY->current; \
-    } \
-  assert (DELAY->count <= DELAY->current); \
-} while (0)
 
 #endif

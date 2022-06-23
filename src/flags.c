@@ -19,7 +19,6 @@ activate_literal (kissat * solver, unsigned lit)
   kissat_enqueue (solver, idx);
   const double score = 1.0 - 1.0 / solver->statistics.variables_activated;
   kissat_update_heap (solver, &solver->scores, idx, score);
-  kissat_push_heap (solver, &solver->scores, idx);
   assert (solver->unassigned < UINT_MAX);
   solver->unassigned++;
   kissat_mark_removed_literal (solver, lit);
@@ -42,8 +41,8 @@ deactivate_variable (kissat * solver, flags * f, unsigned idx)
   assert (solver->active > 0);
   solver->active--;
   kissat_dequeue (solver, idx);
-  if (kissat_heap_contains (&solver->scores, idx))
-    kissat_pop_heap (solver, &solver->scores, idx);
+  if (kissat_heap_contains (SCORES, idx))
+    kissat_pop_heap (solver, SCORES, idx);
 }
 
 void

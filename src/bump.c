@@ -30,9 +30,10 @@ sort_bump (kissat * solver)
 }
 
 static void
-rescale_scores (kissat * solver, heap * scores)
+rescale_scores (kissat * solver)
 {
   INC (rescaled);
+  heap *scores = &solver->scores;
   const double max_score = kissat_max_score_on_heap (scores);
   kissat_phase (solver, "rescale", GET (rescaled),
 		"maximum score %g increment %g", max_score, solver->scinc);
@@ -46,7 +47,7 @@ rescale_scores (kissat * solver, heap * scores)
 }
 
 static void
-bump_score_increment (kissat * solver, heap * scores)
+bump_score_increment (kissat * solver)
 {
   const double old_scinc = solver->scinc;
   const double decay = GET_OPTION (decay) * 1e-3;
@@ -56,32 +57,32 @@ bump_score_increment (kissat * solver, heap * scores)
   LOG ("new score increment %g = %g * %g", new_scinc, factor, old_scinc);
   solver->scinc = new_scinc;
   if (new_scinc > MAX_SCORE)
-    rescale_scores (solver, scores);
+    rescale_scores (solver);
 }
 
 static inline void
-bump_variable_score (kissat * solver, heap * scores, unsigned idx)
+bump_analyzed_variable_score (kissat * solver, unsigned idx)
 {
+  heap *scores = &solver->scores;
   const double old_score = kissat_get_heap_score (scores, idx);
-  const double new_score = old_score + solver->scinc;
-  LOG ("new score[%u] = %g = %g + %g",
-       idx, new_score, old_score, solver->scinc);
+  const double inc = solver->scinc;
+  const double new_score = old_score + inc;
+  LOG ("new score[%u] = %g = %g + %g", idx, new_score, old_score, inc);
   kissat_update_heap (solver, scores, idx, new_score);
   if (new_score > MAX_SCORE)
-    rescale_scores (solver, scores);
+    rescale_scores (solver);
 }
 
 static void
 bump_analyzed_variable_scores (kissat * solver)
 {
-  heap *scores = &solver->scores;
   flags *flags = solver->flags;
 
   for (all_stack (unsigned, idx, solver->analyzed))
     if (flags[idx].active)
-        bump_variable_score (solver, scores, idx);
+        bump_analyzed_variable_score (solver, idx);
 
-  bump_score_increment (solver, scores);
+  bump_score_increment (solver);
 }
 
 static void
@@ -110,14 +111,24 @@ move_analyzed_variables_to_front_of_queue (kissat * solver)
 }
 
 void
-kissat_bump (kissat * solver)
+kissat_bump_analyzed (kissat * solver)
 {
   START (bump);
   const size_t bumped = SIZE_STACK (solver->analyzed);
-  if (solver->stable)
-    bump_analyzed_variable_scores (solver);
-  else
+  if (!solver->stable)
     move_analyzed_variables_to_front_of_queue (solver);
+  else
+    bump_analyzed_variable_scores (solver);
   ADD (literals_bumped, bumped);
   STOP (bump);
+}
+
+void
+kissat_update_scores (kissat * solver)
+{
+  assert (solver->stable);
+  heap *scores = SCORES;
+  for (all_variables (idx))
+    if (ACTIVE (idx) && !kissat_heap_contains (scores, idx))
+      kissat_push_heap (solver, scores, idx);
 }

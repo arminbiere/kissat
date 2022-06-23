@@ -70,8 +70,7 @@ kissat_increase_size (kissat * solver, unsigned new_size)
   CREALLOC_LITERAL_INDEXED (watches, watches);
 
   reallocate_trail (solver, old_size, new_size);
-
-  kissat_resize_heap (solver, &solver->scores, new_size);
+  kissat_resize_heap (solver, SCORES, new_size);
   kissat_increase_phases (solver, new_size);
 
   solver->size = new_size;
@@ -102,8 +101,7 @@ kissat_decrease_size (kissat * solver)
   NREALLOC_LITERAL_INDEXED (watches, watches);
 
   reallocate_trail (solver, old_size, new_size);
-
-  kissat_resize_heap (solver, &solver->scores, new_size);
+  kissat_resize_heap (solver, SCORES, new_size);
   kissat_decrease_phases (solver, new_size);
 
   solver->size = new_size;
@@ -150,5 +148,4 @@ kissat_enlarge_variables (kissat * solver, unsigned new_vars)
       kissat_increase_size (solver, new_size);
     }
   solver->vars = new_vars;
-  kissat_invalidate_cache (solver);
 }

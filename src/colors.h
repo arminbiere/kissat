@@ -15,8 +15,8 @@
 #define WHITE "\037[34m"
 #define YELLOW "\033[33m"
 
-#define LIGHT_GRAY "\033[0;37m"
-#define DARK_GRAY "\033[1;30m"
+#define LIGHT_GRAY "\033[1;37m"
+#define DARK_GRAY "\033[0;37m"
 
 #ifdef _POSIX_C_SOURCE
 #define assert_if_posix assert

@@ -685,3 +685,12 @@ sed \
   -e "s#@AR@#$AR#" \
   -e "s#@GOALS@#$goals#" \
   ../makefile.in > makefile
+
+if [ -f ../src/makefile ]
+then
+  msg "removing src/makefile"
+  rm -f ../src/makefile
+fi
+
+msg "linking src/makefile"
+ln -s $ROOT/makefile ../src

@@ -486,13 +486,10 @@ do { \
   SCHEDULE (random);
   SCHEDULE (queue);
   SCHEDULE (allocate);
-  SCHEDULE (bits);
   SCHEDULE (array);
   SCHEDULE (stack);
-  SCHEDULE (cache);
   SCHEDULE (arena);
   SCHEDULE (heap);
-  SCHEDULE (reap);
   SCHEDULE (vector);
   SCHEDULE (rank);
   SCHEDULE (sort);

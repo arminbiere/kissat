@@ -1,3 +1,4 @@
+#include "bump.h"
 #include "fastassign.h"
 #include "propsearch.h"
 #include "trail.h"

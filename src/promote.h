@@ -6,9 +6,11 @@
 void kissat_promote_clause (struct kissat *, clause *, unsigned new_glue);
 
 static inline unsigned
-kissat_recompute_glue (kissat * solver, clause * c)
+kissat_recompute_glue (kissat * solver, clause * c, unsigned limit)
 {
+  assert (limit);
   assert (EMPTY_STACK (solver->promote));
+  unsigned res = 0;
   for (all_literals_in_clause (lit, c))
     {
       assert (VALUE (lit));
@@ -16,6 +18,8 @@ kissat_recompute_glue (kissat * solver, clause * c)
       frame *frame = &FRAME (level);
       if (frame->promote)
 	continue;
+      if (++res == limit)
+	break;
       frame->promote = true;
       PUSH_STACK (solver->promote, level);
     }
@@ -25,7 +29,6 @@ kissat_recompute_glue (kissat * solver, clause * c)
       assert (frame->promote);
       frame->promote = false;
     }
-  unsigned res = SIZE_STACK (solver->promote);
   CLEAR_STACK (solver->promote);
   return res;
 }

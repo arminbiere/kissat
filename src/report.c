@@ -119,7 +119,6 @@ kissat_report (kissat * solver, bool verbose, char type)
     case 's':
       COLOR (GREEN);
       break;
-    case '3':
     case 'f':
     case 't':
     case 'u':

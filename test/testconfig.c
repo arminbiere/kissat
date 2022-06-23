@@ -2,6 +2,15 @@
 
 #include "../src/config.h"
 
+// Manually copied from '../src/config.c'.
+
+#define CONFIGURATIONS \
+  CONFIGURATION (basic) \
+  CONFIGURATION (default) \
+  CONFIGURATION (plain) \
+  CONFIGURATION (sat) \
+  CONFIGURATION (unsat)
+
 #include "test.h"
 
 static void

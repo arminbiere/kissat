@@ -8,15 +8,14 @@ kissat_init_queue (kissat * solver)
   queue *queue = &solver->queue;
   queue->first = queue->last = DISCONNECT;
   assert (!queue->stamp);
-
   queue->search.idx = DISCONNECT;
   assert (!queue->search.stamp);
 }
 
 void
-kissat_reset_queue (kissat * solver)
+kissat_reset_search_of_queue (kissat * solver)
 {
-  LOG ("reset queue");
+  LOG ("reset last search cache of queue");
   queue *queue = &solver->queue;
   links *links = solver->links;
   const unsigned last = queue->last;

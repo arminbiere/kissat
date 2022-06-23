@@ -2,7 +2,6 @@
 #include "backtrack.h"
 #include "inline.h"
 #include "inlineheap.h"
-#include "inlinescore.h"
 #include "inlinequeue.h"
 #include "print.h"
 #include "proprobe.h"
@@ -99,7 +98,7 @@ kissat_backtrack_without_updating_phases (kissat * solver, unsigned new_level)
   unsigned *q = new_end;
   if (solver->stable)
     {
-      heap *scores = &solver->scores;
+      heap *scores = SCORES;
       for (const unsigned *p = q; p != old_end; p++)
 	{
 	  const unsigned lit = *p;
@@ -182,16 +181,12 @@ kissat_backtrack_after_conflict (kissat * solver, unsigned new_level)
   kissat_backtrack_without_updating_phases (solver, new_level);
 }
 
-// TODO check whether this can be merged with
-// 'kissat_restart_and_flush_trail'.
-
 void
 kissat_backtrack_propagate_and_flush_trail (kissat * solver)
 {
   if (solver->level)
     {
       assert (solver->watching);
-      assert (solver->level > 0);
       kissat_backtrack_in_consistent_state (solver, 0);
 #ifndef NDEBUG
       clause *conflict =

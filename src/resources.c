@@ -19,6 +19,7 @@ kissat_wall_clock_time (void)
 #include "utilities.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <inttypes.h>
 #include <sys/resource.h>
 #include <sys/types.h>
@@ -89,7 +90,12 @@ kissat_print_resources (kissat * solver)
 	  "max-allocated:",
 	  max_allocated, "bytes", kissat_percent (max_allocated, rss));
 #endif
-  printf ("c process-time: %30s %18.2f seconds\n", FORMAT_TIME (t), t);
+  {
+    format buffer;
+    memset (&buffer, 0, sizeof buffer);
+    printf ("c process-time: %30s %18.2f seconds\n",
+	    kissat_format_time (&buffer, t), t);
+  }
   fflush (stdout);
 }
 

@@ -44,6 +44,30 @@ kissat_remove_blocking_watch (kissat * solver,
 }
 
 void
+kissat_substitute_large_watch (kissat * solver,
+			       watches * watches, watch src, watch dst)
+{
+  assert (!solver->watching);
+  watch *const begin = BEGIN_WATCHES (*watches);
+  const watch *const end = END_WATCHES (*watches);
+#ifndef NDEBUG
+  bool found = false;
+#endif
+  for (watch * p = begin; p != end; p++)
+    {
+      const watch head = *p;
+      if (head.raw != src.raw)
+	continue;
+#ifndef NDEBUG
+      found = true;
+#endif
+      *p = dst;
+      break;
+    }
+  assert (found);
+}
+
+void
 kissat_flush_large_watches (kissat * solver)
 {
   assert (solver->watching);

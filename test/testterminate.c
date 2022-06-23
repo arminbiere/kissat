@@ -7,13 +7,10 @@
 
 static void
 test_terminate (int bit, const char *name,
-		bool walkinitially,
 		int probeinit, int eliminateinit, int rephaseint,
 		const char *cnf)
 {
 #ifdef NOPTIONS
-  if (walkinitially)
-    return;
   if (probeinit >= 0)
     return;
   if (eliminateinit >= 0)
@@ -26,8 +23,6 @@ test_terminate (int bit, const char *name,
 #ifndef NOPTIONS
   if (rephaseint > 0)
     solver->options.rephaseinit = solver->options.rephaseint = rephaseint;
-  if (walkinitially)
-    solver->options.walkinitially = true;
   if (probeinit >= 0)
     solver->options.probeinit = probeinit;
   if (eliminateinit >= 0)
@@ -60,39 +55,31 @@ test_terminate (int bit, const char *name,
 // *INDENT-OFF*
 
 #define TEST_TERMINATE_BITS \
-TEST_TERMINATE (autarky_terminated_1,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (autarky_terminated_2,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (autarky_terminated_3,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (autarky_terminated_4,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (backbone_terminated_1,false,0,-1,-1,"add8") \
-TEST_TERMINATE (backbone_terminated_2,false,0,-1,-1,"add8") \
-TEST_TERMINATE (backbone_terminated_3,false,0,-1,-1,"add8") \
-TEST_TERMINATE (eliminate_terminated_1,false,-1,0,-1,"add8") \
-TEST_TERMINATE (failed_terminated_1,false,0,-1,-1,"add8") \
-TEST_TERMINATE (failed_terminated_2,false,0,-1,-1,"add8") \
-TEST_TERMINATE (forward_terminated_1,false,-1,0,-1,"add8") \
-TEST_TERMINATE (rephase_terminated_1,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (rephase_terminated_2,false,-1,-1,-1,"ph11") \
-TEST_TERMINATE (search_terminated_1,false,-1,-1,-1,"add8") \
-TEST_TERMINATE (substitute_terminated_1,false,0,-1,-1,"add8") \
-TEST_TERMINATE (ternary_terminated_1,false,0,-1,-1,"add128") \
-TEST_TERMINATE (ternary_terminated_2,false,0,-1,-1,"add128") \
-TEST_TERMINATE (ternary_terminated_3,false,0,-1,-1,"add128") \
-TEST_TERMINATE (transitive_terminated_1,false,0,-1,-1,"add128") \
-TEST_TERMINATE (transitive_terminated_2,false,0,-1,-1,"add128") \
-TEST_TERMINATE (transitive_terminated_3,false,0,-1,-1,"add128") \
-TEST_TERMINATE (vivify_terminated_1,false,0,-1,-1,"ph11") \
-TEST_TERMINATE (vivify_terminated_2,false,0,-1,-1,"ph11") \
-TEST_TERMINATE (vivify_terminated_3,false,0,-1,-1,"ph11") \
-TEST_TERMINATE (vivify_terminated_4,false,0,-1,-1,"ph11") \
-TEST_TERMINATE (walk_terminated_1,true,-1,-1,-1,"add8") \
-TEST_TERMINATE (walk_terminated_2,true,-1,-1,-1,"add8") \
-TEST_TERMINATE (xors_terminated_1,true,-1,0,-1,"add8") \
+TEST_TERMINATE (backbone_terminated_1,0,-1,-1,"add8") \
+TEST_TERMINATE (backbone_terminated_2,0,-1,-1,"add8") \
+TEST_TERMINATE (backbone_terminated_3,0,-1,-1,"add8") \
+TEST_TERMINATE (eliminate_terminated_1,-1,0,-1,"add8") \
+TEST_TERMINATE (eliminate_terminated_2,-1,0,-1,"add8") \
+TEST_TERMINATE (forward_terminated_1,-1,0,-1,"add8") \
+TEST_TERMINATE (kitten_terminated_1,-1,0,-1,"add8") \
+TEST_TERMINATE (search_terminated_1,-1,-1,-1,"add8") \
+TEST_TERMINATE (substitute_terminated_1,0,-1,-1,"add8") \
+TEST_TERMINATE (sweep_terminated_1,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_2,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_3,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_4,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_5,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_6,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_7,0,-1,-1,"ph11") \
+TEST_TERMINATE (vivify_terminated_1,0,-1,-1,"ph11") \
+TEST_TERMINATE (vivify_terminated_2,0,-1,-1,"ph11") \
+TEST_TERMINATE (walk_terminated_1,-1,-1,-1,"ph11") \
+TEST_TERMINATE (warmup_terminated_1,-1,0,-1,"ph11") \
 
-#define TEST_TERMINATE(BIT,WALKINITIALLY,ELIMININIT,PROBEINIT,REPHASEINT,CNF) \
+#define TEST_TERMINATE(BIT,ELIMININIT,PROBEINIT,REPHASEINT,CNF) \
 static void test_ ## BIT (void) \
 { \
-  test_terminate (BIT, #BIT, WALKINITIALLY, ELIMININIT, PROBEINIT, REPHASEINT, \
+  test_terminate (BIT, #BIT, ELIMININIT, PROBEINIT, REPHASEINT, \
                   "../test/cnf/" CNF ".cnf"); \
 }
 

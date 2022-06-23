@@ -33,14 +33,12 @@ kissat_init (void)
   kissat_init_queue (solver);
   assert (INTERNAL_MAX_LIT < UINT_MAX);
   kissat_push_frame (solver, UINT_MAX);
-  kissat_init_reap (solver, &solver->reap);
   solver->watching = true;
   solver->conflict.size = 2;
   solver->conflict.keep = true;
   solver->scinc = 1.0;
   solver->first_reducible = INVALID_REF;
   solver->last_irredundant = INVALID_REF;
-  solver->rephased.last = 'O';
 #ifndef NDEBUG
   kissat_init_checker (solver);
 #endif
@@ -76,16 +74,9 @@ void
 kissat_release (kissat * solver)
 {
   kissat_require_initialized (solver);
-
-  kissat_release_heap (solver, &solver->scores);
-  kissat_release_heap (solver, &solver->schedule);
-
-  kissat_release_clueue (solver, &solver->clueue);
-  kissat_release_reap (solver, &solver->reap);
+  kissat_release_heap (solver, SCORES);
 
   kissat_release_phases (solver);
-  kissat_release_cache (solver);
-  RELEASE_STACK (solver->nonces);
 
   RELEASE_STACK (solver->export);
   RELEASE_STACK (solver->import);
@@ -130,6 +121,8 @@ kissat_release (kissat * solver)
   RELEASE_STACK (solver->shrinkable);
   RELEASE_STACK (solver->xorted[0]);
   RELEASE_STACK (solver->xorted[1]);
+
+  RELEASE_STACK (solver->sweep);
 
   RELEASE_STACK (solver->ranks);
 

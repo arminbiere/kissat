@@ -1,3 +1,4 @@
+#include "bump.h"
 #include "inline.h"
 #include "inlineheap.h"
 #include "inlinequeue.h"
@@ -10,8 +11,57 @@
 
 #include <inttypes.h>
 
+void
+kissat_init_mode_limit (kissat * solver)
+{
+  limits *limits = &solver->limits;
+
+  if (GET_OPTION (stable) == 1)
+    {
+      assert (!solver->stable);
+
+      const uint64_t conflicts_delta = GET_OPTION (modeinit);
+      const uint64_t conflicts_limit = CONFLICTS + conflicts_delta;
+      assert (conflicts_limit);
+      limits->mode.conflicts = conflicts_limit;
+      limits->mode.ticks = 0;
+
+      kissat_very_verbose (solver, "initial stable mode switching limit "
+			   "at %s after %s conflicts",
+			   FORMAT_COUNT (conflicts_limit),
+			   FORMAT_COUNT (conflicts_delta));
+
+      solver->mode.ticks = solver->statistics.search_ticks;
+#ifndef QUIET
+      solver->mode.conflicts = CONFLICTS;
+#ifdef METRICS
+      solver->mode.propagations = solver->statistics.search_propagations;
+#endif
+// *INDENT-OFF*
+      solver->mode.entered = kissat_process_time ();
+      kissat_very_verbose (solver,
+        "starting focused mode at %.2f seconds "
+        "(%" PRIu64 " conflicts, %" PRIu64 " ticks"
+#ifdef METRICS
+	", %" PRIu64 " propagations, %" PRIu64 " visits"
+#endif
+	")",
+        solver->mode.entered, solver->mode.conflicts, solver->mode.ticks
+#ifdef METRICS
+        , solver->mode.propagations, solver->mode.visits
+#endif
+	);
+// *INDENT-ON*
+#endif
+    }
+  else
+    kissat_very_verbose (solver,
+			 "no need to set mode limit (only %s mode enabled)",
+			 GET_OPTION (stable) ? "stable" : "focused");
+}
+
 static void
-new_mode_limit (kissat * solver)
+update_mode_limit (kissat * solver)
 {
   kissat_init_averages (solver, &AVERAGES);
 
@@ -23,7 +73,8 @@ new_mode_limit (kissat * solver)
   if (limits->mode.conflicts)
     {
       assert (solver->stable);
-      limits->mode.interval = statistics->search_ticks;
+      assert (solver->mode.ticks <= statistics->search_ticks);
+      limits->mode.interval = statistics->search_ticks - solver->mode.ticks;
       limits->mode.conflicts = 0;
     }
 
@@ -31,7 +82,7 @@ new_mode_limit (kissat * solver)
   assert (interval > 0);
 
   const uint64_t count = (statistics->switched_modes + 1) / 2;
-  const uint64_t scaled = interval * kissat_quadratic (count);
+  const uint64_t scaled = interval * kissat_nlogpown (count, 4);
   limits->mode.ticks = statistics->search_ticks + scaled;
 #ifndef QUIET
   if (solver->stable)
@@ -103,20 +154,11 @@ switch_to_focused_mode (kissat * solver)
 		"switching to focused mode after %s conflicts",
 		FORMAT_COUNT (CONFLICTS));
   solver->stable = false;
-  new_mode_limit (solver);
+  update_mode_limit (solver);
   START (focused);
   REPORT (0, '{');
-  kissat_reset_queue (solver);
-  kissat_new_focused_restart_limit (solver);
-}
-
-void
-kissat_update_scores (kissat * solver)
-{
-  heap *scores = &solver->scores;
-  for (all_variables (idx))
-    if (ACTIVE (idx) && !kissat_heap_contains (scores, idx))
-      kissat_push_heap (solver, scores, idx);
+  kissat_reset_search_of_queue (solver);
+  kissat_update_focused_restart_limit (solver);
 }
 
 static void
@@ -131,7 +173,7 @@ switch_to_stable_mode (kissat * solver)
   kissat_phase (solver, "stable", GET (stable_modes),
 		"switched to stable mode after %" PRIu64
 		" conflicts", CONFLICTS);
-  new_mode_limit (solver);
+  update_mode_limit (solver);
   START (stable);
   REPORT (0, '[');
   kissat_init_reluctant (solver);
@@ -153,8 +195,7 @@ kissat_switching_search_mode (kissat * solver)
     {
       assert (!solver->stable);
       assert (!statistics->switched_modes);
-      if (statistics->conflicts >= limits->mode.conflicts)
-	return true;
+      return statistics->conflicts >= limits->mode.conflicts;
     }
 
   return statistics->search_ticks >= limits->mode.ticks;

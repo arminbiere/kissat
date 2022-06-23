@@ -18,6 +18,7 @@ struct mode
 #endif
 };
 
+void kissat_init_mode_limit (struct kissat *);
 bool kissat_switching_search_mode (struct kissat *);
 void kissat_switch_search_mode (struct kissat *);
 

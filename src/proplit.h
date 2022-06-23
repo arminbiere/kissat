@@ -1,5 +1,3 @@
-#ifndef HYPER_PROPAGATION
-
 static inline void
 kissat_watch_large_delayed (kissat * solver,
 			    watches * all_watches, unsigneds * delayed)
@@ -26,9 +24,7 @@ kissat_watch_large_delayed (kissat * solver,
   CLEAR_STACK (*delayed);
 }
 
-#endif
-
-#if defined(HYPER_PROPAGATION) || defined (PROBING_PROPAGATION)
+#if defined (PROBING_PROPAGATION)
 
 static inline void
 kissat_update_probing_propagation_statistics (kissat * solver,
@@ -47,16 +43,6 @@ kissat_update_probing_propagation_statistics (kissat * solver,
       ADD (backbone_propagations, propagated);
       ADD (backbone_ticks, ticks);
     }
-  if (solver->failed_probing)
-    {
-      ADD (failed_propagations, propagated);
-      ADD (failed_ticks, ticks);
-    }
-  if (solver->transitive_reducing)
-    {
-      ADD (transitive_propagations, propagated);
-      ADD (transitive_ticks, ticks);
-    }
   if (solver->vivifying)
     {
       ADD (vivify_propagations, propagated);
@@ -66,6 +52,36 @@ kissat_update_probing_propagation_statistics (kissat * solver,
 
   ADD (probing_ticks, ticks);
   ADD (ticks, ticks);
+}
+
+#else
+
+static inline void
+kissat_update_search_propagation_statistics (kissat * solver,
+					     const unsigned *saved_propagate)
+{
+  assert (saved_propagate <= solver->propagate);
+  const unsigned propagated = solver->propagate - saved_propagate;
+
+  LOG ("propagated %u literals", propagated);
+  LOG ("propagation took %" PRIu64 " ticks", solver->ticks);
+
+  ADD (propagations, propagated);
+  ADD (ticks, solver->ticks);
+
+  ADD (search_propagations, propagated);
+  ADD (search_ticks, solver->ticks);
+
+  if (solver->stable)
+    {
+      ADD (stable_propagations, propagated);
+      ADD (stable_ticks, solver->ticks);
+    }
+  else
+    {
+      ADD (focused_propagations, propagated);
+      ADD (focused_ticks, solver->ticks);
+    }
 }
 
 #endif
@@ -82,7 +98,7 @@ kissat_delay_watching_large (kissat * solver, unsigneds * const delayed,
 
 static inline clause *
 PROPAGATE_LITERAL (kissat * solver,
-#if defined(HYPER_PROPAGATION) || defined(PROBING_PROPAGATION)
+#if defined(PROBING_PROPAGATION)
 		   const clause * const ignore,
 #endif
 		   const unsigned lit)
@@ -98,9 +114,6 @@ PROPAGATE_LITERAL (kissat * solver,
   value *const values = solver->values;
 
   const unsigned not_lit = NOT (lit);
-#ifdef HYPER_PROPAGATION
-  const bool hyper = GET_OPTION (hyper);
-#endif
 
   assert (not_lit < LITS);
   watches *watches = all_watches + not_lit;
@@ -112,15 +125,14 @@ PROPAGATE_LITERAL (kissat * solver,
   const watch *p = q;
 
   unsigneds *const delayed = &solver->delayed;
+  assert (EMPTY_STACK (*delayed));
 
   const size_t size_watches = SIZE_WATCHES (*watches);
   uint64_t ticks = 1 + kissat_cache_lines (size_watches, sizeof (watch));
-#ifndef HYPER_PROPAGATION
   const unsigned idx = IDX (lit);
   struct assigned *const a = assigned + idx;
   const bool probing = solver->probing;
   const unsigned level = a->level;
-#endif
   clause *res = 0;
 
   while (p != end_watches)
@@ -129,19 +141,22 @@ PROPAGATE_LITERAL (kissat * solver,
       const unsigned blocking = head.blocking.lit;
       assert (VALID_INTERNAL_LITERAL (blocking));
       const value blocking_value = values[blocking];
-      if (head.type.binary)
+      const bool binary = head.type.binary;
+      watch tail;
+      if (!binary)
+	tail = *q++ = *p++;
+      if (blocking_value > 0)
+	continue;
+      if (binary)
 	{
-#ifdef HYPER_PROPAGATION
-	  assert (blocking_value > 0);
-#else
-	  if (blocking_value > 0)
-	    continue;
 	  const bool redundant = head.binary.redundant;
 	  if (blocking_value < 0)
 	    {
 	      res = kissat_binary_conflict (solver, redundant,
 					    not_lit, blocking);
+#ifndef CONTINUE_PROPAGATING_AFTER_CONFLICT
 	      break;
+#endif
 	    }
 	  else
 	    {
@@ -151,17 +166,13 @@ PROPAGATE_LITERAL (kissat * solver,
 					 redundant, blocking, not_lit);
 	      ticks++;
 	    }
-#endif
 	}
       else
 	{
-	  const watch tail = *q++ = *p++;
-	  if (blocking_value > 0)
-	    continue;
 	  const reference ref = tail.raw;
 	  assert (ref < SIZE_STACK (solver->arena));
 	  clause *const c = (clause *) (arena + ref);
-#if defined(HYPER_PROPAGATION) || defined(PROBING_PROPAGATION)
+#if defined(PROBING_PROPAGATION)
 	  if (c == ignore)
 	    continue;
 #endif
@@ -179,16 +190,27 @@ PROPAGATE_LITERAL (kissat * solver,
 	  assert (lit != other);
 	  const value other_value = values[other];
 	  if (other_value > 0)
-	    q[-2].blocking.lit = other;
-	  else
 	    {
-	      const unsigned *const end_lits = lits + c->size;
-	      unsigned *const searched = lits + c->searched;
-	      assert (c->lits + 2 <= searched);
-	      assert (searched < end_lits);
-	      unsigned *r, replacement = INVALID_LIT;
-	      value replacement_value = -1;
-	      for (r = searched; r != end_lits; r++)
+	      q[-2].blocking.lit = other;
+	      continue;
+	    }
+	  const unsigned *const end_lits = lits + c->size;
+	  unsigned *const searched = lits + c->searched;
+	  assert (c->lits + 2 <= searched);
+	  assert (searched < end_lits);
+	  unsigned *r, replacement = INVALID_LIT;
+	  value replacement_value = -1;
+	  for (r = searched; r != end_lits; r++)
+	    {
+	      replacement = *r;
+	      assert (VALID_INTERNAL_LITERAL (replacement));
+	      replacement_value = values[replacement];
+	      if (replacement_value >= 0)
+		break;
+	    }
+	  if (replacement_value < 0)
+	    {
+	      for (r = lits + 2; r != searched; r++)
 		{
 		  replacement = *r;
 		  assert (VALID_INTERNAL_LITERAL (replacement));
@@ -196,92 +218,39 @@ PROPAGATE_LITERAL (kissat * solver,
 		  if (replacement_value >= 0)
 		    break;
 		}
-	      if (replacement_value < 0)
-		{
-		  for (r = lits + 2; r != searched; r++)
-		    {
-		      replacement = *r;
-		      assert (VALID_INTERNAL_LITERAL (replacement));
-		      replacement_value = values[replacement];
-		      if (replacement_value >= 0)
-			break;
-		    }
-		}
+	    }
 
-	      if (replacement_value >= 0)
-		c->searched = r - lits;
-
-	      if (replacement_value > 0)
-		{
-		  assert (replacement != INVALID_LIT);
-		  q[-2].blocking.lit = replacement;
-		}
-	      else if (!replacement_value)
-		{
-		  assert (replacement != INVALID_LIT);
-		  LOGREF (ref, "unwatching %s in", LOGLIT (not_lit));
-		  q -= 2;
-		  lits[0] = other;
-		  lits[1] = replacement;
-		  assert (lits[0] != lits[1]);
-		  *r = not_lit;
-		  kissat_delay_watching_large (solver, delayed,
-					       replacement, other, ref);
-		  ticks++;
-		}
-	      else if (other_value)
-		{
-		  assert (replacement_value < 0);
-		  assert (blocking_value < 0);
-		  assert (other_value < 0);
-		  LOGREF (ref, "conflicting");
-		  res = c;
-		  break;
-		}
-#ifdef HYPER_PROPAGATION
-	      else if (hyper)
-		{
-		  assert (replacement_value < 0);
-		  unsigned dom = kissat_find_dominator (solver, other, c);
-		  if (dom != INVALID_LIT)
-		    {
-		      LOGBINARY (dom, other, "hyper binary resolvent");
-
-		      INC (hyper_binary_resolved);
-		      INC (clauses_added);
-
-		      INC (hyper_binaries);
-		      INC (clauses_redundant);
-
-		      CHECK_AND_ADD_BINARY (dom, other);
-		      ADD_BINARY_TO_PROOF (dom, other);
-
-		      kissat_assign_binary_at_level_one (solver,
-							 values, assigned,
-							 true, other, dom);
-
-		      delay_watching_hyper (solver, delayed, dom, other);
-		      delay_watching_hyper (solver, delayed, other, dom);
-
-		      kissat_delay_watching_large (solver, delayed,
-						   not_lit, other, ref);
-
-		      LOGREF (ref, "unwatching %s in", LOGLIT (not_lit));
-		      q -= 2;
-		    }
-		  else
-		    kissat_fast_assign_reference (solver, values,
-						  assigned, other, ref, c);
-		  ticks++;
-		}
+	  if (replacement_value >= 0)
+	    {
+	      c->searched = r - lits;
+	      assert (replacement != INVALID_LIT);
+	      LOGREF (ref, "unwatching %s in", LOGLIT (not_lit));
+	      q -= 2;
+	      lits[0] = other;
+	      lits[1] = replacement;
+	      assert (lits[0] != lits[1]);
+	      *r = not_lit;
+	      kissat_delay_watching_large (solver, delayed,
+					   replacement, other, ref);
+	      ticks++;
+	    }
+	  else if (other_value)
+	    {
+	      assert (replacement_value < 0);
+	      assert (blocking_value < 0);
+	      assert (other_value < 0);
+	      LOGREF (ref, "conflicting");
+	      res = c;
+#ifndef CONTINUE_PROPAGATING_AFTER_CONFLICT
+	      break;
 #endif
-	      else
-		{
-		  assert (replacement_value < 0);
-		  kissat_fast_assign_reference (solver, values,
-						assigned, other, ref, c);
-		  ticks++;
-		}
+	    }
+	  else
+	    {
+	      assert (replacement_value < 0);
+	      kissat_fast_assign_reference (solver, values,
+					    assigned, other, ref, c);
+	      ticks++;
 	    }
 	}
     }
@@ -291,16 +260,10 @@ PROPAGATE_LITERAL (kissat * solver,
     *q++ = *p++;
   SET_END_OF_WATCHES (*watches, q);
 
-#ifdef HYPER_PROPAGATION
-  watch_hyper_delayed (solver, all_watches, delayed);
-#else
   kissat_watch_large_delayed (solver, all_watches, delayed);
-#endif
 
   return res;
 }
-
-#ifndef HYPER_PROPAGATION
 
 static inline void
 kissat_update_conflicts_and_trail (kissat * solver,
@@ -309,9 +272,9 @@ kissat_update_conflicts_and_trail (kissat * solver,
   if (conflict)
     {
       INC (conflicts);
-      LOG (PROPAGATION_TYPE " propagation on root-level failed");
       if (!solver->level)
 	{
+	  LOG (PROPAGATION_TYPE " propagation on root-level failed");
 	  solver->inconsistent = true;
 	  CHECK_AND_ADD_EMPTY ();
 	  ADD_EMPTY_TO_PROOF ();
@@ -320,5 +283,3 @@ kissat_update_conflicts_and_trail (kissat * solver,
   else if (flush && !solver->level && solver->unflushed)
     kissat_flush_trail (solver);
 }
-
-#endif

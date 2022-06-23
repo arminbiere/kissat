@@ -23,10 +23,16 @@ kissat_compiler (void)
   return COMPILER;
 }
 
-const char *
+static const char *copyright_lines[] = {
+  "Copyright (c) 2021-2022 Armin Biere University of Freiburg",
+  "Copyright (c) 2019-2021 Armin Biere Johannes Kepler University Linz",
+  0
+};
+
+const char **
 kissat_copyright (void)
 {
-  return "Copyright (c) 2019-2021 Armin Biere JKU Linz";
+  return copyright_lines;
 }
 
 const char *
@@ -83,8 +89,14 @@ kissat_banner (const char *prefix, const char *name)
   NL ();
 
   PREFIX (BOLD MAGENTA);
-  fputs (kissat_copyright (), stdout);
   NL ();
+
+  for (const char **p = kissat_copyright (), *line; (line = *p); p++)
+    {
+      PREFIX (BOLD MAGENTA);
+      fputs (line, stdout);
+      NL ();
+    }
 
   if (prefix)
     {

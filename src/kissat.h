@@ -26,7 +26,7 @@ DllExport const char *kissat_id (void);
 DllExport const char *kissat_version (void);
 DllExport const char *kissat_compiler (void);
 
-DllExport const char *kissat_copyright (void);
+DllExport const char **kissat_copyright (void);
 DllExport void kissat_build (const char *line_prefix);
 DllExport void kissat_banner (const char *line_prefix, const char *name_of_app);
 

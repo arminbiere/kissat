@@ -49,28 +49,6 @@ kissat_mark_reason_clauses (kissat * solver, reference start)
   LOG ("marked %u reason clauses", reasons);
 }
 
-// TODO check whether this can be merged with
-// 'kissat_backtrack_propagate_and_flush_trail'.
-
-void
-kissat_restart_and_flush_trail (kissat * solver)
-{
-  if (solver->level)
-    {
-      LOG ("forced restart");
-      kissat_backtrack_in_consistent_state (solver, 0);
-    }
-
-#ifndef NDEBUG
-  clause *conflict =
-#endif
-    kissat_search_propagate (solver);
-  assert (!conflict);
-
-  assert (kissat_propagated (solver));
-  assert (kissat_trail_flushed (solver));
-}
-
 bool
 kissat_flush_and_mark_reason_clauses (kissat * solver, reference start)
 {
@@ -81,7 +59,7 @@ kissat_flush_and_mark_reason_clauses (kissat * solver, reference start)
   if (solver->unflushed)
     {
       LOG ("need to flush %u units from trail", solver->unflushed);
-      kissat_restart_and_flush_trail (solver);
+      kissat_backtrack_propagate_and_flush_trail (solver);
     }
   else
     {

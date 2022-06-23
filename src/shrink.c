@@ -1,6 +1,5 @@
 #include "allocate.h"
 #include "inline.h"
-#include "inlinereap.h"
 #include "minimize.h"
 #include "shrink.h"
 
@@ -41,11 +40,10 @@ mark_shrinkable_as_removable (kissat * solver)
 }
 
 static inline int
-shrink_literal (kissat * solver, assigned * assigned, reap * reap,
-		unsigned level, unsigned max_trail, unsigned lit)
+shrink_literal (kissat * solver, assigned * assigned,
+		unsigned level, unsigned lit)
 {
   assert (solver->assigned == assigned);
-  assert (!reap || &solver->reap == reap);
   assert (VALUE (lit) < 0);
 
   const unsigned idx = IDX (lit);
@@ -82,12 +80,6 @@ shrink_literal (kissat * solver, assigned * assigned, reap * reap,
   LOG2 ("marking %s as shrinkable", LOGLIT (lit));
   a->shrinkable = true;
   PUSH_STACK (solver->shrinkable, idx);
-  if (reap)
-    {
-      assert (max_trail >= a->trail);
-      const unsigned dist = max_trail - a->trail;
-      kissat_push_reap (solver, reap, dist);
-    }
   return 1;
 }
 
@@ -150,13 +142,10 @@ shrunken_block (kissat * solver, unsigned level,
 }
 
 static inline void
-push_literals_of_block (kissat * solver, assigned * assigned, reap * reap,
+push_literals_of_block (kissat * solver, assigned * assigned,
 			unsigned *begin_block, unsigned *end_block,
-			unsigned level, unsigned max_trail)
+			unsigned level)
 {
-  assert (!reap || reap == &solver->reap);
-  assert (!reap || kissat_empty_reap (reap));
-
   assert (assigned == solver->assigned);
 
   for (const unsigned *p = begin_block; p != end_block; p++)
@@ -167,40 +156,18 @@ push_literals_of_block (kissat * solver, assigned * assigned, reap * reap,
 #ifndef NDEBUG
       int tmp =
 #endif
-	shrink_literal (solver, assigned, reap,
-			level, max_trail, lit);
+	shrink_literal (solver, assigned, level, lit);
       assert (tmp > 0);
     }
 }
 
 static inline unsigned
-shrink_next (kissat * solver, reap * reap,
-	     const unsigned *const begin_trail,
-	     const unsigned *const end_trail, unsigned max_trail)
-{
-  assert (!kissat_empty_reap (reap));
-  const unsigned dist = kissat_pop_reap (solver, reap);
-  const unsigned pos = max_trail - dist;
-  const unsigned *const t = begin_trail + pos;
-  assert (begin_trail <= t), assert (t < end_trail);
-  const unsigned uip = *t;
-  assert (VALUE (uip) > 0);
-  LOG ("trying to shrink literal %s at trail[%u]", LOGLIT (uip), pos);
-#ifdef NDEBUG
-  (void) end_trail;
-#endif
-  return uip;
-}
-
-static inline unsigned
-shrink_along_binary (kissat * solver, assigned * assigned, reap * reap,
-		     unsigned level, unsigned max_trail,
-		     unsigned uip, unsigned other)
+shrink_along_binary (kissat * solver, assigned * assigned,
+		     unsigned level, unsigned uip, unsigned other)
 {
   assert (VALUE (other) < 0);
   LOGBINARY2 (uip, other, "shrinking along %s reason", LOGLIT (uip));
-  int tmp = shrink_literal (solver, assigned, reap,
-			    level, max_trail, other);
+  int tmp = shrink_literal (solver, assigned, level, other);
 #ifndef LOGGING
   (void) uip;
 #endif
@@ -208,9 +175,9 @@ shrink_along_binary (kissat * solver, assigned * assigned, reap * reap,
 }
 
 static inline unsigned
-shrink_along_large (kissat * solver, assigned * assigned, reap * reap,
-		    unsigned level, unsigned max_trail,
-		    unsigned uip, reference ref, bool * failed_ptr)
+shrink_along_large (kissat * solver, assigned * assigned,
+		    unsigned level, unsigned uip, reference ref,
+		    bool *failed_ptr)
 {
   unsigned open = 0;
   LOGREF2 (ref, "shrinking along %s reason", LOGLIT (uip));
@@ -222,8 +189,7 @@ shrink_along_large (kissat * solver, assigned * assigned, reap * reap,
       if (other == uip)
 	continue;
       assert (VALUE (other) < 0);
-      int tmp = shrink_literal (solver, assigned, reap,
-				level, max_trail, other);
+      int tmp = shrink_literal (solver, assigned, level, other);
       if (tmp < 0)
 	{
 	  *failed_ptr = true;
@@ -236,9 +202,9 @@ shrink_along_large (kissat * solver, assigned * assigned, reap * reap,
 }
 
 static inline unsigned
-shrink_along_reason (kissat * solver, assigned * assigned, reap * reap,
-		     unsigned level, unsigned uip, unsigned max_trail,
-		     bool resolve_large_clauses, bool * failed_ptr)
+shrink_along_reason (kissat * solver, assigned * assigned,
+		     unsigned level, unsigned uip,
+		     bool resolve_large_clauses, bool *failed_ptr)
 {
   unsigned open = 0;
   const unsigned uip_idx = IDX (uip);
@@ -249,14 +215,13 @@ shrink_along_reason (kissat * solver, assigned * assigned, reap * reap,
   if (a->binary)
     {
       const unsigned other = a->reason;
-      open = shrink_along_binary (solver, assigned, reap, level, max_trail,
-				  uip, other);
+      open = shrink_along_binary (solver, assigned, level, uip, other);
     }
   else
     {
       reference ref = a->reason;
       if (resolve_large_clauses)
-	open = shrink_along_large (solver, assigned, reap, level, max_trail,
+	open = shrink_along_large (solver, assigned, level,
 				   uip, ref, failed_ptr);
       else
 	{
@@ -280,37 +245,30 @@ shrink_block (kissat * solver,
   LOG ("maximum trail position %u on level %u", max_trail, level);
 
   assigned *assigned = solver->assigned;
-  reap *reap = GET_OPTION (reap) ? &solver->reap : 0;
 
-  push_literals_of_block (solver, assigned, reap,
-			  begin_block, end_block, level, max_trail);
+  push_literals_of_block (solver, assigned, begin_block, end_block, level);
 
-  assert (!reap || kissat_size_reap (reap) == open);
   assert (SIZE_STACK (solver->shrinkable) == open);
 
   const unsigned *const begin_trail = BEGIN_ARRAY (solver->trail);
-  const unsigned *const end_trail = END_ARRAY (solver->trail);
 
   const bool resolve_large_clauses = (GET_OPTION (shrink) > 1);
   unsigned uip = INVALID_LIT;
   bool failed = false;
 
-  const unsigned *t = reap ? 0 : begin_trail + max_trail;
+  const unsigned *t = begin_trail + max_trail;
 
   while (!failed)
     {
-      if (reap)
-	uip = shrink_next (solver, reap, begin_trail, end_trail, max_trail);
-      else
-	{
-	  do
-	    assert (begin_trail <= t), uip = *t--;
-	  while (!assigned[IDX (uip)].shrinkable);
-	}
+      {
+	do
+	  assert (begin_trail <= t), uip = *t--;
+	while (!assigned[IDX (uip)].shrinkable);
+      }
       if (open == 1)
 	break;
-      open += shrink_along_reason (solver, assigned, reap,
-				   level, uip, max_trail,
+      open += shrink_along_reason (solver, assigned,
+				   level, uip,
 				   resolve_large_clauses, &failed);
       assert (open > 1);
       open--;
@@ -322,9 +280,6 @@ shrink_block (kissat * solver,
   else
     block_shrunken =
       shrunken_block (solver, level, begin_block, end_block, uip);
-
-  if (reap)
-    kissat_clear_reap (solver, reap);
 
   return block_shrunken;
 }
@@ -373,9 +328,6 @@ next_block (kissat * solver, unsigned *begin_lits, unsigned *end_block,
 static unsigned
 minimize_block (kissat * solver, unsigned *begin_block, unsigned *end_block)
 {
-  if (!GET_OPTION (shrinkminimize))
-    return 0;
-
   unsigned minimized = 0;
 
   for (unsigned *p = begin_block; p != end_block; p++)

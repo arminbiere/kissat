@@ -14,7 +14,7 @@
 #include <string.h>
 
 static void
-flush_watched_clauses_by_literal (kissat * solver, litpairs * hyper,
+flush_watched_clauses_by_literal (kissat * solver,
 				  unsigned lit, bool compact, reference start)
 {
   assert (start != INVALID_REF);
@@ -45,39 +45,25 @@ flush_watched_clauses_by_literal (kissat * solver, litpairs * hyper,
 	  if (lit_fixed > 0 || other_fixed > 0 || mother == INVALID_LIT)
 	    {
 	      if (lit < other)
-		kissat_delete_binary (solver,
-				      head.binary.redundant,
-				      head.binary.hyper, lit, other);
+		kissat_delete_binary (solver, head.binary.redundant, lit,
+				      other);
 	    }
 	  else
 	    {
 	      assert (!lit_fixed);
 	      assert (!other_fixed);
 
-	      if (head.binary.hyper)
-		{
-		  assert (head.binary.redundant);
-		  assert (mlit != INVALID_LIT);
-		  assert (mother != INVALID_LIT);
-		  if (lit < other)
-		    {
-		      const litpair litpair = kissat_litpair (lit, other);
-		      PUSH_STACK (*hyper, litpair);
-		      LOGBINARY (lit, other, "saved SRC hyper");
-		    }
-		}
-	      else
-		{
-		  head.binary.lit = mother;
-		  *q++ = head;
+	      {
+		head.binary.lit = mother;
+		*q++ = head;
 #ifdef LOGGING
-		  if (lit < other)
-		    {
-		      LOGBINARY (lit, other, "SRC");
-		      LOGBINARY (mlit, mother, "DST");
-		    }
+		if (lit < other)
+		  {
+		    LOGBINARY (lit, other, "SRC");
+		    LOGBINARY (mlit, mother, "DST");
+		  }
 #endif
-		}
+	      }
 	    }
 	}
       else
@@ -128,67 +114,17 @@ flush_watched_clauses_by_literal (kissat * solver, litpairs * hyper,
 }
 
 static void
-flush_hyper_binary_watches (kissat * solver, litpairs * hyper, bool compact)
-{
-  assert (!solver->probing);
-  const litpair *const end = END_STACK (*hyper);
-  const value *const values = solver->values;
-  size_t flushed = 0;
-  for (const litpair * p = BEGIN_STACK (*hyper); p != end; p++)
-    {
-      const unsigned lit = p->lits[0];
-      const unsigned other = p->lits[1];
-      assert (lit < other);
-
-      const value lit_value = values[lit];
-      const value other_value = values[other];
-
-      assert (!lit_value || LEVEL (lit));
-      assert (!other_value || LEVEL (other));
-
-      if (((lit_value < 0 && other_value > 0) ||
-	   ((lit_value > 0 && other_value < 0))))
-	{
-	  LOGBINARY (lit, other, "keeping potential reason hyper SRC");
-	  const unsigned mlit = kissat_map_literal (solver, lit, compact);
-	  const unsigned mother = kissat_map_literal (solver, other, compact);
-	  LOGBINARY (mlit, mother, "keeping potential reason hyper DST");
-	  kissat_watch_other (solver, true, true, mlit, mother);
-	  kissat_watch_other (solver, true, true, mother, mlit);
-	}
-      else
-	{
-	  LOGBINARY (lit, other, "flushing hyper SRC");
-	  kissat_delete_binary (solver, true, true, lit, other);
-	  flushed++;
-	}
-    }
-  if (flushed)
-    kissat_phase (solver, "collect",
-		  GET (garbage_collections),
-		  "flushed %zu unused hyper binary clauses %.0f%%",
-		  flushed, kissat_percent (flushed, SIZE_STACK (*hyper)));
-  (void) flushed;
-}
-
-static void
 flush_all_watched_clauses (kissat * solver, bool compact, reference start)
 {
   assert (solver->watching);
   LOG ("starting to flush watches at clause[%" REFERENCE_FORMAT "]", start);
-  litpairs hyper;
-  INIT_STACK (hyper);
   for (all_variables (idx))
     {
       const unsigned lit = LIT (idx);
-      flush_watched_clauses_by_literal (solver, &hyper, lit, compact, start);
+      flush_watched_clauses_by_literal (solver, lit, compact, start);
       const unsigned not_lit = NOT (lit);
-      flush_watched_clauses_by_literal (solver, &hyper,
-					not_lit, compact, start);
+      flush_watched_clauses_by_literal (solver, not_lit, compact, start);
     }
-  LOG ("saved %zu hyper binary watches", SIZE_STACK (hyper));
-  flush_hyper_binary_watches (solver, &hyper, compact);
-  RELEASE_STACK (hyper);
 }
 
 static void
@@ -478,8 +414,6 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 	    DEC (clauses_redundant);
 	  else
 	    DEC (clauses_irredundant);
-	  if (dst->hyper)
-	    DEC (hyper_ternaries);
 
 	  flushed_satisfied_clauses++;
 
@@ -513,10 +447,7 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 
 	  const bool redundant = dst->redundant;
 	  LOGBINARY (mfirst, msecond, "DST");
-	  kissat_watch_binary (solver, redundant, false, mfirst, msecond);
-
-	  if (dst->hyper)
-	    DEC (hyper_ternaries);
+	  kissat_watch_binary (solver, redundant, mfirst, msecond);
 
 	  if (dst->reason)
 	    {
@@ -650,8 +581,6 @@ sparse_sweep_garbage_clauses (kissat * solver, bool compact, reference start)
 
   SET_END_OF_STACK (solver->arena, (ward *) dst);
   kissat_shrink_arena (solver);
-
-  kissat_clear_clueue (solver, &solver->clueue);
 
 #ifdef METRICS
   if (solver->statistics.arena_garbage)
@@ -788,7 +717,6 @@ dense_sweep_garbage_clauses (kissat * solver)
   SET_END_OF_STACK (solver->arena, (ward *) dst);
   kissat_shrink_arena (solver);
 
-  kissat_clear_clueue (solver, &solver->clueue);
 #ifdef METRICS
   if (solver->statistics.arena_garbage)
     kissat_very_verbose (solver, "still %s garbage left in arena",

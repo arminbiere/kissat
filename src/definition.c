@@ -148,10 +148,11 @@ kissat_find_definition (kissat * solver, unsigned lit)
   LOG ("exported %u = %zu + %zu environment clauses to sub-solver",
        exported, occs[0], occs[1]);
   INC (definitions_checked);
+  const size_t limit = GET_OPTION (definitionticks);
+  kitten_set_ticks_limit (kitten, limit);
   int status = kitten_solve (kitten);
   if (status == 20)
     {
-      INC (definitions_extracted);
       LOG ("sub-solver result UNSAT shows definition exists");
       uint64_t learned;
       unsigned reduced = kitten_compute_clausal_core (kitten, &learned);
@@ -161,11 +162,14 @@ kissat_find_definition (kissat * solver, unsigned lit)
 	{
 	  kitten_shrink_to_clausal_core (kitten);
 	  kitten_shuffle_clauses (kitten);
-#ifndef NDEBUG
-	  int tmp =
-#endif
-	    kitten_solve (kitten);
-	  assert (tmp == 20);
+	  kitten_set_ticks_limit (kitten, 10 * limit);
+	  int tmp = kitten_solve (kitten);
+	  assert (!tmp || tmp == 20);
+	  if (!tmp)
+	    {
+	      LOG ("aborting core extraction");
+	      goto ABORT;
+	    }
 #ifndef NDEBUG
 	  unsigned previous = reduced;
 #endif
@@ -177,6 +181,7 @@ kissat_find_definition (kissat * solver, unsigned lit)
 	  (void) reduced;
 #endif
 	}
+      INC (definitions_extracted);
       kitten_traverse_core_ids (kitten, &extractor, traverse_definition_core);
       size_t size[2];
       size[0] = SIZE_STACK (solver->gates[0]);
@@ -245,7 +250,10 @@ kissat_find_definition (kissat * solver, unsigned lit)
       res = true;
     }
   else
-    LOG ("sub-solver failed to show that definition exists");
+    {
+    ABORT:
+      LOG ("sub-solver failed to show that definition exists");
+    }
   CLEAR_STACK (solver->analyzed);
   STOP (definition);
   return res;

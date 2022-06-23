@@ -1,7 +1,6 @@
 #include "eliminate.h"
 #include "gates.h"
 #include "inline.h"
-#include "inlinescore.h"
 #include "print.h"
 #include "resolve.h"
 
@@ -9,7 +8,7 @@
 #include <string.h>
 
 static inline unsigned
-occurrences_literal (kissat * solver, unsigned lit, bool * update)
+occurrences_literal (kissat * solver, unsigned lit, bool *update)
 {
   assert (!solver->watching);
 
@@ -18,7 +17,7 @@ occurrences_literal (kissat * solver, unsigned lit, bool * update)
   const size_t size_watches = SIZE_WATCHES (*watches);
   LOG ("literal %s has %zu watches", LOGLIT (lit), size_watches);
 #endif
-  const unsigned clslim = solver->bounds.eliminate.clause_size;
+  const unsigned clslim = GET_OPTION (eliminateclslim);
 
   watch *const begin = BEGIN_WATCHES (*watches), *q = begin;
   const watch *const end = END_WATCHES (*watches), *p = q;
@@ -118,7 +117,7 @@ generate_resolvents (kissat * solver, unsigned lit,
   const value *const values = solver->values;
   value *const marks = solver->marks;
 
-  const unsigned clslim = solver->bounds.eliminate.clause_size;
+  const unsigned clslim = GET_OPTION (eliminateclslim);
 
   for (all_stack (watch, watch0, *watches0))
     {
@@ -143,7 +142,7 @@ generate_resolvents (kissat * solver, unsigned lit,
 	    {
 	      first_antecedent_satisfied = true;
 	      if (c != &tmp0)
-		kissat_eliminate_clause (solver, c, other);
+		kissat_mark_clause_as_garbage (solver, c);
 	      break;
 	    }
 	}
@@ -191,7 +190,7 @@ generate_resolvents (kissat * solver, unsigned lit,
 	      if (value > 0)
 		{
 		  if (d != &tmp1)
-		    kissat_eliminate_clause (solver, d, other);
+		    kissat_mark_clause_as_garbage (solver, d);
 		  resolvent_satisfied_or_tautological = true;
 		  break;
 		}
@@ -316,16 +315,16 @@ kissat_generate_resolvents (kissat * solver, unsigned idx, unsigned *lit_ptr)
 	SWAP (size_t, pos_count, neg_count);
       }
 
-    const unsigned occlim = solver->bounds.eliminate.occurrences;
-    if (pos_count && neg_count > occlim)
+    const unsigned occlim = GET_OPTION (eliminateocclim);
+    limit = pos_count + (uint64_t) neg_count;
+
+    if (pos_count && limit > occlim)
       {
 	LOG ("no elimination of variable %u "
-	     "since its literal %s has %u > %u occurrences",
-	     idx, LOGLIT (not_lit), neg_count, occlim);
+	     "since it has %" PRIu64 " > %u occurrences", idx, limit, occlim);
 	return false;
       }
 
-    limit = pos_count + (uint64_t) neg_count;
     if (pos_count)
       {
 	const uint64_t bound = solver->bounds.eliminate.additional_clauses;
@@ -403,11 +402,8 @@ kissat_generate_resolvents (kissat * solver, unsigned idx, unsigned *lit_ptr)
 
   if (failed)
     {
-      const unsigned idx = IDX (lit);
-      LOG ("elimination of %s failed", LOGVAR (idx));
+      LOG ("elimination of %s failed", LOGVAR (IDX (lit)));
       CLEAR_STACK (solver->resolvents);
-      if (update)
-	kissat_update_variable_score (solver, &solver->schedule, idx);
     }
 
   LOG ("resolved %" PRIu64 " resolvents", resolved);

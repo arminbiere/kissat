@@ -134,7 +134,7 @@ execute_solver_and_send_signal (int sig)
 
 #ifdef ASAN
 
-#define SIGNALS \
+#define TEST_SIGNALS \
 SIGNAL(SIGABRT) \
 SIGNAL(SIGALRM) \
 SIGNAL(SIGINT) \
@@ -142,7 +142,7 @@ SIGNAL(SIGTERM)
 
 #else
 
-#define SIGNALS \
+#define TEST_SIGNALS \
 SIGNAL(SIGABRT) \
 SIGNAL(SIGALRM) \
 SIGNAL(SIGINT) \
@@ -159,7 +159,7 @@ test_main_ ## NAME (void) \
   execute_solver_and_send_signal (NAME); \
 }
 
-SIGNALS
+TEST_SIGNALS
 #undef SIGNAL
 #endif
   void
@@ -170,7 +170,7 @@ tissat_schedule_main (void)
   if (tissat_found_test_directory)
     {
 #define SIGNAL(NAME) SCHEDULE_FUNCTION (test_main_ ## NAME);
-      SIGNALS
+      TEST_SIGNALS
 #undef SIGNAL
     }
 #endif
