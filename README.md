@@ -11,3 +11,5 @@ scheduling of inprocessing and optimized algorithms and implementation.
 Coincidentally "kissat" also means "cats" in Finnish.
 
 Run `./configure && make test` to configure, build and test in `build`.
+
+See [NEWS.md](NEWS.md) for feature updates.

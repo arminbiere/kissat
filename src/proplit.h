@@ -271,7 +271,9 @@ kissat_update_conflicts_and_trail (kissat * solver,
 {
   if (conflict)
     {
+#ifndef PROBING_PROPAGATION
       INC (conflicts);
+#endif
       if (!solver->level)
 	{
 	  LOG (PROPAGATION_TYPE " propagation on root-level failed");

@@ -1,3 +1,11 @@
+Version 1.1.1
+-------------
+
+Removed two heuristic bugs:
+
+  - avoid increasing number of conflicts during vivification
+  - do set used flags (two bits) of learned clauses initially
+
 Version sc2022-light
 --------------------
 
