@@ -1,7 +1,8 @@
-Version 1.1.1
+Version 3.0.0
 -------------
 
-Removed two heuristic bugs:
+Removed two heuristic bugs and went back to monotonically increasing
+version numbers (see also [`VERSION`](VERSION)).
 
   - avoid increasing number of conflicts during vivification
   - do set used flags (two bits) of learned clauses initially
