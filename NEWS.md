@@ -1,11 +1,14 @@
 Version 3.0.0
 -------------
 
-Removed two heuristic bugs and went back to monotonically increasing
-version numbers (see also [`VERSION`](VERSION)).
+Removed from sc2022-light two heuristic bugs and went back to monotonically
+increasing version numbers (see also [`VERSION`](VERSION)).
 
   - avoid increasing number of conflicts during vivification
   - do set used flags (two bits) of learned clauses initially
+
+Thus we follow our plan to continue extending and maintaining 
+this light version of Kissat on sc2022-light.
 
 Version sc2022-light
 --------------------
