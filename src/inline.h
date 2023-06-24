@@ -6,37 +6,27 @@
 
 #ifdef METRICS
 
-static inline size_t
-kissat_allocated (kissat * solver)
-{
+static inline size_t kissat_allocated (kissat *solver) {
   return solver->statistics.allocated_current;
 }
 
 #endif
 
-static inline bool
-kissat_propagated (kissat * solver)
-{
+static inline bool kissat_propagated (kissat *solver) {
   assert (BEGIN_ARRAY (solver->trail) <= solver->propagate);
   assert (solver->propagate <= END_ARRAY (solver->trail));
   return solver->propagate == END_ARRAY (solver->trail);
 }
 
-static inline bool
-kissat_trail_flushed (kissat * solver)
-{
+static inline bool kissat_trail_flushed (kissat *solver) {
   return !solver->unflushed && EMPTY_ARRAY (solver->trail);
 }
 
-static inline void
-kissat_reset_propagate (kissat * solver)
-{
+static inline void kissat_reset_propagate (kissat *solver) {
   solver->propagate = BEGIN_ARRAY (solver->trail);
 }
 
-static inline value
-kissat_fixed (kissat * solver, unsigned lit)
-{
+static inline value kissat_fixed (kissat *solver, unsigned lit) {
   assert (lit < LITS);
   const value res = solver->values[lit];
   if (!res)
@@ -46,9 +36,8 @@ kissat_fixed (kissat * solver, unsigned lit)
   return res;
 }
 
-static inline void
-kissat_mark_removed_literal (kissat * solver, unsigned lit)
-{
+static inline void kissat_mark_removed_literal (kissat *solver,
+                                                unsigned lit) {
   const unsigned idx = IDX (lit);
   flags *flags = FLAGS (idx);
   if (flags->eliminate)
@@ -60,9 +49,8 @@ kissat_mark_removed_literal (kissat * solver, unsigned lit)
   INC (variables_removed);
 }
 
-static inline void
-kissat_mark_added_literal (kissat * solver, unsigned lit)
-{
+static inline void kissat_mark_added_literal (kissat *solver,
+                                              unsigned lit) {
   const unsigned idx = IDX (lit);
   flags *flags = FLAGS (idx);
   if (flags->subsume)
@@ -73,24 +61,22 @@ kissat_mark_added_literal (kissat * solver, unsigned lit)
 }
 
 static inline void
-kissat_push_large_watch (kissat * solver, watches * watches, reference ref)
-{
+kissat_push_large_watch (kissat *solver, watches *watches, reference ref) {
   const watch watch = kissat_large_watch (ref);
   PUSH_WATCHES (*watches, watch);
 }
 
-static inline void
-kissat_push_binary_watch (kissat * solver, watches * watches,
-			  bool redundant, unsigned other)
-{
-  const watch watch = kissat_binary_watch (other, redundant);
+static inline void kissat_push_binary_watch (kissat *solver,
+                                             watches *watches,
+                                             unsigned other) {
+  const watch watch = kissat_binary_watch (other);
   PUSH_WATCHES (*watches, watch);
 }
 
-static inline void
-kissat_push_blocking_watch (kissat * solver, watches * watches,
-			    unsigned blocking, reference ref)
-{
+static inline void kissat_push_blocking_watch (kissat *solver,
+                                               watches *watches,
+                                               unsigned blocking,
+                                               reference ref) {
   assert (solver->watching);
   const watch head = kissat_blocking_watch (blocking);
   PUSH_WATCHES (*watches, head);
@@ -98,56 +84,48 @@ kissat_push_blocking_watch (kissat * solver, watches * watches,
   PUSH_WATCHES (*watches, tail);
 }
 
-static inline void
-kissat_watch_other (kissat * solver,
-		    bool redundant, unsigned lit, unsigned other)
-{
-  LOGBINARY (lit, other,
-	     "watching %s blocking %s in %s",
-	     LOGLIT (lit), LOGLIT (other),
-	     (redundant ? "redundant" : "irredundant"));
+static inline void kissat_watch_other (kissat *solver, unsigned lit,
+                                       unsigned other) {
+  LOGBINARY (lit, other, "watching %s blocking %s in", LOGLIT (lit),
+             LOGLIT (other));
   watches *watches = &WATCHES (lit);
-  kissat_push_binary_watch (solver, watches, redundant, other);
+  kissat_push_binary_watch (solver, watches, other);
 }
 
-static inline void
-kissat_watch_binary (kissat * solver, bool redundant, unsigned a, unsigned b)
-{
-  kissat_watch_other (solver, redundant, a, b);
-  kissat_watch_other (solver, redundant, b, a);
+static inline void kissat_watch_binary (kissat *solver, unsigned a,
+                                        unsigned b) {
+  kissat_watch_other (solver, a, b);
+  kissat_watch_other (solver, b, a);
 }
 
-static inline void
-kissat_watch_blocking (kissat * solver,
-		       unsigned lit, unsigned blocking, reference ref)
-{
+static inline void kissat_watch_blocking (kissat *solver, unsigned lit,
+                                          unsigned blocking,
+                                          reference ref) {
   assert (solver->watching);
-  LOGREF (ref, "watching %s blocking %s in", LOGLIT (lit), LOGLIT (blocking));
+  LOGREF (ref, "watching %s blocking %s in", LOGLIT (lit),
+          LOGLIT (blocking));
   watches *watches = &WATCHES (lit);
   kissat_push_blocking_watch (solver, watches, blocking, ref);
 }
 
-static inline void
-kissat_unwatch_blocking (kissat * solver, unsigned lit, reference ref)
-{
+static inline void kissat_unwatch_blocking (kissat *solver, unsigned lit,
+                                            reference ref) {
   assert (solver->watching);
   LOGREF (ref, "unwatching %s in", LOGLIT (lit));
   watches *watches = &WATCHES (lit);
   kissat_remove_blocking_watch (solver, watches, ref);
 }
 
-static inline void
-kissat_disconnect_binary (kissat * solver, unsigned lit, unsigned other)
-{
+static inline void kissat_disconnect_binary (kissat *solver, unsigned lit,
+                                             unsigned other) {
   assert (!solver->watching);
   watches *watches = &WATCHES (lit);
-  const watch watch = kissat_binary_watch (other, false);
+  const watch watch = kissat_binary_watch (other);
   REMOVE_WATCHES (*watches, watch);
 }
 
 static inline void
-kissat_disconnect_reference (kissat * solver, unsigned lit, reference ref)
-{
+kissat_disconnect_reference (kissat *solver, unsigned lit, reference ref) {
   assert (!solver->watching);
   LOGREF (ref, "disconnecting %s in", LOGLIT (lit));
   const watch watch = kissat_large_watch (ref);
@@ -155,73 +133,62 @@ kissat_disconnect_reference (kissat * solver, unsigned lit, reference ref)
   REMOVE_WATCHES (*watches, watch);
 }
 
-static inline void
-kissat_watch_reference (kissat * solver,
-			unsigned a, unsigned b, reference ref)
-{
+static inline void kissat_watch_reference (kissat *solver, unsigned a,
+                                           unsigned b, reference ref) {
   assert (solver->watching);
   kissat_watch_blocking (solver, a, b, ref);
   kissat_watch_blocking (solver, b, a, ref);
 }
 
-static inline void
-kissat_connect_literal (kissat * solver, unsigned lit, reference ref)
-{
+static inline void kissat_connect_literal (kissat *solver, unsigned lit,
+                                           reference ref) {
   assert (!solver->watching);
   LOGREF (ref, "connecting %s in", LOGLIT (lit));
   watches *watches = &WATCHES (lit);
   kissat_push_large_watch (solver, watches, ref);
 }
 
-static inline clause *
-kissat_unchecked_dereference_clause (kissat * solver, reference ref)
-{
-  return (clause *) & PEEK_STACK (solver->arena, ref);
+static inline clause *kissat_unchecked_dereference_clause (kissat *solver,
+                                                           reference ref) {
+  return (clause *) &PEEK_STACK (solver->arena, ref);
 }
 
-static inline clause *
-kissat_dereference_clause (kissat * solver, reference ref)
-{
+static inline clause *kissat_dereference_clause (kissat *solver,
+                                                 reference ref) {
   clause *res = kissat_unchecked_dereference_clause (solver, ref);
   assert (kissat_clause_in_arena (solver, res));
   return res;
 }
 
-static inline reference
-kissat_reference_clause (kissat * solver, const clause * c)
-{
+static inline reference kissat_reference_clause (kissat *solver,
+                                                 const clause *c) {
   assert (kissat_clause_in_arena (solver, c));
   return (ward *) c - BEGIN_STACK (solver->arena);
 }
 
-static inline void
-kissat_inlined_connect_clause (kissat * solver, watches * all_watches,
-			       clause * c, reference ref)
-{
+static inline void kissat_inlined_connect_clause (kissat *solver,
+                                                  watches *all_watches,
+                                                  clause *c,
+                                                  reference ref) {
   assert (!solver->watching);
   assert (ref == kissat_reference_clause (solver, c));
   assert (c == kissat_dereference_clause (solver, ref));
-  for (all_literals_in_clause (lit, c))
-    {
-      assert (!solver->watching);
-      LOGREF (ref, "connecting %s in", LOGLIT (lit));
-      assert (lit < LITS);
-      watches *lit_watches = all_watches + lit;
-      kissat_push_large_watch (solver, lit_watches, ref);
-    }
+  for (all_literals_in_clause (lit, c)) {
+    assert (!solver->watching);
+    LOGREF (ref, "connecting %s in", LOGLIT (lit));
+    assert (lit < LITS);
+    watches *lit_watches = all_watches + lit;
+    kissat_push_large_watch (solver, lit_watches, ref);
+  }
 }
 
-static inline void
-kissat_watch_clause (kissat * solver, clause * c)
-{
+static inline void kissat_watch_clause (kissat *solver, clause *c) {
   assert (c->searched < c->size);
   const reference ref = kissat_reference_clause (solver, c);
   kissat_watch_reference (solver, c->lits[0], c->lits[1], ref);
 }
 
-static inline int
-kissat_export_literal (kissat * solver, unsigned ilit)
-{
+static inline int kissat_export_literal (kissat *solver, unsigned ilit) {
   const unsigned iidx = IDX (ilit);
   assert (iidx < (unsigned) INT_MAX);
   int elit = PEEK_STACK (solver->export, iidx);
@@ -233,9 +200,8 @@ kissat_export_literal (kissat * solver, unsigned ilit)
   return elit;
 }
 
-static inline unsigned
-kissat_map_literal (kissat * solver, unsigned ilit, bool map)
-{
+static inline unsigned kissat_map_literal (kissat *solver, unsigned ilit,
+                                           bool map) {
   if (!map)
     return ilit;
   int elit = kissat_export_literal (solver, ilit);
@@ -251,20 +217,16 @@ kissat_map_literal (kissat * solver, unsigned ilit, bool map)
   return mlit;
 }
 
-static inline clause *
-kissat_last_irredundant_clause (kissat * solver)
-{
-  return (solver->last_irredundant == INVALID_REF) ? 0 :
-    kissat_dereference_clause (solver, solver->last_irredundant);
+static inline clause *kissat_last_irredundant_clause (kissat *solver) {
+  return (solver->last_irredundant == INVALID_REF)
+             ? 0
+             : kissat_dereference_clause (solver, solver->last_irredundant);
 }
 
-static inline clause *
-kissat_binary_conflict (kissat * solver,
-			bool redundant, unsigned a, unsigned b)
-{
+static inline clause *kissat_binary_conflict (kissat *solver, unsigned a,
+                                              unsigned b) {
   LOGBINARY (a, b, "conflicting");
   clause *res = &solver->conflict;
-  res->redundant = redundant;
   res->size = 2;
   unsigned *lits = res->lits;
   lits[0] = a;
@@ -272,9 +234,8 @@ kissat_binary_conflict (kissat * solver,
   return res;
 }
 
-static inline void
-kissat_push_analyzed (kissat * solver, assigned * assigned, unsigned idx)
-{
+static inline void kissat_push_analyzed (kissat *solver, assigned *assigned,
+                                         unsigned idx) {
   assert (idx < VARS);
   struct assigned *a = assigned + idx;
   assert (!a->analyzed);
@@ -283,15 +244,12 @@ kissat_push_analyzed (kissat * solver, assigned * assigned, unsigned idx)
   LOG2 ("%s analyzed", LOGVAR (idx));
 }
 
-static inline bool
-kissat_analyzed (kissat * solver)
-{
+static inline bool kissat_analyzed (kissat *solver) {
   return !EMPTY_STACK (solver->analyzed);
 }
 
 static inline void
-kissat_push_removable (kissat * solver, assigned * assigned, unsigned idx)
-{
+kissat_push_removable (kissat *solver, assigned *assigned, unsigned idx) {
   assert (idx < VARS);
   struct assigned *a = assigned + idx;
   assert (!a->removable);
@@ -300,9 +258,8 @@ kissat_push_removable (kissat * solver, assigned * assigned, unsigned idx)
   LOG2 ("%s removable", LOGVAR (idx));
 }
 
-static inline void
-kissat_push_poisoned (kissat * solver, assigned * assigned, unsigned idx)
-{
+static inline void kissat_push_poisoned (kissat *solver, assigned *assigned,
+                                         unsigned idx) {
   assert (idx < VARS);
   struct assigned *a = assigned + idx;
   assert (!a->poisoned);
@@ -312,8 +269,7 @@ kissat_push_poisoned (kissat * solver, assigned * assigned, unsigned idx)
 }
 
 static inline void
-kissat_push_shrinkable (kissat * solver, assigned * assigned, unsigned idx)
-{
+kissat_push_shrinkable (kissat *solver, assigned *assigned, unsigned idx) {
   assert (idx < VARS);
   struct assigned *a = assigned + idx;
   assert (!a->shrinkable);
@@ -322,9 +278,7 @@ kissat_push_shrinkable (kissat * solver, assigned * assigned, unsigned idx)
   LOG2 ("%s shrinkable", LOGVAR (idx));
 }
 
-static inline int
-kissat_checking (kissat * solver)
-{
+static inline int kissat_checking (kissat *solver) {
 #ifndef NDEBUG
 #ifdef NOPTIONS
   (void) solver;
@@ -336,9 +290,7 @@ kissat_checking (kissat * solver)
 #endif
 }
 
-static inline bool
-kissat_logging (kissat * solver)
-{
+static inline bool kissat_logging (kissat *solver) {
 #ifdef LOGGING
 #ifdef NOPTIONS
   (void) solver;
@@ -350,9 +302,7 @@ kissat_logging (kissat * solver)
 #endif
 }
 
-static inline bool
-kissat_proving (kissat * solver)
-{
+static inline bool kissat_proving (kissat *solver) {
 #ifdef NPROOFS
   (void) solver;
   return false;
@@ -361,9 +311,7 @@ kissat_proving (kissat * solver)
 #endif
 }
 
-static inline bool
-kissat_checking_or_proving (kissat * solver)
-{
+static inline bool kissat_checking_or_proving (kissat *solver) {
   return kissat_checking (solver) || kissat_proving (solver);
 }
 

@@ -1,34 +1,29 @@
+#include "gates.h"
 #include "ands.h"
 #include "definition.h"
 #include "eliminate.h"
 #include "equivalences.h"
-#include "gates.h"
 #include "ifthenelse.h"
 #include "inline.h"
 
-size_t
-kissat_mark_binaries (kissat * solver, unsigned lit)
-{
+size_t kissat_mark_binaries (kissat *solver, unsigned lit) {
   value *marks = solver->marks;
   size_t res = 0;
   watches *watches = &WATCHES (lit);
-  for (all_binary_large_watches (watch, *watches))
-    {
-      if (!watch.type.binary)
-	continue;
-      const unsigned other = watch.binary.lit;
-      assert (!solver->values[other]);
-      if (marks[other])
-	continue;
-      marks[other] = 1;
-      res++;
-    }
+  for (all_binary_large_watches (watch, *watches)) {
+    if (!watch.type.binary)
+      continue;
+    const unsigned other = watch.binary.lit;
+    assert (!solver->values[other]);
+    if (marks[other])
+      continue;
+    marks[other] = 1;
+    res++;
+  }
   return res;
 }
 
-void
-kissat_unmark_binaries (kissat * solver, unsigned lit)
-{
+void kissat_unmark_binaries (kissat *solver, unsigned lit) {
   value *marks = solver->marks;
   watches *watches = &WATCHES (lit);
   for (all_binary_large_watches (watch, *watches))
@@ -36,9 +31,7 @@ kissat_unmark_binaries (kissat * solver, unsigned lit)
       marks[watch.binary.lit] = 0;
 }
 
-bool
-kissat_find_gates (kissat * solver, unsigned lit)
-{
+bool kissat_find_gates (kissat *solver, unsigned lit) {
   solver->gate_eliminated = 0;
   solver->resolve_gate = false;
   if (!GET_OPTION (extract))
@@ -65,9 +58,8 @@ kissat_find_gates (kissat * solver, unsigned lit)
   return res;
 }
 
-static void
-get_antecedents (kissat * solver, unsigned lit, unsigned negative)
-{
+static void get_antecedents (kissat *solver, unsigned lit,
+                             unsigned negative) {
   assert (!solver->watching);
   assert (!negative || negative == 1);
 
@@ -85,14 +77,13 @@ get_antecedents (kissat * solver, unsigned lit, unsigned negative)
   const watch *const end_watches = END_WATCHES (*watches);
   watch const *w = begin_watches;
 
-  while (w != end_watches)
-    {
-      const watch watch = *w++;
-      if (g != end_gates && g->raw == watch.raw)
-	g++;
-      else
-	PUSH_STACK (*antecedents, watch);
-    }
+  while (w != end_watches) {
+    const watch watch = *w++;
+    if (g != end_gates && g->raw == watch.raw)
+      g++;
+    else
+      PUSH_STACK (*antecedents, watch);
+  }
 
   assert (g == end_gates);
 #ifdef LOGGING
@@ -102,14 +93,12 @@ get_antecedents (kissat * solver, unsigned lit, unsigned negative)
   LOG ("got %zu antecedent %.0f%% and %zu gate clauses %.0f%% "
        "out of %zu watches of literal %s",
        size_antecedents, kissat_percent (size_antecedents, size_watches),
-       size_gates, kissat_percent (size_gates, size_watches),
-       size_watches, LOGLIT (lit));
+       size_gates, kissat_percent (size_gates, size_watches), size_watches,
+       LOGLIT (lit));
 #endif
 }
 
-void
-kissat_get_antecedents (kissat * solver, unsigned lit)
-{
+void kissat_get_antecedents (kissat *solver, unsigned lit) {
   get_antecedents (solver, lit, 0);
   get_antecedents (solver, NOT (lit), 1);
 }

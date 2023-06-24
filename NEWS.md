@@ -1,3 +1,18 @@
+Version 3.1.0
+-------------
+
+  - replaced `__gcov_flush` by `__gcov_dump`
+  - moved to `clang-format` instead of `indent`
+  - removed warnings for MacOS (latest clang)
+  - added back irredundant clause vivification
+  - reason jumping during binary reason clause chains
+  - more focused sweeping (more effort and unscheduling)
+  - probing and elimination preprocessing initially
+  - relevancy and occurrence score based variable elimination
+  - faster parsing and proof writing
+  - no redundant virtual clauses anymore
+  - doubled allowed maximum variable index to more than 1 billion variables
+
 Version 3.0.0
 -------------
 

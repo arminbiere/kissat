@@ -8,10 +8,10 @@
 #include "utilities.h"
 
 #include <inttypes.h>
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
-// *INDENT-OFF*
+// clang-format off
 
 void
 kissat_statistics_print (kissat * solver, bool verbose)
@@ -229,7 +229,7 @@ kissat_statistics_print (kissat * solver, bool verbose)
 
 }
 
-// *INDENT-ON*
+// clang-format on
 
 #elif defined(NDEBUG)
 int kissat_statistics_dummy_to_avoid_warning;
@@ -241,9 +241,7 @@ int kissat_statistics_dummy_to_avoid_warning;
 
 #include "inlinevector.h"
 
-void
-kissat_check_statistics (kissat * solver)
-{
+void kissat_check_statistics (kissat *solver) {
   if (solver->inconsistent)
     return;
 
@@ -251,70 +249,46 @@ kissat_check_statistics (kissat * solver)
   size_t irredundant = 0;
   size_t arena_garbage = 0;
 
-  for (all_clauses (c))
-    {
-      if (c->garbage)
-	{
-	  arena_garbage += kissat_actual_bytes_of_clause (c);
-	  continue;
-	}
-      if (c->redundant)
-	redundant++;
-      else
-	irredundant++;
+  for (all_clauses (c)) {
+    if (c->garbage) {
+      arena_garbage += kissat_actual_bytes_of_clause (c);
+      continue;
     }
+    if (c->redundant)
+      redundant++;
+    else
+      irredundant++;
+  }
 
-  size_t redundant_binary_watches = 0;
-  size_t irredundant_binary_watches = 0;
+  size_t binary = 0;
 
-  if (solver->watching)
-    {
-      for (all_literals (lit))
-	{
-	  watches *watches = &WATCHES (lit);
+  if (solver->watching) {
+    for (all_literals (lit)) {
+      watches *watches = &WATCHES (lit);
 
-	  for (all_binary_blocking_watches (watch, *watches))
-	    {
-	      if (watch.type.binary)
-		{
-		  if (watch.binary.redundant)
-		    {
-		      redundant_binary_watches++;
-		    }
-		  else
-		    irredundant_binary_watches++;
-		}
-	    }
-	}
+      for (all_binary_blocking_watches (watch, *watches)) {
+        if (watch.type.binary) {
+          binary++;
+        }
+      }
     }
-  else
-    {
-      for (all_literals (lit))
-	{
-	  watches *watches = &WATCHES (lit);
+  } else {
+    for (all_literals (lit)) {
+      watches *watches = &WATCHES (lit);
 
-	  for (all_binary_large_watches (watch, *watches))
-	    {
-	      if (watch.type.binary)
-		{
-		  if (watch.binary.redundant)
-		    {
-		      redundant_binary_watches++;
-		    }
-		  else
-		    irredundant_binary_watches++;
-		}
-	    }
-	}
+      for (all_binary_large_watches (watch, *watches)) {
+        if (watch.type.binary) {
+          binary++;
+        }
+      }
     }
+  }
 
-  assert (!(redundant_binary_watches & 1));
-  assert (!(irredundant_binary_watches & 1));
-
-  redundant += redundant_binary_watches / 2;
-  irredundant += irredundant_binary_watches / 2;
+  assert (!(binary & 1));
+  binary /= 2;
 
   statistics *statistics = &solver->statistics;
+  assert (statistics->clauses_binary == binary);
   assert (statistics->clauses_redundant == redundant);
   assert (statistics->clauses_irredundant == irredundant);
 #ifdef METRICS

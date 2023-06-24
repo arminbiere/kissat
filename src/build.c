@@ -1,62 +1,39 @@
 #include "build.h"
 #include "colors.h"
-#include "print.h"
 #include "kissat.h"
+#include "print.h"
 
 #include <stdio.h>
 
-const char *
-kissat_signature (void)
-{
-  return "kissat-" VERSION;
-}
+const char *kissat_signature (void) { return "kissat-" VERSION; }
 
-const char *
-kissat_id (void)
-{
-  return ID;
-}
+const char *kissat_id (void) { return ID; }
 
-const char *
-kissat_compiler (void)
-{
-  return COMPILER;
-}
+const char *kissat_compiler (void) { return COMPILER; }
 
 static const char *copyright_lines[] = {
-  "Copyright (c) 2021-2022 Armin Biere University of Freiburg",
-  "Copyright (c) 2019-2021 Armin Biere Johannes Kepler University Linz",
-  0
-};
+    "Copyright (c) 2021-2023 Armin Biere University of Freiburg",
+    "Copyright (c) 2019-2021 Armin Biere Johannes Kepler University Linz",
+    0};
 
-const char **
-kissat_copyright (void)
-{
-  return copyright_lines;
-}
+const char **kissat_copyright (void) { return copyright_lines; }
 
-const char *
-kissat_version (void)
-{
-  return VERSION;
-}
+const char *kissat_version (void) { return VERSION; }
 
 #define PREFIX(COLORS) \
-do { \
-  if (prefix) \
-    fputs (prefix, stdout); \
-  COLOR (COLORS); \
-} while (0)
+  do { \
+    if (prefix) \
+      fputs (prefix, stdout); \
+    COLOR (COLORS); \
+  } while (0)
 
 #define NL() \
-do { \
-  fputs ("\n", stdout); \
-  COLOR (NORMAL); \
-} while (0)
+  do { \
+    fputs ("\n", stdout); \
+    COLOR (NORMAL); \
+  } while (0)
 
-void
-kissat_build (const char *prefix)
-{
+void kissat_build (const char *prefix) {
   TERMINAL (stdout, 1);
   if (!prefix)
     connected_to_terminal = false;
@@ -77,9 +54,7 @@ kissat_build (const char *prefix)
   NL ();
 }
 
-void
-kissat_banner (const char *prefix, const char *name)
-{
+void kissat_banner (const char *prefix, const char *name) {
   TERMINAL (stdout, 1);
   if (!prefix)
     connected_to_terminal = false;
@@ -91,18 +66,16 @@ kissat_banner (const char *prefix, const char *name)
   PREFIX (BOLD MAGENTA);
   NL ();
 
-  for (const char **p = kissat_copyright (), *line; (line = *p); p++)
-    {
-      PREFIX (BOLD MAGENTA);
-      fputs (line, stdout);
-      NL ();
-    }
+  for (const char **p = kissat_copyright (), *line; (line = *p); p++) {
+    PREFIX (BOLD MAGENTA);
+    fputs (line, stdout);
+    NL ();
+  }
 
-  if (prefix)
-    {
-      PREFIX ("");
-      NL ();
-    }
+  if (prefix) {
+    PREFIX ("");
+    NL ();
+  }
 
   kissat_build (prefix);
 }

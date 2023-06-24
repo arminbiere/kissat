@@ -5,9 +5,7 @@
 
 #include "test.h"
 
-static void
-test_allocate_basic (void)
-{
+static void test_allocate_basic (void) {
   DECLARE_AND_INIT_SOLVER (solver);
 
   int *p = kissat_malloc (solver, 1 << 30);
@@ -39,9 +37,7 @@ test_allocate_basic (void)
 #endif
 }
 
-static void
-test_allocate_coverage (void)
-{
+static void test_allocate_coverage (void) {
   DECLARE_AND_INIT_SOLVER (solver);
   void *p = kissat_nrealloc (solver, 0, 0, 0, 0);
   assert (!p);
@@ -55,33 +51,24 @@ test_allocate_coverage (void)
 
 static jmp_buf jump_buffer;
 
-static void
-abort_call_back (void)
-{
-  longjmp (jump_buffer, 42);
-}
+static void abort_call_back (void) { longjmp (jump_buffer, 42); }
 
 #define ALLOCATION_ERROR(CALL) \
-do { \
-  kissat_call_function_instead_of_abort (abort_call_back); \
-  int val = setjmp (jump_buffer); \
-  if (val) \
-    { \
+  do { \
+    kissat_call_function_instead_of_abort (abort_call_back); \
+    int val = setjmp (jump_buffer); \
+    if (val) { \
       kissat_call_function_instead_of_abort (0); \
       if (val != 42) \
-	FATAL ("expected '42' as result of 'setjmp' for '" #CALL "'"); \
-    } \
-  else \
-    { \
+        FATAL ("expected '42' as result of 'setjmp' for '" #CALL "'"); \
+    } else { \
       CALL; \
       kissat_call_function_instead_of_abort (0); \
       FATAL ("long jump not taken in '" #CALL "'"); \
     } \
-} while (0)
+  } while (0)
 
-static void
-test_allocate_error (void)
-{
+static void test_allocate_error (void) {
   DECLARE_AND_INIT_SOLVER (solver);
 
   ALLOCATION_ERROR (kissat_malloc (solver, MAX_SIZE_T));
@@ -102,9 +89,7 @@ test_allocate_error (void)
 
 #endif
 
-void
-tissat_schedule_allocate (void)
-{
+void tissat_schedule_allocate (void) {
   SCHEDULE_FUNCTION (test_allocate_basic);
   SCHEDULE_FUNCTION (test_allocate_coverage);
 #ifndef ASAN

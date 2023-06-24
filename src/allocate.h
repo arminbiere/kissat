@@ -15,19 +15,19 @@ void kissat_dealloc (struct kissat *, void *ptr, size_t n, size_t size);
 void *kissat_realloc (struct kissat *, void *, size_t old, size_t bytes);
 void *kissat_nrealloc (struct kissat *, void *, size_t o, size_t n, size_t);
 
-#define NALLOC(P,N) \
-do { \
-  (P) = kissat_nalloc (solver, (N), sizeof *(P)); \
-} while (0)
+#define NALLOC(P, N) \
+  do { \
+    (P) = kissat_nalloc (solver, (N), sizeof *(P)); \
+  } while (0)
 
-#define CALLOC(P,N) \
-do { \
-  (P) = kissat_calloc (solver, (N), sizeof *(P)); \
-} while (0)
+#define CALLOC(P, N) \
+  do { \
+    (P) = kissat_calloc (solver, (N), sizeof *(P)); \
+  } while (0)
 
-#define DEALLOC(P,N) \
-do { \
-  kissat_dealloc (solver, (P), (N), sizeof *(P)); \
-} while (0)
+#define DEALLOC(P, N) \
+  do { \
+    kissat_dealloc (solver, (P), (N), sizeof *(P)); \
+  } while (0)
 
 #endif

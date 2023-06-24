@@ -2,9 +2,7 @@
 
 #include "test.h"
 
-void
-tissat_schedule_usage (void)
-{
+void tissat_schedule_usage (void) {
 #define APP tissat_schedule_application
 
   APP (0, "-h");
@@ -21,50 +19,48 @@ tissat_schedule_usage (void)
 #endif
   APP (0, "--range");
 
-  if (tissat_found_test_directory)
-    {
-      APP (20, "--color ../test/cnf/add8.cnf");
-      APP (20, "--colors ../test/cnf/add8.cnf");
-      APP (20, "--colors ../test/cnf/add8.cnf");
-      APP (20, "--colours ../test/cnf/add8.cnf");
+  if (tissat_found_test_directory) {
+    APP (20, "--color ../test/cnf/add8.cnf");
+    APP (20, "--colors ../test/cnf/add8.cnf");
+    APP (20, "--colors ../test/cnf/add8.cnf");
+    APP (20, "--colours ../test/cnf/add8.cnf");
 
-      APP (20, "--no-color ../test/cnf/add8.cnf");
-      APP (20, "--no-colors ../test/cnf/add8.cnf");
-      APP (20, "--no-colors ../test/cnf/add8.cnf");
-      APP (20, "--no-colours ../test/cnf/add8.cnf");
+    APP (20, "--no-color ../test/cnf/add8.cnf");
+    APP (20, "--no-colors ../test/cnf/add8.cnf");
+    APP (20, "--no-colors ../test/cnf/add8.cnf");
+    APP (20, "--no-colours ../test/cnf/add8.cnf");
 
+    APP (20, "../test/cnf/add8.cnf --no-simplify");
 
-      APP (20, "../test/cnf/add8.cnf --no-simplify");
+    if (kissat_file_readable ("../test/cnf/add32.cnf"))
+      APP (20, "../test/cnf/add32.cnf --no-compact");
 
-      if (kissat_file_readable ("../test/cnf/add32.cnf"))
-	APP (20, "../test/cnf/add32.cnf --no-compact");
+    APP (20, "../test/cnf/add8.cnf --no-probe");
+    APP (20, "../test/cnf/add8.cnf --no-substitute");
 
-      APP (20, "../test/cnf/add8.cnf --no-probe");
-      APP (20, "../test/cnf/add8.cnf --no-substitute");
+    APP (20, "../test/cnf/add8.cnf --no-eliminate");
 
-      APP (20, "../test/cnf/add8.cnf --no-eliminate");
+    APP (20, "../test/cnf/add8.cnf --stable=2");
+    APP (20, "../test/cnf/add8.cnf --no-stable");
 
-      APP (20, "../test/cnf/add8.cnf --stable=2");
-      APP (20, "../test/cnf/add8.cnf --no-stable");
+    APP (20, "../test/cnf/add8.cnf --probeinit=0 --no-vivify");
 
-      APP (20, "../test/cnf/add8.cnf --probeinit=0 --no-vivify");
-
-      APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-extract");
-      APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-ifthenelse");
-      APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-equivalences");
-      APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-ands");
+    APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-extract");
+    APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-ifthenelse");
+    APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-equivalences");
+    APP (20, "../test/cnf/add8.cnf --eliminateinit=0 --no-ands");
 
 #ifndef QUIET
-      APP (0, "--walkinitially --conflicts=3000 --probeinit=0 "
-	   "--eliminateinit=0 ../test/cnf/hard.cnf --profile=4");
-      APP (0, "../test/cnf/hard.cnf --walkinitially -v -v -v "
-	   "--colors --conflicts=1e4");
+    APP (0, "--walkinitially --conflicts=3000 --probeinit=0 "
+            "--eliminateinit=0 ../test/cnf/hard.cnf --profile=4");
+    APP (0, "../test/cnf/hard.cnf --walkinitially -v -v -v "
+            "--colors --conflicts=1e4");
 #endif
 
-      APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-reduce");
-      APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-rephase");
-      APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-restart");
-    }
+    APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-reduce");
+    APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-rephase");
+    APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-restart");
+  }
 
 #else
 
@@ -87,13 +83,12 @@ tissat_schedule_usage (void)
 #define LIMITED_OPTIONS " --rephaseinit=10 --rephaseint=10"
 #endif
 
-  if (tissat_found_test_directory)
-    {
-      APP (0, "--conflicts=6e3 ../test/cnf/hard.cnf" LIMITED_OPTIONS);
-      APP (0, "--decisions=8e3 ../test/cnf/hard.cnf" LIMITED_OPTIONS);
-      APP (0, "--conflicts=7e3 --decisions=7e3 ../test/cnf/hard.cnf"
-	   LIMITED_OPTIONS);
-    }
+  if (tissat_found_test_directory) {
+    APP (0, "--conflicts=6e3 ../test/cnf/hard.cnf" LIMITED_OPTIONS);
+    APP (0, "--decisions=8e3 ../test/cnf/hard.cnf" LIMITED_OPTIONS);
+    APP (0, "--conflicts=7e3 --decisions=7e3 "
+            "../test/cnf/hard.cnf" LIMITED_OPTIONS);
+  }
 
   APP (1, "--help -n");
   APP (1, "--version -n");

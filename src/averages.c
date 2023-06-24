@@ -1,11 +1,9 @@
 #include "internal.h"
 
-void
-kissat_init_averages (kissat * solver, averages * averages)
-{
+void kissat_init_averages (kissat *solver, averages *averages) {
   if (averages->initialized)
     return;
-#define INIT_EMA(EMA,WINDOW) \
+#define INIT_EMA(EMA, WINDOW) \
   kissat_init_smooth (solver, &averages->EMA, WINDOW, #EMA)
 #ifndef QUIET
   INIT_EMA (level, GET_OPTION (emaslow));

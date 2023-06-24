@@ -1,9 +1,8 @@
-#include "fastassign.h"
 #include "propdense.h"
+#include "fastassign.h"
 
-static inline bool
-non_watching_propagate_literal (kissat * solver, unsigned lit)
-{
+static inline bool non_watching_propagate_literal (kissat *solver,
+                                                   unsigned lit) {
   assert (!solver->watching);
   LOG ("propagating %s", LOGLIT (lit));
   assert (VALUE (lit) > 0);
@@ -17,73 +16,62 @@ non_watching_propagate_literal (kissat * solver, unsigned lit)
   assigned *assigned = solver->assigned;
   value *values = solver->values;
 
-  for (all_binary_large_watches (watch, *watches))
-    {
-      if (watch.type.binary)
-	{
-	  const unsigned other = watch.binary.lit;
-	  assert (VALID_INTERNAL_LITERAL (other));
-	  const value other_value = values[other];
-	  if (other_value > 0)
-	    continue;
-	  if (other_value < 0)
-	    {
-	      LOGBINARY (not_lit, other, "conflicting");
-	      return false;
-	    }
-	  const bool redundant = watch.binary.redundant;
-	  assert (!solver->level);
-	  kissat_fast_binary_assign (solver,
-				     solver->probing, 0,
-				     values, assigned,
-				     redundant, other, not_lit);
-	}
-      else
-	{
-	  const reference ref = watch.large.ref;
-	  assert (ref < SIZE_STACK (solver->arena));
-	  clause *c = (clause *) (arena + ref);
-	  assert (c->size > 2);
-	  assert (!c->redundant);
-	  ticks++;
-	  if (c->garbage)
-	    continue;
-	  unsigned non_false = 0;
-	  unsigned unit = INVALID_LIT;
-	  bool satisfied = false;
-	  for (all_literals_in_clause (other, c))
-	    {
-	      if (other == not_lit)
-		continue;
-	      assert (VALID_INTERNAL_LITERAL (other));
-	      const value other_value = values[other];
-	      if (other_value < 0)
-		continue;
-	      if (other_value > 0)
-		{
-		  satisfied = true;
-		  assert (!solver->level);
-		  LOGCLS (c, "%s satisfied", LOGLIT (other));
-		  kissat_mark_clause_as_garbage (solver, c);
-		  break;
-		}
-	      if (!non_false++)
-		unit = other;
-	      else if (non_false > 1)
-		break;
-	    }
-	  if (satisfied)
-	    continue;
-	  if (!non_false)
-	    {
-	      LOGREF (ref, "conflicting");
-	      return false;
-	    }
-	  if (non_false == 1)
-	    kissat_fast_assign_reference (solver,
-					  values, assigned, unit, ref, c);
-	}
+  for (all_binary_large_watches (watch, *watches)) {
+    if (watch.type.binary) {
+      const unsigned other = watch.binary.lit;
+      assert (VALID_INTERNAL_LITERAL (other));
+      const value other_value = values[other];
+      if (other_value > 0)
+        continue;
+      if (other_value < 0) {
+        LOGBINARY (not_lit, other, "conflicting");
+        return false;
+      }
+      assert (!solver->level);
+      kissat_fast_binary_assign (solver, solver->probing, 0, values,
+                                 assigned, other, not_lit);
+    } else {
+      const reference ref = watch.large.ref;
+      assert (ref < SIZE_STACK (solver->arena));
+      clause *c = (clause *) (arena + ref);
+      assert (c->size > 2);
+      assert (!c->redundant);
+      ticks++;
+      if (c->garbage)
+        continue;
+      unsigned non_false = 0;
+      unsigned unit = INVALID_LIT;
+      bool satisfied = false;
+      for (all_literals_in_clause (other, c)) {
+        if (other == not_lit)
+          continue;
+        assert (VALID_INTERNAL_LITERAL (other));
+        const value other_value = values[other];
+        if (other_value < 0)
+          continue;
+        if (other_value > 0) {
+          satisfied = true;
+          assert (!solver->level);
+          LOGCLS (c, "%s satisfied", LOGLIT (other));
+          kissat_mark_clause_as_garbage (solver, c);
+          break;
+        }
+        if (!non_false++)
+          unit = other;
+        else if (non_false > 1)
+          break;
+      }
+      if (satisfied)
+        continue;
+      if (!non_false) {
+        LOGREF (ref, "conflicting");
+        return false;
+      }
+      if (non_false == 1)
+        kissat_fast_assign_reference (solver, values, assigned, unit, ref,
+                                      c);
     }
+  }
 
   ADD (ticks, ticks);
   ADD (dense_ticks, ticks);
@@ -91,9 +79,7 @@ non_watching_propagate_literal (kissat * solver, unsigned lit)
   return true;
 }
 
-bool
-kissat_dense_propagate (kissat * solver)
-{
+bool kissat_dense_propagate (kissat *solver) {
   assert (!solver->level);
   assert (!solver->watching);
   assert (!solver->inconsistent);
@@ -106,14 +92,13 @@ kissat_dense_propagate (kissat * solver)
   solver->propagate = propagate;
   ADD (dense_propagations, propagated);
   ADD (propagations, propagated);
-  if (!res)
-    {
-      assert (!solver->inconsistent);
-      LOG ("inconsistent root propagation");
-      CHECK_AND_ADD_EMPTY ();
-      ADD_EMPTY_TO_PROOF ();
-      solver->inconsistent = true;
-    }
+  if (!res) {
+    assert (!solver->inconsistent);
+    LOG ("inconsistent root propagation");
+    CHECK_AND_ADD_EMPTY ();
+    ADD_EMPTY_TO_PROOF ();
+    solver->inconsistent = true;
+  }
   STOP (propagate);
   return res;
 }

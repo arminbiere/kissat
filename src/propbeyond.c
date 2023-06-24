@@ -1,5 +1,5 @@
-#include "fastassign.h"
 #include "propbeyond.h"
+#include "fastassign.h"
 #include "trail.h"
 
 #define PROPAGATE_LITERAL propagate_literal_beyond_conflicts
@@ -8,18 +8,27 @@
 
 #include "proplit.h"
 
-static void
-propagate_literals_beyond_conflicts (kissat * solver)
-{
+static inline void
+update_beyond_propagation_statistics (kissat *solver,
+                                      const unsigned *saved_propagate) {
+  assert (saved_propagate <= solver->propagate);
+  const unsigned propagated = solver->propagate - saved_propagate;
+
+  LOG ("propagated %u literals", propagated);
+  LOG ("propagation took %" PRIu64 " ticks", solver->ticks);
+
+  ADD (propagations, propagated);
+  ADD (ticks, solver->ticks);
+}
+
+static void propagate_literals_beyond_conflicts (kissat *solver) {
   unsigned *propagate = solver->propagate;
   while (propagate != END_ARRAY (solver->trail))
     (void) propagate_literal_beyond_conflicts (solver, *propagate++);
   solver->propagate = propagate;
 }
 
-void
-kissat_propagate_beyond_conflicts (kissat * solver)
-{
+void kissat_propagate_beyond_conflicts (kissat *solver) {
   assert (!solver->probing);
   assert (solver->watching);
   assert (!solver->inconsistent);
@@ -29,7 +38,7 @@ kissat_propagate_beyond_conflicts (kissat * solver)
   solver->ticks = 0;
   const unsigned *saved_propagate = solver->propagate;
   propagate_literals_beyond_conflicts (solver);
-  kissat_update_search_propagation_statistics (solver, saved_propagate);
+  update_beyond_propagation_statistics (solver, saved_propagate);
 
   STOP (propagate);
 }

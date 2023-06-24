@@ -1,6 +1,7 @@
+#include "propsearch.h"
 #include "bump.h"
 #include "fastassign.h"
-#include "propsearch.h"
+#include "print.h"
 #include "trail.h"
 
 #define PROPAGATE_LITERAL search_propagate_literal
@@ -9,9 +10,8 @@
 #include "proplit.h"
 
 static inline void
-update_search_propagation_statistics (kissat * solver,
-				      const unsigned *saved_propagate)
-{
+update_search_propagation_statistics (kissat *solver,
+                                      const unsigned *saved_propagate) {
   assert (saved_propagate <= solver->propagate);
   const unsigned propagated = solver->propagate - saved_propagate;
 
@@ -24,21 +24,16 @@ update_search_propagation_statistics (kissat * solver,
   ADD (search_propagations, propagated);
   ADD (search_ticks, solver->ticks);
 
-  if (solver->stable)
-    {
-      ADD (stable_propagations, propagated);
-      ADD (stable_ticks, solver->ticks);
-    }
-  else
-    {
-      ADD (focused_propagations, propagated);
-      ADD (focused_ticks, solver->ticks);
-    }
+  if (solver->stable) {
+    ADD (stable_propagations, propagated);
+    ADD (stable_ticks, solver->ticks);
+  } else {
+    ADD (focused_propagations, propagated);
+    ADD (focused_ticks, solver->ticks);
+  }
 }
 
-static clause *
-search_propagate (kissat * solver)
-{
+static clause *search_propagate (kissat *solver) {
   clause *res = 0;
   unsigned *propagate = solver->propagate;
   while (!res && propagate != END_ARRAY (solver->trail))
@@ -47,9 +42,7 @@ search_propagate (kissat * solver)
   return res;
 }
 
-clause *
-kissat_search_propagate (kissat * solver)
-{
+clause *kissat_search_propagate (kissat *solver) {
   assert (!solver->probing);
   assert (solver->watching);
   assert (!solver->inconsistent);
@@ -61,6 +54,17 @@ kissat_search_propagate (kissat * solver)
   clause *conflict = search_propagate (solver);
   update_search_propagation_statistics (solver, saved_propagate);
   kissat_update_conflicts_and_trail (solver, conflict, true);
+  if (conflict && solver->randec) {
+    if (!--solver->randec)
+      kissat_very_verbose (solver, "last random decision conflict");
+    else if (solver->randec == 1)
+      kissat_very_verbose (solver,
+                           "one more random decision conflict to go");
+    else
+      kissat_very_verbose (solver,
+                           "%s more random decision conflicts to go",
+                           FORMAT_COUNT (solver->randec));
+  }
 
   STOP (propagate);
 

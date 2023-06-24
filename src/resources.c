@@ -2,9 +2,7 @@
 
 #include <sys/time.h>
 
-double
-kissat_wall_clock_time (void)
-{
+double kissat_wall_clock_time (void) {
   struct timeval tv;
   if (gettimeofday (&tv, 0))
     return 0;
@@ -17,16 +15,14 @@ kissat_wall_clock_time (void)
 #include "statistics.h"
 #include "utilities.h"
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-double
-kissat_process_time (void)
-{
+double kissat_process_time (void) {
   struct rusage u;
   double res;
   if (getrusage (RUSAGE_SELF, &u))
@@ -36,18 +32,30 @@ kissat_process_time (void)
   return res;
 }
 
-uint64_t
-kissat_maximum_resident_set_size (void)
-{
+uint64_t kissat_maximum_resident_set_size (void) {
   struct rusage u;
   if (getrusage (RUSAGE_SELF, &u))
     return 0;
   return ((uint64_t) u.ru_maxrss) << 10;
 }
 
-uint64_t
-kissat_current_resident_set_size (void)
-{
+#ifdef __APPLE__
+
+#include <mach/task.h>
+mach_port_t mach_task_self (void);
+
+uint64_t kissat_current_resident_set_size (void) {
+  struct task_basic_info info;
+  mach_msg_type_number_t count = TASK_BASIC_INFO_COUNT;
+  if (KERN_SUCCESS != task_info (mach_task_self (), TASK_BASIC_INFO,
+                                 (task_info_t) &info, &count))
+    return 0;
+  return info.resident_size;
+}
+
+#else
+
+uint64_t kissat_current_resident_set_size (void) {
   char path[48];
   sprintf (path, "/proc/%" PRIu64 "/statm", (uint64_t) getpid ());
   FILE *file = fopen (path, "r");
@@ -59,36 +67,36 @@ kissat_current_resident_set_size (void)
   return scanned == 2 ? rss * sysconf (_SC_PAGESIZE) : 0;
 }
 
-void
-kissat_print_resources (kissat * solver)
-{
+#endif
+
+void kissat_print_resources (kissat *solver) {
   uint64_t rss = kissat_maximum_resident_set_size ();
   double t = kissat_time (solver);
   printf ("c "
-	  "%-" SFW1 "s "
-	  "%" SFW2 PRIu64 " "
-	  "%-" SFW3 "s "
-	  "%" SFW4 ".0f "
-	  "MB\n",
-	  "maximum-resident-set-size:",
-	  rss, "bytes", rss / (double) (1 << 20));
+          "%-" SFW1 "s "
+          "%" SFW2 PRIu64 " "
+          "%-" SFW3 "s "
+          "%" SFW4 ".0f "
+          "MB\n",
+          "maximum-resident-set-size:", rss, "bytes",
+          rss / (double) (1 << 20));
 #ifdef METRICS
   statistics *statistics = &solver->statistics;
   uint64_t max_allocated = statistics->allocated_max + sizeof (kissat);
   printf ("c "
-	  "%-" SFW1 "s "
-	  "%" SFW2 PRIu64 " "
-	  "%-" SFW3 "s "
-	  "%" SFW4 ".0f "
-	  "%%\n",
-	  "max-allocated:",
-	  max_allocated, "bytes", kissat_percent (max_allocated, rss));
+          "%-" SFW1 "s "
+          "%" SFW2 PRIu64 " "
+          "%-" SFW3 "s "
+          "%" SFW4 ".0f "
+          "%%\n",
+          "max-allocated:", max_allocated, "bytes",
+          kissat_percent (max_allocated, rss));
 #endif
   {
     format buffer;
     memset (&buffer, 0, sizeof buffer);
     printf ("c process-time: %30s %18.2f seconds\n",
-	    kissat_format_time (&buffer, t), t);
+            kissat_format_time (&buffer, t), t);
   }
   fflush (stdout);
 }

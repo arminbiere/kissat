@@ -71,6 +71,6 @@
   CNF (20, add64, false) \
   CNF (20, add128, false) \
   CNF (20, strash1, false) \
-  CNF (20, strash2, false) \
+  CNF (20, strash2, false)
 
 #endif

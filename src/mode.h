@@ -5,8 +5,7 @@ struct kissat;
 
 typedef struct mode mode;
 
-struct mode
-{
+struct mode {
   uint64_t ticks;
 #ifndef QUIET
   double entered;

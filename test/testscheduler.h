@@ -6,7 +6,8 @@ typedef struct tissat_job tissat_job;
 extern unsigned tissat_scheduled;
 
 void tissat_schedule_function (void (*function) (void), const char *name);
-tissat_job *tissat_schedule_command (int, const char *command, tissat_job *);
+tissat_job *tissat_schedule_command (int, const char *command,
+                                     tissat_job *);
 tissat_job *tissat_schedule_application (int, const char *args);
 
 #define SCHEDULE_FUNCTION(FUNCTION) \

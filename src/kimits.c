@@ -10,27 +10,21 @@
 #include <inttypes.h>
 #include <math.h>
 
-double
-kissat_logn (uint64_t count)
-{
+double kissat_logn (uint64_t count) {
   assert (count > 0);
   const double res = log10 (count + 9);
   assert (res >= 1);
   return res;
 }
 
-double
-kissat_sqrt (uint64_t count)
-{
+double kissat_sqrt (uint64_t count) {
   assert (count > 0);
   const double res = sqrt (count);
   assert (res >= 1);
   return res;
 }
 
-double
-kissat_nlogpown (uint64_t count, unsigned exponent)
-{
+double kissat_nlogpown (uint64_t count, unsigned exponent) {
   assert (count > 0);
   const double tmp = log10 (count + 9);
   double factor = 1;
@@ -42,40 +36,35 @@ kissat_nlogpown (uint64_t count, unsigned exponent)
   return res;
 }
 
-double
-kissat_quadratic (uint64_t count)
-{
+double kissat_quadratic (uint64_t count) {
   assert (count > 0);
   const double res = count * count;
   assert (res >= 1);
   return res;
 }
 
-uint64_t
-kissat_scale_delta (kissat * solver, const char *pretty, uint64_t delta)
-{
-  const uint64_t C = IRREDUNDANT_CLAUSES;
+uint64_t kissat_scale_delta (kissat *solver, const char *pretty,
+                             uint64_t delta) {
+  const uint64_t C = BINIRR_CLAUSES;
   const double f = kissat_logn (C + 1);
   assert (f >= 1);
   const double ff = f * f;
   assert (ff >= 1);
   uint64_t scaled = ff * delta;
   assert (delta <= scaled);
-// *INDENT-OFF*
+  // clang-format off
   kissat_very_verbose (solver,
     "scaled %s delta %" PRIu64
     " = %g * %" PRIu64
     " = %g^2 * %" PRIu64
     " = log10^2(%" PRIu64 ") * %" PRIu64,
     pretty, scaled, ff, delta, f, delta, C, delta);
-// *INDENT-ON*
+  // clang-format on
   (void) pretty;
   return scaled;
 }
 
-static void
-init_enabled (kissat * solver)
-{
+static void init_enabled (kissat *solver) {
   bool probe;
   if (!GET_OPTION (simplify))
     probe = false;
@@ -99,29 +88,31 @@ init_enabled (kissat * solver)
     eliminate = false;
   else
     eliminate = true;
-  kissat_very_verbose (solver, "eliminate %sabled", eliminate ? "en" : "dis");
+  kissat_very_verbose (solver, "eliminate %sabled",
+                       eliminate ? "en" : "dis");
   solver->enabled.eliminate = eliminate;
 }
 
-#define INIT_CONFLICT_LIMIT(NAME,SCALE) \
-do { \
-  const uint64_t DELTA = GET_OPTION (NAME ## init); \
-  const uint64_t SCALED = !(SCALE) ? DELTA : \
-    kissat_scale_delta (solver, #NAME, DELTA); \
-  limits->NAME.conflicts = CONFLICTS + SCALED; \
-  kissat_very_verbose (solver, \
-    "initial " #NAME " limit of %s conflicts", \
-    FORMAT_COUNT (limits->NAME.conflicts)); \
-} while (0)
+#define INIT_CONFLICT_LIMIT(NAME, SCALE) \
+  do { \
+    const uint64_t DELTA = GET_OPTION (NAME##init); \
+    const uint64_t SCALED = \
+        !(SCALE) ? DELTA : kissat_scale_delta (solver, #NAME, DELTA); \
+    limits->NAME.conflicts = CONFLICTS + SCALED; \
+    kissat_very_verbose (solver, \
+                         "initial " #NAME " limit of %s conflicts", \
+                         FORMAT_COUNT (limits->NAME.conflicts)); \
+  } while (0)
 
-void
-kissat_init_limits (kissat * solver)
-{
+void kissat_init_limits (kissat *solver) {
   assert (solver->statistics.searches == 1);
 
   init_enabled (solver);
 
   limits *limits = &solver->limits;
+
+  if (GET_OPTION (randec))
+    INIT_CONFLICT_LIMIT (randec, false);
 
   if (GET_OPTION (reduce))
     INIT_CONFLICT_LIMIT (reduce, false);
@@ -134,13 +125,12 @@ kissat_init_limits (kissat * solver)
 
   kissat_init_mode_limit (solver);
 
-  if (solver->enabled.eliminate)
-    {
-      INIT_CONFLICT_LIMIT (eliminate, true);
-      solver->bounds.eliminate.max_bound_completed = 0;
-      solver->bounds.eliminate.additional_clauses = 0;
-      kissat_very_verbose (solver, "reset elimination bound to zero");
-    }
+  if (solver->enabled.eliminate) {
+    INIT_CONFLICT_LIMIT (eliminate, true);
+    solver->bounds.eliminate.max_bound_completed = 0;
+    solver->bounds.eliminate.additional_clauses = 0;
+    kissat_very_verbose (solver, "reset elimination bound to zero");
+  }
 
   if (solver->enabled.probe)
     INIT_CONFLICT_LIMIT (probe, true);

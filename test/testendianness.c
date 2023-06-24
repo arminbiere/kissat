@@ -1,41 +1,36 @@
-#include "../src/endianness.h"
+#include "../src/keatures.h"
 
 #include <stdbool.h>
 
 #include "test.h"
 
-struct first
-{
-  bool bit:1;
-  unsigned rest:31;
+struct first {
+  bool bit : 1;
+  unsigned rest : 31;
 };
 
-struct last
-{
-  unsigned rest:31;
-  bool bit:1;
+struct last {
+  unsigned rest : 31;
+  bool bit : 1;
 };
 
-union type
-{
+union type {
   struct first first;
   struct last last;
   unsigned raw;
 };
 
 #define PRINT(EXPR) \
-do { \
-  const unsigned value = (unsigned)(EXPR); \
-  printf ("%s == %08x\n", #EXPR, value); \
-} while (0)
+  do { \
+    const unsigned value = (unsigned) (EXPR); \
+    printf ("%s == %08x\n", #EXPR, value); \
+  } while (0)
 
-static void
-test_endianness (void)
-{
+static void test_endianness (void) {
   assert (sizeof (struct first) == 4);
   assert (sizeof (struct last) == 4);
   assert (sizeof (union type) == 4);
-  // *INDENT-OFF*
+  // clang-format off
   PRINT (((union type) { .raw = 1u      }).raw);
   PRINT (((union type) { .raw = (1u<<31)}).raw);
   printf ("\n");
@@ -62,11 +57,9 @@ test_endianness (void)
 #endif
   else
     FATAL ("could not determine endianness");
-  // *INDENT-ON*
+  // clang-format on
 }
 
-void
-tissat_schedule_endianness (void)
-{
+void tissat_schedule_endianness (void) {
   SCHEDULE_FUNCTION (test_endianness);
 }

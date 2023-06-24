@@ -2,9 +2,7 @@
 
 #include "test.h"
 
-static void
-print_queue (queue * queue, links * links)
-{
+static void print_queue (queue *queue, links *links) {
   if (!tissat_verbosity)
     return;
   for (int i = queue->first; i >= 0; i = links[i].next)
@@ -13,36 +11,32 @@ print_queue (queue * queue, links * links)
   fflush (stdout);
 }
 
-static void
-test_queue (void)
-{
+static void test_queue (void) {
   assert (DISCONNECTED (DISCONNECT));
 #define size 16
   links links[size];
   value values[2 * size];
   struct kissat solver;
   memset (&solver, 0, sizeof solver);
-  for (unsigned idx = 0; idx < size; idx++)
-    {
-      const unsigned lit = 2 * idx;
-      const unsigned not_lit = lit + 1;
-      switch (idx % 3)
-	{
-	default:
-	case 0:
-	  values[lit] = 0;
-	  values[not_lit] = 0;
-	  break;
-	case 1:
-	  values[lit] = 1;
-	  values[not_lit] = -1;
-	  break;
-	case 2:
-	  values[lit] = -1;
-	  values[not_lit] = 1;
-	  break;
-	}
+  for (unsigned idx = 0; idx < size; idx++) {
+    const unsigned lit = 2 * idx;
+    const unsigned not_lit = lit + 1;
+    switch (idx % 3) {
+    default:
+    case 0:
+      values[lit] = 0;
+      values[not_lit] = 0;
+      break;
+    case 1:
+      values[lit] = 1;
+      values[not_lit] = -1;
+      break;
+    case 2:
+      values[lit] = -1;
+      values[not_lit] = 1;
+      break;
     }
+  }
   solver.values = values;
   solver.links = links;
   solver.vars = size;
@@ -66,21 +60,19 @@ test_queue (void)
   values[2 * search + 1] = -1;
   kissat_move_to_front (&solver, search);
   print_queue (queue, links);
-  for (unsigned idx = 0; idx < size; idx++)
-    {
-      const unsigned lit = 2 * idx;
-      const unsigned not_lit = lit + 1;
-      values[lit] = 1;
-      values[not_lit] = -1;
-    }
+  for (unsigned idx = 0; idx < size; idx++) {
+    const unsigned lit = 2 * idx;
+    const unsigned not_lit = lit + 1;
+    values[lit] = 1;
+    values[not_lit] = -1;
+  }
   c = 1;
-  for (int i = 1; i < size; i += 2)
-    {
-      assert (i == c);
-      c += 2;
-      if (c >= size)
-	c = 0;
-    }
+  for (int i = 1; i < size; i += 2) {
+    assert (i == c);
+    c += 2;
+    if (c >= size)
+      c = 0;
+  }
   for (int i = 1; i < size; i += 2)
     kissat_move_to_front (&solver, i);
   print_queue (queue, links);
@@ -95,8 +87,4 @@ test_queue (void)
 #undef size
 }
 
-void
-tissat_schedule_queue (void)
-{
-  SCHEDULE_FUNCTION (test_queue);
-}
+void tissat_schedule_queue (void) { SCHEDULE_FUNCTION (test_queue); }

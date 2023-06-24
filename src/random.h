@@ -7,23 +7,18 @@
 
 typedef uint64_t generator;
 
-static inline uint64_t
-kissat_next_random64 (generator * rng)
-{
+static inline uint64_t kissat_next_random64 (generator *rng) {
   *rng *= 6364136223846793005ul;
   *rng += 1442695040888963407ul;
   return *rng;
 }
 
-static inline unsigned
-kissat_next_random32 (generator * rng)
-{
+static inline unsigned kissat_next_random32 (generator *rng) {
   return kissat_next_random64 (rng) >> 32;
 }
 
-static inline unsigned
-kissat_pick_random (generator * rng, unsigned l, unsigned r)
-{
+static inline unsigned kissat_pick_random (generator *rng, unsigned l,
+                                           unsigned r) {
   assert (l <= r);
   if (l == r)
     return l;
@@ -38,15 +33,11 @@ kissat_pick_random (generator * rng, unsigned l, unsigned r)
   return res;
 }
 
-static inline bool
-kissat_pick_bool (generator * rng)
-{
+static inline bool kissat_pick_bool (generator *rng) {
   return kissat_pick_random (rng, 0, 2);
 }
 
-static inline double
-kissat_pick_double (generator * rng)
-{
+static inline double kissat_pick_double (generator *rng) {
   return kissat_next_random32 (rng) / 4294967296.0;
 }
 

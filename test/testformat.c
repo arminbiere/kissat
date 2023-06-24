@@ -6,30 +6,36 @@
 
 #include "test.h"
 
-static void
-test_format (void)
-{
+static void test_format (void) {
   format format;
 
   memset (&format, 0, sizeof format);
 
-  (void) kissat_next_format_string (&format);	// coverage ...
+  (void) kissat_next_format_string (&format); // coverage ...
 
-#define FORMAT(TYPE,EXPR,EXPECTED) \
-do { \
-  const char * RES = kissat_format_ ## TYPE (&format, EXPR); \
-  if (strcmp (RES, EXPECTED)) \
-    FATAL ("kissat_format_" #TYPE " (.., " #EXPR ") = \"%s\" but expected \"%s\"", RES, EXPECTED); \
-  printf ("kissat_format_" #TYPE " (.., " #EXPR ") = \"%s\" as expected\n", RES); \
-} while (0)
+#define FORMAT(TYPE, EXPR, EXPECTED) \
+  do { \
+    const char *RES = kissat_format_##TYPE (&format, EXPR); \
+    if (strcmp (RES, EXPECTED)) \
+      FATAL ("kissat_format_" #TYPE " (.., " #EXPR \
+             ") = \"%s\" but expected \"%s\"", \
+             RES, EXPECTED); \
+    printf ("kissat_format_" #TYPE " (.., " #EXPR \
+            ") = \"%s\" as expected\n", \
+            RES); \
+  } while (0)
 
-#define FORMAT_signs(SIZE,SIGNS,EXPECTED) \
-do { \
-  const char * RES = kissat_format_signs (&format, SIZE, SIGNS); \
-  if (strcmp (RES, EXPECTED)) \
-    FATAL ("kissat_format_signs (.., " #SIZE ", " #SIGNS ") = \"%s\" but expected \"%s\"", RES, EXPECTED); \
-  printf ("kissat_format_signs (.., " #SIZE ", " #SIGNS ") = \"%s\" as expected\n", RES); \
-} while (0)
+#define FORMAT_signs(SIZE, SIGNS, EXPECTED) \
+  do { \
+    const char *RES = kissat_format_signs (&format, SIZE, SIGNS); \
+    if (strcmp (RES, EXPECTED)) \
+      FATAL ("kissat_format_signs (.., " #SIZE ", " #SIGNS \
+             ") = \"%s\" but expected \"%s\"", \
+             RES, EXPECTED); \
+    printf ("kissat_format_signs (.., " #SIZE ", " #SIGNS \
+            ") = \"%s\" as expected\n", \
+            RES); \
+  } while (0)
 
   FORMAT (count, 0, "0");
   FORMAT (count, 1, "1");
@@ -107,13 +113,17 @@ do { \
 
 #undef FORMAT
 
-#define FORMAT(EXPR,BOOLEAN,EXPECTED) \
-do { \
-  const char * res = kissat_format_value (&format, BOOLEAN, EXPR); \
-  if (strcmp (res, EXPECTED)) \
-    FATAL ("kissat_format_value (.., " #BOOLEAN ", " #EXPR ") = \"%s\" but expected \"%s\"", res, EXPECTED); \
-  printf ("kissat_format_value (.., " #BOOLEAN ", " #EXPR ") = \"%s\" as expected\n", res); \
-} while (0)
+#define FORMAT(EXPR, BOOLEAN, EXPECTED) \
+  do { \
+    const char *res = kissat_format_value (&format, BOOLEAN, EXPR); \
+    if (strcmp (res, EXPECTED)) \
+      FATAL ("kissat_format_value (.., " #BOOLEAN ", " #EXPR \
+             ") = \"%s\" but expected \"%s\"", \
+             res, EXPECTED); \
+    printf ("kissat_format_value (.., " #BOOLEAN ", " #EXPR \
+            ") = \"%s\" as expected\n", \
+            res); \
+  } while (0)
 
   FORMAT (0, true, "false");
   FORMAT (1, true, "true");
@@ -132,8 +142,4 @@ do { \
 #undef FORMAT
 }
 
-void
-tissat_schedule_format (void)
-{
-  SCHEDULE_FUNCTION (test_format);
-}
+void tissat_schedule_format (void) { SCHEDULE_FUNCTION (test_format); }

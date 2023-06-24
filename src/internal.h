@@ -9,7 +9,6 @@
 #include "clause.h"
 #include "cover.h"
 #include "extend.h"
-#include "smooth.h"
 #include "flags.h"
 #include "format.h"
 #include "frames.h"
@@ -26,34 +25,31 @@
 #include "random.h"
 #include "reluctant.h"
 #include "rephase.h"
+#include "smooth.h"
 #include "stack.h"
 #include "statistics.h"
-#include "literal.h"
 #include "value.h"
 #include "vector.h"
 #include "watch.h"
 
 typedef struct datarank datarank;
 
-struct datarank
-{
+struct datarank {
   unsigned data;
   unsigned rank;
 };
 
 typedef struct import import;
 
-struct import
-{
-  unsigned lit:30;
-  bool imported:1;
-  bool eliminated:1;
+struct import {
+  unsigned lit;
+  bool imported;
+  bool eliminated;
 };
 
 typedef struct termination termination;
 
-struct termination
-{
+struct termination {
 #ifdef COVERAGE
   volatile uint64_t flagged;
 #else
@@ -63,7 +59,7 @@ struct termination
   int (*volatile terminate) (void *);
 };
 
-// *INDENT-OFF*
+// clang-format off
 
 typedef STACK (value) eliminated;
 typedef STACK (import) imports;
@@ -71,12 +67,11 @@ typedef STACK (datarank) dataranks;
 typedef STACK (watch) statches;
 typedef STACK (watch *) patches;
 
-// *INDENT-ON*
+// clang-format on
 
 struct kitten;
 
-struct kissat
-{
+struct kissat {
 #if !defined(NDEBUG) || defined(METRICS)
   bool backbone_computing;
 #endif
@@ -92,6 +87,7 @@ struct kissat
 #endif
   bool stable;
 #if !defined(NDEBUG) || defined(METRICS)
+  bool transitive_reducing;
   bool vivifying;
 #endif
   bool watching;
@@ -103,6 +99,7 @@ struct kissat
   unsigned vars;
   unsigned size;
   unsigned active;
+  unsigned randec;
 
   ints export;
   ints units;
@@ -126,6 +123,9 @@ struct kissat
 
   heap scores;
   double scinc;
+
+  heap schedule;
+  double scoreshift;
 
   unsigned level;
   frames frames;
@@ -235,32 +235,29 @@ struct kissat
 };
 
 #define VARS (solver->vars)
-#define LITS (2*solver->vars)
+#define LITS (2 * solver->vars)
 
 #define SCORES (&solver->scores)
 
-static inline unsigned
-kissat_assigned (kissat * solver)
-{
+static inline unsigned kissat_assigned (kissat *solver) {
   assert (VARS >= solver->unassigned);
   return VARS - solver->unassigned;
 }
 
 #define all_variables(IDX) \
-  unsigned IDX = 0, IDX ## _END = solver->vars; \
-  IDX != IDX ## _END; \
+  unsigned IDX = 0, IDX##_END = solver->vars; \
+  IDX != IDX##_END; \
   ++IDX
 
 #define all_literals(LIT) \
-  unsigned LIT = 0, LIT ## _END = LITS; \
-  LIT != LIT ## _END; \
+  unsigned LIT = 0, LIT##_END = LITS; \
+  LIT != LIT##_END; \
   ++LIT
 
 #define all_clauses(C) \
-  clause *       C         = (clause*) BEGIN_STACK (solver->arena), \
-         * const C ## _END = (clause*) END_STACK (solver->arena), \
-	 * C ## _NEXT; \
-  C != C ## _END && (C ## _NEXT = kissat_next_clause (C), true); \
-  C = C ## _NEXT
+  clause *C = (clause *) BEGIN_STACK (solver->arena), \
+         *const C##_END = (clause *) END_STACK (solver->arena), *C##_NEXT; \
+  C != C##_END && (C##_NEXT = kissat_next_clause (C), true); \
+  C = C##_NEXT
 
 #endif

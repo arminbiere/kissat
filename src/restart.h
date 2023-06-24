@@ -1,6 +1,8 @@
 #ifndef _restart_h_INCLUDED
 #define _restart_h_INCLUDED
 
+#include <stdbool.h>
+
 struct kissat;
 
 bool kissat_restarting (struct kissat *);

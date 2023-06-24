@@ -4,22 +4,17 @@
 
 #include <inttypes.h>
 
-static void
-dump_literal (kissat * solver, unsigned ilit)
-{
+static void dump_literal (kissat *solver, unsigned ilit) {
   const int elit = kissat_export_literal (solver, ilit);
   printf ("%u(%d)", ilit, elit);
   const int value = VALUE (ilit);
-  if (value)
-    {
-      const unsigned ilit_level = LEVEL (ilit);
-      printf ("@%u=%d", ilit_level, value);
-    }
+  if (value) {
+    const unsigned ilit_level = LEVEL (ilit);
+    printf ("@%u=%d", ilit_level, value);
+  }
 }
 
-static void
-dump_binary (kissat * solver, unsigned a, unsigned b)
-{
+static void dump_binary (kissat *solver, unsigned a, unsigned b) {
   printf ("binary clause ");
   dump_literal (solver, a);
   fputc (' ', stdout);
@@ -27,9 +22,7 @@ dump_binary (kissat * solver, unsigned a, unsigned b)
   fputc ('\n', stdout);
 }
 
-static void
-dump_clause (kissat * solver, clause * c)
-{
+static void dump_clause (kissat *solver, clause *c) {
   if (c->redundant)
     printf ("redundant glue %u", c->glue);
   else
@@ -38,115 +31,92 @@ dump_clause (kissat * solver, clause * c)
   if (c->garbage)
     printf (" garbage");
   printf (" clause[%u]", ref);
-  for (all_literals_in_clause (lit, c))
-    {
-      fputc (' ', stdout);
-      dump_literal (solver, lit);
-    }
+  for (all_literals_in_clause (lit, c)) {
+    fputc (' ', stdout);
+    dump_literal (solver, lit);
+  }
   fputc ('\n', stdout);
 }
 
-static void
-dump_ref (kissat * solver, reference ref)
-{
+static void dump_ref (kissat *solver, reference ref) {
   clause *c = kissat_dereference_clause (solver, ref);
   dump_clause (solver, c);
 }
 
-
-static void
-dump_trail (kissat * solver)
-{
+static void dump_trail (kissat *solver) {
   unsigned prev = 0;
-  for (unsigned level = 0; level <= solver->level; level++)
-    {
-      frame *frame = &FRAME (level);
-      unsigned next;
-      if (level < solver->level)
-	next = frame[1].trail;
-      else
-	next = SIZE_ARRAY (solver->trail);
-      if (next == prev)
-	printf ("frame[%u] has no assignments\n", level);
-      else
-	{
-	  printf ("frame[%u] has %u assignments\n", level, next - prev);
-	  if (prev < next)
-	    printf ("block[%u] = trail[%u..%u]\n", level, prev, next - 1);
-	}
-      for (unsigned i = prev; i < next; i++)
-	{
-	  printf ("trail[%u] ", i);
-	  const unsigned lit = PEEK_ARRAY (solver->trail, i);
-	  dump_literal (solver, lit);
-	  const unsigned lit_level = LEVEL (lit);
-	  assert (lit_level <= level);
-	  if (lit_level < level)
-	    printf (" out-of-order");
-	  assigned *a = ASSIGNED (lit);
-	  if (!lit_level)
-	    {
-	      printf (" UNIT\n");
-	      assert (!a->binary);
-	      assert (a->reason == UNIT_REASON);
-	    }
-	  else
-	    {
-	      fputc (' ', stdout);
-	      if (a->binary)
-		{
-		  const unsigned other = a->reason;
-		  dump_binary (solver, lit, other);
-		}
-	      else if (a->reason == DECISION_REASON)
-		printf ("DECISION\n");
-	      else
-		{
-		  assert (a->reason != UNIT_REASON);
-		  const reference ref = a->reason;
-		  dump_ref (solver, ref);
-		}
-	    }
-	}
-      prev = next;
+  for (unsigned level = 0; level <= solver->level; level++) {
+    frame *frame = &FRAME (level);
+    unsigned next;
+    if (level < solver->level)
+      next = frame[1].trail;
+    else
+      next = SIZE_ARRAY (solver->trail);
+    if (next == prev)
+      printf ("frame[%u] has no assignments\n", level);
+    else {
+      printf ("frame[%u] has %u assignments\n", level, next - prev);
+      if (prev < next)
+        printf ("block[%u] = trail[%u..%u]\n", level, prev, next - 1);
     }
+    for (unsigned i = prev; i < next; i++) {
+      printf ("trail[%u] ", i);
+      const unsigned lit = PEEK_ARRAY (solver->trail, i);
+      dump_literal (solver, lit);
+      const unsigned lit_level = LEVEL (lit);
+      assert (lit_level <= level);
+      if (lit_level < level)
+        printf (" out-of-order");
+      assigned *a = ASSIGNED (lit);
+      if (!lit_level) {
+        printf (" UNIT\n");
+        assert (!a->binary);
+        assert (a->reason == UNIT_REASON);
+      } else {
+        fputc (' ', stdout);
+        if (a->binary) {
+          const unsigned other = a->reason;
+          dump_binary (solver, lit, other);
+        } else if (a->reason == DECISION_REASON)
+          printf ("DECISION\n");
+        else {
+          assert (a->reason != UNIT_REASON);
+          const reference ref = a->reason;
+          dump_ref (solver, ref);
+        }
+      }
+    }
+    prev = next;
+  }
 }
 
-static void
-dump_values (kissat * solver)
-{
-  for (unsigned idx = 0; idx < VARS; idx++)
-    {
-      unsigned lit = LIT (idx);
-      int value = solver->values[lit];
-      printf ("val[%u] = ", lit);
-      if (!value)
-	printf ("unassigned\n");
-      else
-	printf ("%d\n", value);
-    }
+static void dump_values (kissat *solver) {
+  for (unsigned idx = 0; idx < VARS; idx++) {
+    unsigned lit = LIT (idx);
+    int value = solver->values[lit];
+    printf ("val[%u] = ", lit);
+    if (!value)
+      printf ("unassigned\n");
+    else
+      printf ("%d\n", value);
+  }
 }
 
-static void
-dump_queue (kissat * solver)
-{
+static void dump_queue (kissat *solver) {
   const queue *const queue = &solver->queue;
   printf ("queue: first %u, last %u, stamp %u, search %u (stamp %u)\n",
-	  queue->first, queue->last, queue->stamp,
-	  queue->search.idx, queue->search.stamp);
+          queue->first, queue->last, queue->stamp, queue->search.idx,
+          queue->search.stamp);
   const links *const links = solver->links;
-  for (unsigned idx = queue->first;
-       !DISCONNECTED (idx); idx = links[idx].next)
-    {
-      const struct links *l = links + idx;
-      printf ("%u ( prev %u, next %u, stamp %u )\n",
-	      idx, l->prev, l->next, l->stamp);
-    }
+  for (unsigned idx = queue->first; !DISCONNECTED (idx);
+       idx = links[idx].next) {
+    const struct links *l = links + idx;
+    printf ("%u ( prev %u, next %u, stamp %u )\n", idx, l->prev, l->next,
+            l->stamp);
+  }
 }
 
-static void
-dump_scores (kissat * solver)
-{
+static void dump_scores (kissat *solver) {
   heap *heap = SCORES;
   printf ("scores.vars = %u\n", heap->vars);
   printf ("scores.size = %u\n", heap->size);
@@ -158,153 +128,113 @@ dump_scores (kissat * solver)
     printf ("scores.pos[%u] = %u\n", i, heap->pos[i]);
 }
 
-static void
-dump_export (kissat * solver)
-{
+static void dump_export (kissat *solver) {
   const unsigned size = SIZE_STACK (solver->export);
   for (unsigned idx = 0; idx < size; idx++)
-    printf ("export[%u] = %u\n", LIT (idx), PEEK_STACK (solver->export, idx));
+    printf ("export[%u] = %u\n", LIT (idx),
+            PEEK_STACK (solver->export, idx));
 }
 
-void
-dump_map (kissat * solver)
-{
+void dump_map (kissat *solver) {
   const unsigned size = SIZE_STACK (solver->export);
   unsigned first = INVALID_LIT;
-  for (unsigned idx = 0; idx < size; idx++)
-    {
-      const unsigned ilit = LIT (idx);
-      const int elit = PEEK_STACK (solver->export, idx);
-      printf ("map[%u] -> %d", ilit, elit);
-      if (elit)
-	{
-	  const unsigned eidx = ABS (elit);
-	  const import *const import = &PEEK_STACK (solver->import, eidx);
-	  if (import->eliminated)
-	    printf (" -> eliminated[%u]", import->lit);
-	  else
-	    {
-	      unsigned mlit = import->lit;
-	      if (elit < 0)
-		mlit = NOT (mlit);
-	      printf (" -> %u", mlit);
-	    }
-	}
-      if (!LEVEL (ilit) && VALUE (ilit))
-	{
-	  if (first == INVALID_LIT)
-	    {
-	      first = ilit;
-	      printf (" #");
-	    }
-	  else
-	    printf (" *");
-	}
-      fputc ('\n', stdout);
+  for (unsigned idx = 0; idx < size; idx++) {
+    const unsigned ilit = LIT (idx);
+    const int elit = PEEK_STACK (solver->export, idx);
+    printf ("map[%u] -> %d", ilit, elit);
+    if (elit) {
+      const unsigned eidx = ABS (elit);
+      const import *const import = &PEEK_STACK (solver->import, eidx);
+      if (import->eliminated)
+        printf (" -> eliminated[%u]", import->lit);
+      else {
+        unsigned mlit = import->lit;
+        if (elit < 0)
+          mlit = NOT (mlit);
+        printf (" -> %u", mlit);
+      }
     }
+    if (!LEVEL (ilit) && VALUE (ilit)) {
+      if (first == INVALID_LIT) {
+        first = ilit;
+        printf (" #");
+      } else
+        printf (" *");
+    }
+    fputc ('\n', stdout);
+  }
 }
 
-static void
-dump_import (kissat * solver)
-{
+static void dump_import (kissat *solver) {
   const unsigned size = SIZE_STACK (solver->import);
-  for (unsigned idx = 1; idx < size; idx++)
-    {
-      import *import = &PEEK_STACK (solver->import, idx);
-      printf ("import[%u] = ", idx);
-      if (!import->imported)
-	printf ("undefined\n");
-      else if (import->eliminated)
-	{
-	  unsigned pos = import->lit;
-	  printf ("eliminated[%u]", pos);
-	  if (pos < SIZE_STACK (solver->eliminated))
-	    {
-	      int value = PEEK_STACK (solver->eliminated, pos);
-	      if (value)
-		printf (" (assigned to %d)", value);
-	    }
-	  fputc ('\n', stdout);
-	}
-      else
-	printf ("%u\n", import->lit);
-    }
+  for (unsigned idx = 1; idx < size; idx++) {
+    import *import = &PEEK_STACK (solver->import, idx);
+    printf ("import[%u] = ", idx);
+    if (!import->imported)
+      printf ("undefined\n");
+    else if (import->eliminated) {
+      unsigned pos = import->lit;
+      printf ("eliminated[%u]", pos);
+      if (pos < SIZE_STACK (solver->eliminated)) {
+        int value = PEEK_STACK (solver->eliminated, pos);
+        if (value)
+          printf (" (assigned to %d)", value);
+      }
+      fputc ('\n', stdout);
+    } else
+      printf ("%u\n", import->lit);
+  }
 }
 
-static void
-dump_etrail (kissat * solver)
-{
+static void dump_etrail (kissat *solver) {
   for (unsigned i = 0; i < SIZE_STACK (solver->etrail); i++)
     printf ("etrail[%u] = %d\n", i, (int) PEEK_STACK (solver->etrail, i));
 }
 
-static void
-dump_extend (kissat * solver)
-{
+static void dump_extend (kissat *solver) {
   const extension *const begin = BEGIN_STACK (solver->extend);
   const extension *const end = END_STACK (solver->extend);
-  for (const extension * p = begin, *q; p != end; p = q)
-    {
-      assert (p->blocking);
-      printf ("extend[%zu] %d", (size_t) (p - begin), p->lit);
-      if (!p[1].blocking)
-	fputs (" :", stdout);
-      for (q = p + 1; q != end && !q->blocking; q++)
-	printf (" %d", q->lit);
-      fputc ('\n', stdout);
-    }
+  for (const extension *p = begin, *q; p != end; p = q) {
+    assert (p->blocking);
+    printf ("extend[%zu] %d", (size_t) (p - begin), p->lit);
+    if (!p[1].blocking)
+      fputs (" :", stdout);
+    for (q = p + 1; q != end && !q->blocking; q++)
+      printf (" %d", q->lit);
+    fputc ('\n', stdout);
+  }
 }
 
-static void
-dump_binaries (kissat * solver)
-{
-  for (all_literals (lit))
-    {
-      if (solver->watching)
-	{
-	  for (all_binary_blocking_watches (watch, WATCHES (lit)))
-	    {
-	      if (!watch.type.binary)
-		continue;
-	      const unsigned other = watch.binary.lit;
-	      if (lit > other)
-		continue;
-	      if (watch.binary.redundant)
-		printf ("redundant ");
-	      else
-		printf ("irredundant ");
-	      dump_binary (solver, lit, other);
-	    }
-	}
-      else
-	{
-	  for (all_binary_large_watches (watch, WATCHES (lit)))
-	    {
-	      if (!watch.type.binary)
-		continue;
-	      const unsigned other = watch.binary.lit;
-	      if (lit > other)
-		continue;
-	      if (watch.binary.redundant)
-		printf ("redundant ");
-	      else
-		printf ("irredundant ");
-	      dump_binary (solver, lit, other);
-	    }
-	}
+static void dump_binaries (kissat *solver) {
+  for (all_literals (lit)) {
+    if (solver->watching) {
+      for (all_binary_blocking_watches (watch, WATCHES (lit))) {
+        if (!watch.type.binary)
+          continue;
+        const unsigned other = watch.binary.lit;
+        if (lit > other)
+          continue;
+        dump_binary (solver, lit, other);
+      }
+    } else {
+      for (all_binary_large_watches (watch, WATCHES (lit))) {
+        if (!watch.type.binary)
+          continue;
+        const unsigned other = watch.binary.lit;
+        if (lit > other)
+          continue;
+        dump_binary (solver, lit, other);
+      }
     }
+  }
 }
 
-static void
-dump_clauses (kissat * solver)
-{
+static void dump_clauses (kissat *solver) {
   for (all_clauses (c))
     dump_clause (solver, c);
 }
 
-void
-dump_vectors (kissat * solver)
-{
+void dump_vectors (kissat *solver) {
   vectors *vectors = &solver->vectors;
   unsigneds *stack = &vectors->stack;
   printf ("vectors.size = %zu\n", SIZE_STACK (*stack));
@@ -323,9 +253,7 @@ dump_vectors (kissat * solver)
   fputc ('\n', stdout);
 }
 
-int
-dump (kissat * solver)
-{
+int dump (kissat *solver) {
   if (!solver)
     return 0;
   printf ("vars = %u\n", solver->vars);
@@ -349,9 +277,11 @@ dump (kissat * solver)
   else
     dump_queue (solver);
   dump_values (solver);
-  printf ("redundant = %" PRIu64 "\n", solver->statistics.clauses_redundant);
+  printf ("binary = %" PRIu64 "\n", solver->statistics.clauses_binary);
   printf ("irredundant = %" PRIu64 "\n",
-	  solver->statistics.clauses_irredundant);
+          solver->statistics.clauses_irredundant);
+  printf ("redundant = %" PRIu64 "\n",
+          solver->statistics.clauses_redundant);
   dump_binaries (solver);
   dump_clauses (solver);
   dump_extend (solver);

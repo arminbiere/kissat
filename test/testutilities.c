@@ -2,9 +2,7 @@
 
 #include "../src/utilities.h"
 
-void
-test_utilities_suffix (void)
-{
+void test_utilities_suffix (void) {
   assert (kissat_has_suffix ("", ""));
   assert (kissat_has_suffix ("a", ""));
   assert (!kissat_has_suffix ("", "a"));
@@ -28,8 +26,6 @@ test_utilities_suffix (void)
   assert (!kissat_has_suffix ("cba", "fedcba"));
 }
 
-void
-tissat_schedule_utilities (void)
-{
+void tissat_schedule_utilities (void) {
   SCHEDULE_FUNCTION (test_utilities_suffix);
 }

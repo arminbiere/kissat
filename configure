@@ -325,11 +325,11 @@ clean:
 	rm -rf "$BUILD"
 coverage:
 	\$(MAKE) -C "$BUILD" coverage
-indent:
-	\$(MAKE) -C "$BUILD" indent
+format:
+	\$(MAKE) -C "$BUILD" format
 test:
 	\$(MAKE) -C "$BUILD" test
-.PHONY: all clean coverage indent kissat test tissat
+.PHONY: all clean coverage format kissat test tissat
 EOF
 
 [ $statistics = no -a $metrics = yes ] && \

@@ -10,13 +10,13 @@ void kissat_init_alarm (void (*handler) (void));
 void kissat_reset_alarm (void);
 
 #define SIGNALS \
-SIGNAL(SIGABRT) \
-SIGNAL(SIGBUS) \
-SIGNAL(SIGINT) \
-SIGNAL(SIGSEGV) \
-SIGNAL(SIGTERM)
+  SIGNAL (SIGABRT) \
+  SIGNAL (SIGBUS) \
+  SIGNAL (SIGINT) \
+  SIGNAL (SIGSEGV) \
+  SIGNAL (SIGTERM)
 
-// *INDENT-OFF*
+// clang-format off
 
 static inline const char *
 kissat_signal_name (int sig)
@@ -30,6 +30,6 @@ kissat_signal_name (int sig)
   return "SIGUNKNOWN";
 }
 
-// *INDENT-ON*
+// clang-format on
 
 #endif

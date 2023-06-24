@@ -2,9 +2,7 @@
 
 #include <string.h>
 
-bool
-kissat_has_suffix (const char *str, const char *suffix)
-{
+bool kissat_has_suffix (const char *str, const char *suffix) {
   const char *p = str;
   while (*p)
     p++;

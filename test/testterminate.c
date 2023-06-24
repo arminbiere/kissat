@@ -5,11 +5,9 @@
 
 #include "test.h"
 
-static void
-test_terminate (int bit, const char *name,
-		int probeinit, int eliminateinit, int rephaseint,
-		const char *cnf)
-{
+static void test_terminate (int bit, const char *name, int probeinit,
+                            int eliminateinit, int rephaseint,
+                            const char *cnf) {
 #ifdef NOPTIONS
   if (probeinit >= 0)
     return;
@@ -35,8 +33,8 @@ test_terminate (int bit, const char *name,
   tissat_verbose ("parsing '%s'", cnf);
   uint64_t lineno;
   int max_var;
-  const char *error =
-    kissat_parse_dimacs (solver, RELAXED_PARSING, &file, &lineno, &max_var);
+  const char *error = kissat_parse_dimacs (solver, RELAXED_PARSING, &file,
+                                           &lineno, &max_var);
   if (error)
     FATAL ("unexpected parse error: %s", error);
   (void) error;
@@ -52,7 +50,7 @@ test_terminate (int bit, const char *name,
   kissat_release (solver);
 }
 
-// *INDENT-OFF*
+// clang-format off
 
 #define TEST_TERMINATE_BITS \
 TEST_TERMINATE (backbone_terminated_1,0,-1,-1,"add8") \
@@ -98,13 +96,10 @@ tissat_schedule_terminate (void)
 #undef TEST_TERMINATE
 }
 
-// *INDENT-ON*
+// clang-format on
 
 #else
 
-void
-tissat_schedule_terminate (void)
-{
-}
+void tissat_schedule_terminate (void) {}
 
 #endif

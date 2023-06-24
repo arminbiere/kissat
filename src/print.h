@@ -1,3 +1,5 @@
+// clang-format off
+
 #ifndef _print_h_INCLUDED
 #define _print_h_INCLUDED
 
@@ -14,8 +16,6 @@ int kissat_verbosity (struct kissat *);
 void kissat_line (struct kissat *);
 void kissat_signal (struct kissat *, const char *type, int sig);
 void kissat_section (struct kissat *, const char *name);
-
-// *INDENT-OFF*
 
 void
 kissat_message (struct kissat *, const char *fmt, ...)
@@ -37,8 +37,6 @@ void kissat_phase (struct kissat *, const char *name, uint64_t,
 		   const char * fmt, ...)
 ATTRIBUTE_FORMAT (4, 5);
 
-// *INDENT-ON*
-
 #else
 
 #define kissat_line(...) do { } while (0)
@@ -54,3 +52,5 @@ ATTRIBUTE_FORMAT (4, 5);
 #endif
 
 #endif
+
+// clang-format on

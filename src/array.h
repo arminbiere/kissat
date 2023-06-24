@@ -5,35 +5,39 @@
 #include "stack.h"
 
 #define ARRAY(TYPE) \
-  struct { TYPE * begin; TYPE * end; }
+  struct { \
+    TYPE *begin; \
+    TYPE *end; \
+  }
 
-#define ALLOCATE_ARRAY(A,N) \
-do { \
-  const size_t TMP_N = (N); \
-  (A).begin = (A).end = kissat_nalloc (solver, TMP_N, sizeof *(A).begin); \
-} while (0)
+#define ALLOCATE_ARRAY(A, N) \
+  do { \
+    const size_t TMP_N = (N); \
+    (A).begin = (A).end = \
+        kissat_nalloc (solver, TMP_N, sizeof *(A).begin); \
+  } while (0)
 
 #define EMPTY_ARRAY EMPTY_STACK
 #define SIZE_ARRAY SIZE_STACK
 
-#define PUSH_ARRAY(A,E) \
-do { \
-  *(A).end++ = (E); \
-} while (0)
+#define PUSH_ARRAY(A, E) \
+  do { \
+    *(A).end++ = (E); \
+  } while (0)
 
-#define REALLOCATE_ARRAY(A,O,N) \
-do { \
-  const size_t SIZE = SIZE_ARRAY (A); \
-  (A).begin = kissat_nrealloc (solver, (A).begin, \
-                               (O), (N), sizeof *(A).begin); \
-  (A).end = (A).begin + SIZE; \
-} while (0)
+#define REALLOCATE_ARRAY(A, O, N) \
+  do { \
+    const size_t SIZE = SIZE_ARRAY (A); \
+    (A).begin = \
+        kissat_nrealloc (solver, (A).begin, (O), (N), sizeof *(A).begin); \
+    (A).end = (A).begin + SIZE; \
+  } while (0)
 
-#define RELEASE_ARRAY(A,N) \
-do { \
-  const size_t TMP_NIZE = (N); \
-  DEALLOC((A).begin, TMP_NIZE); \
-} while (0)
+#define RELEASE_ARRAY(A, N) \
+  do { \
+    const size_t TMP_NIZE = (N); \
+    DEALLOC ((A).begin, TMP_NIZE); \
+  } while (0)
 
 #define CLEAR_ARRAY CLEAR_STACK
 #define TOP_ARRAY TOP_STACK
@@ -45,10 +49,10 @@ do { \
 #define RESIZE_ARRAY RESIZE_STACK
 #define SET_END_OF_ARRAY SET_END_OF_STACK
 
-// *INDENT-OFF*
+// clang-format off
 
 typedef ARRAY (unsigned) unsigned_array;
 
-// *INDENT-ON*
+// clang-format on
 
 #endif

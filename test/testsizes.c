@@ -1,8 +1,6 @@
 #include "test.h"
 
-bool
-test_sizes (void)
-{
+bool test_sizes (void) {
   printf ("sizeof (word) = %zu\n", sizeof (word));
   assert (sizeof (void *) == sizeof (word));
   assert (MAX_REF < INVALID_REF);

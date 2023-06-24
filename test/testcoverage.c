@@ -4,25 +4,21 @@
 
 #include "test.h"
 
-static bool
-is_cover_file_name (const char *name)
-{
+static bool is_cover_file_name (const char *name) {
 #define CHAR(CH) (*p++ == CH)
 #define DIGIT() (isdigit ((int) *p++))
   const char *p = name;
-// *INDENT-OFF*
+  // clang-format off
   return 
     CHAR ('c') && CHAR ('o') && CHAR ('v') && CHAR ('e') && CHAR ('r') &&
     DIGIT () && DIGIT () && DIGIT () && DIGIT () &&
     CHAR ('.') && CHAR ('c') && CHAR ('n') && CHAR ('f');
-// *INDENT-ON*
+// clang-format on
 #undef CHAR
 #undef DIGIT
 }
 
-static void
-schedule_cover_file (const char *dir, const char *name)
-{
+static void schedule_cover_file (const char *dir, const char *name) {
   char path[512];
   assert (dir[0]);
   assert (dir[strlen (dir) - 1] == '/');
@@ -34,46 +30,39 @@ schedule_cover_file (const char *dir, const char *name)
   int status;
   if (fscanf (file, "c status %d\n", &status) != 1)
     FATAL ("parse error at line 1 in '%s': expected 'c status <status>'",
-	   path);
+           path);
   fclose (file);
   tissat_schedule_application (status, path);
 }
 
-#define MAX_COVER_FILES (1<<16)
+#define MAX_COVER_FILES (1 << 16)
 
 static char *cover_files[MAX_COVER_FILES];
 static size_t size_cover_files;
 
-static void
-push_cover_file (const char *name)
-{
+static void push_cover_file (const char *name) {
   assert (size_cover_files < MAX_COVER_FILES);
   char *tmp = malloc (strlen (name) + 1);
   cover_files[size_cover_files++] = strcpy (tmp, name);
 }
 
-static int
-cmp (const void *p, const void *q)
-{
+static int cmp (const void *p, const void *q) {
   return strcmp (*(char **) p, *(char **) q);
 }
 
-static void
-sort_cover_files (void)
-{
+static void sort_cover_files (void) {
   qsort (cover_files, size_cover_files, sizeof (char *), cmp);
 }
 
-void
-tissat_schedule_coverage (void)
-{
+void tissat_schedule_coverage (void) {
   if (!tissat_found_test_directory)
     return;
   const char *path = "../test/cover/";
   DIR *dir = opendir (path);
   if (!dir)
     FATAL ("could not open directory '%s' "
-	   "(even though '../test/' claimed to exist)", path);
+           "(even though '../test/' claimed to exist)",
+           path);
   struct dirent *entry;
   const char *name;
   while ((entry = readdir (dir)))

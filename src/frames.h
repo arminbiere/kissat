@@ -9,8 +9,7 @@
 typedef struct frame frame;
 typedef struct slice slice;
 
-struct frame
-{
+struct frame {
   bool promote;
   unsigned decision;
   unsigned trail;
@@ -20,15 +19,14 @@ struct frame
 #endif
 };
 
-// *INDENT-OFF*
+// clang-format off
 
 typedef STACK (frame) frames;
 
-// *INDENT-ON*
+// clang-format on
 
 struct kissat;
 
-#define FRAME(LEVEL) \
-  (PEEK_STACK (solver->frames, (LEVEL)))
+#define FRAME(LEVEL) (PEEK_STACK (solver->frames, (LEVEL)))
 
 #endif

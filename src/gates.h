@@ -1,8 +1,8 @@
 #ifndef _gates_h_INCLUDED
 #define _gates_h_INCLUDED
 
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 struct kissat;
 struct clause;
@@ -16,7 +16,7 @@ void kissat_unmark_binaries (struct kissat *, unsigned lit);
 #ifndef METRICS
 #define GATE_ELIMINATED(...) true
 #else
-#define GATE_ELIMINATED(NAME) (&solver->statistics.NAME ## _eliminated)
+#define GATE_ELIMINATED(NAME) (&solver->statistics.NAME##_eliminated)
 #endif
 
 #endif

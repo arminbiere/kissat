@@ -10,13 +10,17 @@ usage: $binary [ <option> ]
 
 where '<option>' is one of the following
 
-  -h  print this command line option summary
-  -n  only print and fake building and testing
-  -1  single configuration option mode (default)
-  -2  double configuration options mode
-  -3  triple configuration options mode
-  -f  force '--coverage' with 'clang'
-  -j  build and test in parallel
+  -h             print this command line option summary
+  -1             single configuration option mode (default)
+  -2             double configuration options mode
+  -3             triple configuration options mode
+  -j             build and test in parallel
+
+  --fake         only print and fake building and testing
+  --force        force '--coverage' with 'clang'
+
+  --no-coverage  disable coverage
+  --no-pedantic  disable pedantic option
 EOF
 exit 0
 }
@@ -51,7 +55,6 @@ rm -f $tmp*
 # Default mode is to test single configurations ('-1').
 
 mode=1
-fake=no
 
 if [ -t 1 ]
 then
@@ -71,18 +74,23 @@ die () {
   exit 1
 }
 
+fake=no
 force=no
 coverage=yes
+pedantic=yes
 
 while [ $# -gt 0 ]
 do
   case "$1" in
     -h) usage;;
-    -n) fake=yes;;
     -1) mode=1;;
     -2) mode=2;;
     -3) mode=3;;
-    -n) force=yes;;
+    -f) force=yes;;
+    --fake) fake=yes;;
+    --force) force=yes;;
+    --no-coverage) coverage=no;;
+    --no-pedantic) pedantic=no;;
     -j|-j*) parallel="$1";;
     *) die "invalid option '$1' (try '-h')";;
   esac
@@ -219,13 +227,14 @@ echo "---- [ single configurations ]" \
 "----------------------------------------------"
 echo
 
-for pedantic in yes no
+for p in yes no
 do
+  [ $pedantic = no -a $p = yes ] && continue
   for first in $all
   do
     [ $first = --no-metrics ] && continue
     options="$first"
-    [ $pedantic = yes ] && options="-p $options"
+    [ $p = yes ] && options="-p $options"
     run $options
   done
 done
@@ -279,20 +288,21 @@ echo "---- [ double configurations ]" \
 "----------------------------------------------"
 echo
 
-for pedantic in yes no
+for p in yes no
 do
+  [ $pedantic = no -a $p = yes ] && continue
   for first in $all
   do
     [ x$first = x--default ] && continue;
     [ x$first = x--no-metrics ] && continue;
     metrics=no
     [ x$first = x-g -o x$first = x-l ] && metrics=yes
-    for second in `echo -- $all|fmt -0|sed "1,/$first/d"`
+    for second in `echo -- $all|fmt -1|sed "1,/$first/d"`
     do
       if redundant $first $second; then continue; fi
       [ x$second = x--no-metrics -a $metrics = no ] && continue
       options="$first $second"
-      [ $pedantic = yes ] && options="-p $options"
+      [ $p = yes ] && options="-p $options"
       run $options
     done
   done
@@ -312,26 +322,27 @@ echo "---- [ triple configurations ]" \
 "----------------------------------------------"
 echo
 
-for pedantic in yes no
+for p in yes no
 do
+  [ $pedantic = no -a $p = yes ] && continue
   for first in $all
   do
     [ x$first = x--default ] && continue;
     [ x$first = x-g -o x$first = x-l ] && metrics=yes
-    for second in `echo -- $all|fmt -0|sed "1,/$first/d"`
+    for second in `echo -- $all|fmt -1|sed "1,/$first/d"`
     do
       if redundant $first $second; then continue; fi
       metrics=no
       [ x$first = x-g -o x$first = x-l ] && metrics=yes
       [ x$second = x--no-metrics -a $metrics = no ] && continue
       [ x$second = x-g -o x$second = x-l ] && metrics=yes
-      for third in `echo -- $all|fmt -0|sed "1,/$second/d"`
+      for third in `echo -- $all|fmt -1|sed "1,/$second/d"`
       do
 	if redundant $first $third; then continue; fi
 	if redundant $second $third; then continue; fi
         [ x$third = x--no-metrics -a $metrics = no ] && continue
 	options="$first $second $third"
-	[ $pedantic = yes ] && options="-p $options"
+	[ $p = yes ] && options="-p $options"
 	run $options
       done
     done

@@ -6,8 +6,7 @@
 
 typedef struct reluctant reluctant;
 
-struct reluctant
-{
+struct reluctant {
   bool limited;
   bool trigger;
   uint64_t period;
@@ -20,9 +19,7 @@ void kissat_enable_reluctant (reluctant *, uint64_t period, uint64_t limit);
 void kissat_disable_reluctant (reluctant *);
 void kissat_tick_reluctant (reluctant *);
 
-static inline bool
-kissat_reluctant_triggered (reluctant * reluctant)
-{
+static inline bool kissat_reluctant_triggered (reluctant *reluctant) {
   if (!reluctant->trigger)
     return false;
   reluctant->trigger = false;

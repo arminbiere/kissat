@@ -42,8 +42,8 @@ clean:
 coverage:
 	@gcov -o . -s ../src/*.[ch] 2>&1 | \
 	../scripts/filter-coverage-output.sh
-indent:
-	indent ../*/*.[ch]
+format:
+	clang-format -i ../*/*.[ch]
 
 kissat: main.o $(APPOBJ) libkissat.a makefile
 	$(LD) -o $@ main.o $(APPOBJ) $(LIBS) -lm

@@ -6,11 +6,9 @@
 #include "test.h"
 
 static int dev_null = -1;
-static int saved[3] = { -1, -1, -1 };
+static int saved[3] = {-1, -1, -1};
 
-void
-tissat_divert_stdout_and_stderr_to_dev_null (void)
-{
+void tissat_divert_stdout_and_stderr_to_dev_null (void) {
   if (tissat_verbosity)
     return;
   assert (saved[1] < 0);
@@ -30,15 +28,13 @@ tissat_divert_stdout_and_stderr_to_dev_null (void)
 }
 
 #define ASSERT(COND) \
-do { \
-  if (COND) \
-    break; \
-  abort (); \
-} while (true)
+  do { \
+    if (COND) \
+      break; \
+    abort (); \
+  } while (true)
 
-static void
-restore_stdout (void)
-{
+static void restore_stdout (void) {
   if (saved[1] < 0)
     return;
   fflush (stdout);
@@ -51,9 +47,7 @@ restore_stdout (void)
   saved[1] = -1;
 }
 
-static void
-restore_stderr (void)
-{
+static void restore_stderr (void) {
   if (saved[2] < 0)
     return;
   fflush (stderr);
@@ -66,18 +60,14 @@ restore_stderr (void)
   saved[2] = -1;
 }
 
-void
-tissat_restore_stdout_and_stderr (void)
-{
+void tissat_restore_stdout_and_stderr (void) {
   if (tissat_verbosity)
     return;
   restore_stdout ();
   restore_stderr ();
 }
 
-void
-tissat_redirect_stderr_to_stdout (void)
-{
+void tissat_redirect_stderr_to_stdout (void) {
   if (dev_null >= 0)
     return;
   assert (saved[2] < 0);
@@ -88,9 +78,7 @@ tissat_redirect_stderr_to_stdout (void)
   assert (res == 2);
 }
 
-void
-tissat_restore_stderr (void)
-{
+void tissat_restore_stderr (void) {
   if (dev_null >= 0)
     return;
   if (saved[2] < 0)

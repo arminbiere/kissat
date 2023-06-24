@@ -5,8 +5,7 @@
 
 typedef struct smooth smooth;
 
-struct smooth
-{
+struct smooth {
   double value, biased, alpha, beta, exp;
 #ifdef LOGGING
   const char *name;
@@ -16,7 +15,8 @@ struct smooth
 
 struct kissat;
 
-void kissat_init_smooth (struct kissat *, smooth *, int window, const char *);
+void kissat_init_smooth (struct kissat *, smooth *, int window,
+                         const char *);
 void kissat_update_smooth (struct kissat *, smooth *, double);
 
 #endif

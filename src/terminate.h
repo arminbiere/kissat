@@ -5,14 +5,13 @@
 
 #ifndef QUIET
 void kissat_report_termination (kissat *, const char *name,
-				const char *file, long lineno,
-				const char *fun);
+                                const char *file, long lineno,
+                                const char *fun);
 #endif
 
-static inline bool
-kissat_terminated (kissat * solver, int bit, const char *name,
-		   const char *file, long lineno, const char *fun)
-{
+static inline bool kissat_terminated (kissat *solver, int bit,
+                                      const char *name, const char *file,
+                                      long lineno, const char *fun) {
   assert (0 <= bit), assert (bit < 64);
 #ifdef COVERAGE
   const uint64_t mask = (uint64_t) 1 << bit;
@@ -31,7 +30,7 @@ kissat_terminated (kissat * solver, int bit, const char *name,
   (void) lineno;
   (void) name;
 #endif
-#if !defined (COVERAGE) && defined(NDEBUG)
+#if !defined(COVERAGE) && defined(NDEBUG)
   (void) bit;
 #endif
   return true;
@@ -56,9 +55,13 @@ kissat_terminated (kissat * solver, int bit, const char *name,
 #define sweep_terminated_5 13
 #define sweep_terminated_6 14
 #define sweep_terminated_7 15
-#define vivify_terminated_1 16
-#define vivify_terminated_2 17
-#define walk_terminated_1 18
-#define warmup_terminated_1 19
+#define transitive_terminated_1 16
+#define transitive_terminated_2 17
+#define transitive_terminated_3 18
+#define vivify_terminated_1 19
+#define vivify_terminated_2 20
+#define vivify_terminated_3 21
+#define walk_terminated_1 22
+#define warmup_terminated_1 23
 
 #endif

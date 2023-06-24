@@ -5,6 +5,6 @@ struct clause;
 struct kissat;
 
 struct clause *kissat_deduce_first_uip_clause (struct kissat *,
-					       struct clause *);
+                                               struct clause *);
 
 #endif

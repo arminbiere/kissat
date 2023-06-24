@@ -2,22 +2,19 @@
 #include "logging.h"
 #include "resize.h"
 
-static void
-adjust_imports_for_external_literal (kissat * solver, unsigned eidx)
-{
-  while (eidx >= SIZE_STACK (solver->import))
-    {
-      import import;
-      import.lit = 0;
-      import.imported = false;
-      import.eliminated = false;
-      PUSH_STACK (solver->import, import);
-    }
+static void adjust_imports_for_external_literal (kissat *solver,
+                                                 unsigned eidx) {
+  while (eidx >= SIZE_STACK (solver->import)) {
+import import;
+    import.lit = 0;
+    import.imported = false;
+    import.eliminated = false;
+    PUSH_STACK (solver->import, import);
+  }
 }
 
-static void
-adjust_exports_for_external_literal (kissat * solver, unsigned eidx)
-{
+static void adjust_exports_for_external_literal (kissat *solver,
+                                                 unsigned eidx) {
   import *import = &PEEK_STACK (solver->import, eidx);
   unsigned iidx = solver->vars;
   kissat_enlarge_variables (solver, iidx + 1);
@@ -32,9 +29,7 @@ adjust_exports_for_external_literal (kissat * solver, unsigned eidx)
   LOG ("exporting internal variable %u as external literal %u", iidx, eidx);
 }
 
-static inline unsigned
-import_literal (kissat * solver, int elit)
-{
+static inline unsigned import_literal (kissat *solver, int elit) {
   const unsigned eidx = ABS (elit);
   adjust_imports_for_external_literal (solver, eidx);
   import *import = &PEEK_STACK (solver->import, eidx);
@@ -51,9 +46,7 @@ import_literal (kissat * solver, int elit)
   return ilit;
 }
 
-unsigned
-kissat_import_literal (kissat * solver, int elit)
-{
+unsigned kissat_import_literal (kissat *solver, int elit) {
   assert (VALID_EXTERNAL_LITERAL (elit));
   if (GET_OPTION (tumble))
     return import_literal (solver, elit);
@@ -66,12 +59,10 @@ kissat_import_literal (kissat * solver, int elit)
     adjust_imports_for_external_literal (solver, other++);
 
   unsigned ilit = 0;
-  do
-    {
-      assert (VALID_EXTERNAL_LITERAL ((int) other));
-      ilit = import_literal (solver, other);
-    }
-  while (other++ < eidx);
+  do {
+    assert (VALID_EXTERNAL_LITERAL ((int) other));
+    ilit = import_literal (solver, other);
+  } while (other++ < eidx);
 
   if (elit < 0)
     ilit = NOT (ilit);

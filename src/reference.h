@@ -8,12 +8,12 @@ typedef unsigned reference;
 #define REFERENCE_FORMAT "u"
 
 #define LD_MAX_REF 31u
-#define MAX_REF ((1u << LD_MAX_REF)-1)
+#define MAX_REF ((1u << LD_MAX_REF) - 1)
 
 #define INVALID_REF UINT_MAX
 
-// *INDENT-OFF*
+// clang-format off
 typedef STACK (reference) references;
-// *INDENT-ON*
+// clang-format on
 
 #endif

@@ -1,8 +1,6 @@
 #include "test.h"
 
-static void
-test_dump (void)
-{
+static void test_dump (void) {
   printf ("First generating and solving simple CNF:\n\n");
   kissat *solver = kissat_init ();
   kissat_add (solver, 1);
@@ -36,8 +34,4 @@ test_dump (void)
   kissat_release (solver);
 }
 
-void
-tissat_schedule_dump (void)
-{
-  SCHEDULE_FUNCTION (test_dump);
-}
+void tissat_schedule_dump (void) { SCHEDULE_FUNCTION (test_dump); }

@@ -2,9 +2,7 @@
 
 #include "test.h"
 
-static void
-test_stack_basic (void)
-{
+static void test_stack_basic (void) {
   DECLARE_AND_INIT_SOLVER (solver);
   STACK (unsigned) stack;
   assert (sizeof stack == 3 * sizeof (void *));
@@ -12,30 +10,28 @@ test_stack_basic (void)
   assert (EMPTY_STACK (stack));
   assert (FULL_STACK (stack));
   const unsigned n = 100;
-  for (unsigned i = 0; i < n; i++)
-    {
-      assert (SIZE_STACK (stack) == i);
-      PUSH_STACK (stack, i);
-    }
+  for (unsigned i = 0; i < n; i++) {
+    assert (SIZE_STACK (stack) == i);
+    PUSH_STACK (stack, i);
+  }
 #ifdef METRICS
   assert (solver->statistics.allocated_current == 128 * sizeof (unsigned));
 #endif
   {
     unsigned i = 0;
     for (all_stack (unsigned, e, stack))
-        assert (e == i++);
+      assert (e == i++);
     assert (i == n);
   }
   {
     unsigned i = n - 1;
-    while (!EMPTY_STACK (stack))
-      {
-	unsigned tmp = TOP_STACK (stack);
-	assert (tmp == i);
-	tmp = POP_STACK (stack);
-	assert (tmp == i);
-	i--;
-      }
+    while (!EMPTY_STACK (stack)) {
+      unsigned tmp = TOP_STACK (stack);
+      assert (tmp == i);
+      tmp = POP_STACK (stack);
+      assert (tmp == i);
+      i--;
+    }
     assert (i == 0u - 1);
   }
   RELEASE_STACK (stack);
@@ -46,18 +42,15 @@ test_stack_basic (void)
 
 typedef struct odd_sized odd_sized;
 
-struct odd_sized
-{
+struct odd_sized {
   unsigned a, b, c;
 };
 
-// *INDENT-OFF*
+// clang-format off
 typedef STACK (odd_sized) odd_sized_stack;
-// *INDENT-ON*
+// clang-format on
 
-static void
-test_shrink_stack (void)
-{
+static void test_shrink_stack (void) {
   DECLARE_AND_INIT_SOLVER (solver);
   odd_sized element;
   memset (&element, 0, sizeof element);
@@ -75,9 +68,7 @@ test_shrink_stack (void)
 #endif
 }
 
-void
-tissat_schedule_stack (void)
-{
+void tissat_schedule_stack (void) {
   SCHEDULE_FUNCTION (test_stack_basic);
   SCHEDULE_FUNCTION (test_shrink_stack);
 }

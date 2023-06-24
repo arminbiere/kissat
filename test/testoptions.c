@@ -1,19 +1,17 @@
 #include "test.h"
 
-static void
-test_options_parse_value (void)
-{
+static void test_options_parse_value (void) {
   int value;
 
-#define CHECKVAL(STR,VAL) \
-do { \
-  assert (kissat_parse_option_value (STR, &value)); \
-  if (value != VAL) \
-    FATAL ("parsing '%s' gives '%d' and not '%s' (%d)", \
-      STR, value, #VAL, (int)(VAL)); \
-  else \
-    printf ("checked parsing value string '%s' as '%s'\n", STR, #VAL); \
-} while (0)
+#define CHECKVAL(STR, VAL) \
+  do { \
+    assert (kissat_parse_option_value (STR, &value)); \
+    if (value != VAL) \
+      FATAL ("parsing '%s' gives '%d' and not '%s' (%d)", STR, value, \
+             #VAL, (int) (VAL)); \
+    else \
+      printf ("checked parsing value string '%s' as '%s'\n", STR, #VAL); \
+  } while (0)
 
   CHECKVAL ("0", 0);
   CHECKVAL ("1", 1);
@@ -40,10 +38,11 @@ do { \
 #undef CHECKVAL
 
 #define FAILVAL(STR) \
-do { \
-  assert (!kissat_parse_option_value (STR, &value)); \
-  printf ("checked parsing value string '%s' failed as expected\n", STR); \
-} while (0)
+  do { \
+    assert (!kissat_parse_option_value (STR, &value)); \
+    printf ("checked parsing value string '%s' failed as expected\n", \
+            STR); \
+  } while (0)
 
   FAILVAL ("");
   FAILVAL ("0oops");
@@ -69,21 +68,22 @@ do { \
 #undef FAILVAL
 }
 
-static void
-test_options_parse_name (void)
-{
+static void test_options_parse_name (void) {
   const char *valstr;
 
-#define CHECKNAME(STR,NAME,EXPECTED) \
-do { \
-  valstr = kissat_parse_option_name (STR, NAME); \
-  if (!valstr) \
-    FATAL ("kissat_parse_option_name (\"" STR "\", \"" NAME "\") returns 0"); \
-  if (strcmp (valstr, EXPECTED)) \
-    FATAL ("kissat_parse_option_name (\"" STR "\", \"" NAME "\") != \"" EXPECTED "\""); \
-  printf ("checked parsing of option string '%s' name '%s' expected '%s'\n", \
-          STR, NAME, EXPECTED); \
-} while (0)
+#define CHECKNAME(STR, NAME, EXPECTED) \
+  do { \
+    valstr = kissat_parse_option_name (STR, NAME); \
+    if (!valstr) \
+      FATAL ("kissat_parse_option_name (\"" STR "\", \"" NAME \
+             "\") returns 0"); \
+    if (strcmp (valstr, EXPECTED)) \
+      FATAL ("kissat_parse_option_name (\"" STR "\", \"" NAME \
+             "\") != \"" EXPECTED "\""); \
+    printf ( \
+        "checked parsing of option string '%s' name '%s' expected '%s'\n", \
+        STR, NAME, EXPECTED); \
+  } while (0)
 
   CHECKNAME ("--=", "", "");
   CHECKNAME ("--conflicts=", "conflicts", "");
@@ -93,14 +93,16 @@ do { \
 
 #undef CHECKNAME
 
-#define FAILNAME(STR,NAME) \
-do { \
-  valstr = kissat_parse_option_name (STR, NAME); \
-  if (valstr) \
-    FATAL ("kissat_parse_option_name (\"" STR "\", \"" NAME "\") succeeded"); \
-  printf ("checked parsing of option string '%s' name '%s' failed as expected\n", \
-          STR, NAME); \
-} while (0)
+#define FAILNAME(STR, NAME) \
+  do { \
+    valstr = kissat_parse_option_name (STR, NAME); \
+    if (valstr) \
+      FATAL ("kissat_parse_option_name (\"" STR "\", \"" NAME \
+             "\") succeeded"); \
+    printf ("checked parsing of option string '%s' name '%s' failed as " \
+            "expected\n", \
+            STR, NAME); \
+  } while (0)
 
   FAILNAME ("--conflicts=1", "decisions");
   FAILNAME ("--conflicts=1", "");
@@ -114,9 +116,7 @@ do { \
 
 #ifndef NOPTIONS
 
-static void
-test_options_basic (void)
-{
+static void test_options_basic (void) {
   options options;
   kissat_init_options (&options);
   const opt *opt = kissat_options_has ("eliminate");
@@ -139,24 +139,22 @@ test_options_basic (void)
   assert (!kissat_options_get (&options, "nonexistingoption"));
 }
 
-static void
-test_options_parse_arg (void)
-{
+static void test_options_parse_arg (void) {
   char buffer[kissat_options_max_name_buffer_size];
   int value;
 
-#define CHECKARG(STR,NAME,VAL) \
-do { \
-  assert (kissat_options_parse_arg (STR, buffer, &value)); \
-  if (strcmp (buffer, NAME)) \
-    FATAL ("parsing '%s' yields name '%s' and not '%s'", \
-      STR, buffer, NAME); \
-  if (value != VAL) \
-    FATAL ("parsing '%s' yields value '%d' and not '%s' (%d)", \
-      STR, value, #VAL, (int)(VAL)); \
-  printf ("checked parsing option string '%s' name '%s' value '%s'\n", \
-          STR, NAME, #VAL); \
-} while (0)
+#define CHECKARG(STR, NAME, VAL) \
+  do { \
+    assert (kissat_options_parse_arg (STR, buffer, &value)); \
+    if (strcmp (buffer, NAME)) \
+      FATAL ("parsing '%s' yields name '%s' and not '%s'", STR, buffer, \
+             NAME); \
+    if (value != VAL) \
+      FATAL ("parsing '%s' yields value '%d' and not '%s' (%d)", STR, \
+             value, #VAL, (int) (VAL)); \
+    printf ("checked parsing option string '%s' name '%s' value '%s'\n", \
+            STR, NAME, #VAL); \
+  } while (0)
 
   CHECKARG ("--reduce", "reduce", 1);
   CHECKARG ("--no-reduce", "reduce", 0);
@@ -166,10 +164,11 @@ do { \
 #undef CHECKARG
 
 #define FAILARG(STR) \
-do { \
-  assert (!kissat_options_parse_arg (STR, buffer, &value)); \
-  printf ("checked parsing option string '%s' failed as expected\n", STR); \
-} while (0)
+  do { \
+    assert (!kissat_options_parse_arg (STR, buffer, &value)); \
+    printf ("checked parsing option string '%s' failed as expected\n", \
+            STR); \
+  } while (0)
 
   FAILARG ("");
   FAILARG ("-");
@@ -205,9 +204,7 @@ do { \
 
 #endif
 
-void
-tissat_schedule_options (void)
-{
+void tissat_schedule_options (void) {
   SCHEDULE_FUNCTION (test_options_parse_value);
   SCHEDULE_FUNCTION (test_options_parse_name);
 #ifndef NOPTIONS

@@ -2,12 +2,10 @@
 #include "logging.h"
 
 static inline value
-move_smallest_literal_to_front (kissat * solver,
-				const value * const values,
-				const assigned * const assigned,
-				bool satisfied_is_enough,
-				unsigned start, unsigned size, unsigned *lits)
-{
+move_smallest_literal_to_front (kissat *solver, const value *const values,
+                                const assigned *const assigned,
+                                bool satisfied_is_enough, unsigned start,
+                                unsigned size, unsigned *lits) {
   assert (1 < size);
   assert (start < size);
 
@@ -24,49 +22,44 @@ move_smallest_literal_to_front (kissat * solver,
     unsigned k = (u ? assigned[i].level : UINT_MAX);
 
     assert (start < UINT_MAX);
-    for (unsigned i = start + 1; i < size; i++)
-      {
-	const unsigned b = lits[i];
-	const value v = values[b];
+    for (unsigned i = start + 1; i < size; i++) {
+      const unsigned b = lits[i];
+      const value v = values[b];
 
-	if (!v || (v > 0 && satisfied_is_enough))
-	  {
-	    best = b;
-	    pos = i;
-	    u = v;
-	    break;
-	  }
-
-	const unsigned j = IDX (b);
-	const unsigned l = (v ? assigned[j].level : UINT_MAX);
-
-	bool better;
-
-	if (u < 0 && v > 0)
-	  better = true;
-	else if (u > 0 && v < 0)
-	  better = false;
-	else if (u < 0)
-	  {
-	    assert (v < 0);
-	    better = (k < l);
-	  }
-	else
-	  {
-	    assert (u > 0);
-	    assert (v > 0);
-	    assert (!satisfied_is_enough);
-	    better = (k > l);
-	  }
-
-	if (!better)
-	  continue;
-
-	best = b;
-	pos = i;
-	u = v;
-	k = l;
+      if (!v || (v > 0 && satisfied_is_enough)) {
+        best = b;
+        pos = i;
+        u = v;
+        break;
       }
+
+      const unsigned j = IDX (b);
+      const unsigned l = (v ? assigned[j].level : UINT_MAX);
+
+      bool better;
+
+      if (u < 0 && v > 0)
+        better = true;
+      else if (u > 0 && v < 0)
+        better = false;
+      else if (u < 0) {
+        assert (v < 0);
+        better = (k < l);
+      } else {
+        assert (u > 0);
+        assert (v > 0);
+        assert (!satisfied_is_enough);
+        better = (k > l);
+      }
+
+      if (!better)
+        continue;
+
+      best = b;
+      pos = i;
+      u = v;
+      k = l;
+    }
   }
 
   if (!pos)
@@ -75,8 +68,8 @@ move_smallest_literal_to_front (kissat * solver,
   lits[start] = best;
   lits[pos] = a;
 
-  LOG ("new smallest literal %s at %u swapped with %s at %u",
-       LOGLIT (best), pos, LOGLIT (a), start);
+  LOG ("new smallest literal %s at %u swapped with %s at %u", LOGLIT (best),
+       pos, LOGLIT (a), start);
 #ifndef LOGGING
   (void) solver;
 #endif
@@ -86,20 +79,20 @@ move_smallest_literal_to_front (kissat * solver,
 #ifdef INLINE_SORT
 static inline
 #endif
-  void
-kissat_sort_literals (kissat * solver,
+    void
+    kissat_sort_literals (kissat *solver,
 #ifdef INLINE_SORT
-		      const value * const values, const assigned * assigned,
+                          const value *const values,
+                          const assigned *assigned,
 #endif
-		      unsigned size, unsigned *lits)
-{
+                          unsigned size, unsigned *lits) {
 #ifndef INLINE_SORT
   const value *const values = solver->values;
   const assigned *const assigned = solver->assigned;
 #endif
-  value u = move_smallest_literal_to_front (solver, values, assigned,
-					    false, 0, size, lits);
+  value u = move_smallest_literal_to_front (solver, values, assigned, false,
+                                            0, size, lits);
   if (size > 2)
-    move_smallest_literal_to_front (solver, values, assigned,
-				    (u >= 0), 1, size, lits);
+    move_smallest_literal_to_front (solver, values, assigned, (u >= 0), 1,
+                                    size, lits);
 }

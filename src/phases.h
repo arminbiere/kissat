@@ -5,8 +5,7 @@
 
 typedef struct phases phases;
 
-struct phases
-{
+struct phases {
   value *best;
   value *saved;
   value *target;
@@ -31,9 +30,9 @@ void kissat_save_best_phases (struct kissat *);
 void kissat_save_saved_phases (struct kissat *);
 void kissat_save_target_phases (struct kissat *);
 
-#define all_phases(NAME,PTR) \
-  value * PTR = solver->phases.NAME, * const end_ ## PTR = PTR + VARS; \
-  PTR != end_ ## PTR; \
+#define all_phases(NAME, PTR) \
+  value *PTR = solver->phases.NAME, *const end_##PTR = PTR + VARS; \
+  PTR != end_##PTR; \
   ++PTR
 
 #endif

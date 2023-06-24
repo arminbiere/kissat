@@ -1,6 +1,6 @@
+#include "parse.h"
 #include "collect.h"
 #include "internal.h"
-#include "parse.h"
 #include "print.h"
 #include "profile.h"
 #include "resize.h"
@@ -8,36 +8,71 @@
 #include <ctype.h>
 #include <inttypes.h>
 
-static int
-next (file * file, uint64_t * lineno_ptr)
+#define size_buffer (1u << 20)
+
+struct read_buffer {
+  unsigned char chars[size_buffer];
+  size_t pos, end;
+};
+
+typedef struct read_buffer read_buffer;
+
+static size_t fill_buffer (read_buffer *buffer, file *file) {
+  buffer->pos = 0;
+  buffer->end = kissat_read (file, buffer->chars, size_buffer);
+  return buffer->end;
+}
+
+// clang-format off
+
+static inline int
+next (read_buffer *, file *, uint64_t *) ATTRIBUTE_ALWAYS_INLINE;
+
+static inline bool faster_is_digit (int ch) ATTRIBUTE_ALWAYS_INLINE;
+
+// clang-format off
+
+static inline int
+next (read_buffer * buffer, file * file, uint64_t * lineno_ptr)
 {
-  int ch = kissat_getc (file);
+  if (buffer->pos == buffer->end && !fill_buffer (buffer, file))
+    return EOF;
+  int ch = buffer->chars[buffer->pos++];
   if (ch == '\n')
     *lineno_ptr += 1;
   return ch;
 }
 
-#define NEXT() \
-  next (file, lineno_ptr)
+#define NEXT() next (&buffer, file, &lineno)
 
-static const char *
-nonl (int ch, const char *str, uint64_t * lineno_ptr)
-{
-  if (ch == '\n')
-    {
-      assert (*lineno_ptr > 1);
-      *lineno_ptr -= 1;
-    }
-  return str;
-}
+#define NONL(STR) \
+do { \
+  if (ch == '\n') \
+    { \
+      assert (lineno > 0); \
+      lineno--; \
+    } \
+  *lineno_ptr = lineno; \
+  return STR; \
+} while (0)
 
 #define TRY_RELAXED_PARSING "(try '--relaxed' parsing)"
 
-static const char *
-parse_dimacs (kissat * solver, strictness strict,
-	      file * file, uint64_t * lineno_ptr, int *max_var_ptr)
+static inline bool
+faster_is_digit (int ch)
 {
-  *lineno_ptr = 1;
+  return '0' <= ch && ch <= '9';
+}
+
+#define ISDIGIT(CH) faster_is_digit (CH)
+
+static const char *
+parse_dimacs (kissat * solver, file * file,
+              strictness strict, uint64_t * lineno_ptr, int * max_var_ptr)
+{
+  read_buffer buffer;
+  buffer.pos = buffer.end = 0;
+  uint64_t lineno = *lineno_ptr = 1;
   bool first = true;
   int ch;
   for (;;)
@@ -59,12 +94,12 @@ parse_dimacs (kissat * solver, strictness strict,
 	  if (ch != '\n')
 	    return "expected new-line after carriage-return";
 	  if (strict == PEDANTIC_PARSING)
-	    return nonl (ch, "unexpected empty line", lineno_ptr);
+	    NONL ("unexpected empty line");
 	}
       else if (ch == '\n')
 	{
 	  if (strict == PEDANTIC_PARSING)
-	    return nonl (ch, "unexpected empty line", lineno_ptr);
+	    NONL ("unexpected empty line");
 	}
       else if (ch == 'c')
 	{
@@ -122,10 +157,10 @@ parse_dimacs (kissat * solver, strictness strict,
 		}
 	      else
 		sign = 1;
-	      if (!isdigit (ch))
+	      if (!ISDIGIT (ch))
 		goto COMPLETE;
 	      int arg = ch - '0';
-	      while (isdigit (ch = NEXT ()))
+	      while (ISDIGIT (ch = NEXT ()))
 		{
 		  if (INT_MAX / 10 < arg)
 		    goto COMPLETE;
@@ -184,7 +219,7 @@ parse_dimacs (kissat * solver, strictness strict,
   assert (ch == 'p');
   ch = NEXT ();
   if (ch != ' ')
-    return nonl (ch, "expected space after 'p'", lineno_ptr);
+    NONL ("expected space after 'p'");
   ch = NEXT ();
   if (strict != PEDANTIC_PARSING)
     {
@@ -192,26 +227,26 @@ parse_dimacs (kissat * solver, strictness strict,
 	ch = NEXT ();
     }
   if (ch != 'c')
-    return nonl (ch, "expected 'c' after 'p '", lineno_ptr);
+    NONL ("expected 'c' after 'p '");
   ch = NEXT ();
   if (ch != 'n')
-    return nonl (ch, "expected 'n' after 'p c'", lineno_ptr);
+    NONL ("expected 'n' after 'p c'");
   ch = NEXT ();
   if (ch != 'f')
-    return nonl (ch, "expected 'n' after 'p cn'", lineno_ptr);
+    NONL ("expected 'n' after 'p cn'");
   ch = NEXT ();
   if (ch != ' ')
-    return nonl (ch, "expected space after 'p cnf'", lineno_ptr);
+    NONL ("expected space after 'p cnf'");
   ch = NEXT ();
   if (strict != PEDANTIC_PARSING)
     {
       while (ch == ' ' || ch == '\t')
 	ch = NEXT ();
     }
-  if (!isdigit (ch))
-    return nonl (ch, "expected digit after 'p cnf '", lineno_ptr);
+  if (!ISDIGIT (ch))
+    NONL ("expected digit after 'p cnf '");
   int variables = ch - '0';
-  while (isdigit (ch = NEXT ()))
+  while (ISDIGIT (ch = NEXT ()))
     {
       if (EXTERNAL_MAX_VAR / 10 < variables)
 	return "maximum variable too large";
@@ -230,8 +265,7 @@ parse_dimacs (kissat * solver, strictness strict,
 	return "expected new-line after carriage-return";
     }
   if (ch == '\n')
-    return nonl (ch, "unexpected new-line after maximum variable",
-		 lineno_ptr);
+    NONL ("unexpected new-line after maximum variable");
   if (ch != ' ')
     return "expected space after maximum variable";
   ch = NEXT ();
@@ -240,10 +274,10 @@ parse_dimacs (kissat * solver, strictness strict,
       while (ch == ' ' || ch == '\t')
 	ch = NEXT ();
     }
-  if (!isdigit (ch))
+  if (!ISDIGIT (ch))
     return "expected number of clauses after maximum variable";
   uint64_t clauses = ch - '0';
-  while (isdigit (ch = NEXT ()))
+  while (ISDIGIT (ch = NEXT ()))
     {
       if (UINT64_MAX / 10 < clauses)
 	return "number of clauses too large";
@@ -314,20 +348,20 @@ parse_dimacs (kissat * solver, strictness strict,
 	  if (ch == EOF)
 	    return "unexpected end-of-file after '-'";
 	  if (ch == '\n')
-	    return nonl (ch, "unexpected new-line after '-'", lineno_ptr);
-	  if (!isdigit (ch))
+	    NONL ("unexpected new-line after '-'");
+	  if (!ISDIGIT (ch))
 	    return "expected digit after '-'";
 	  if (ch == '0')
 	    return "expected non-zero digit after '-'";
 	  sign = -1;
 	}
-      else if (!isdigit (ch))
+      else if (!ISDIGIT (ch))
 	return "expected digit or '-'";
       else
 	sign = 1;
-      assert (isdigit (ch));
+      assert (ISDIGIT (ch));
       int idx = ch - '0';
-      while (isdigit (ch = NEXT ()))
+      while (ISDIGIT (ch = NEXT ()))
 	{
 	  if (EXTERNAL_MAX_VAR / 10 < idx)
 	    return "variable index too large";
@@ -366,8 +400,7 @@ parse_dimacs (kissat * solver, strictness strict,
       else if (ch != ' ' && ch != '\t' && ch != '\n')
 	return "expected white space after literal";
       if (strict != RELAXED_PARSING && idx > variables)
-	return nonl (ch, "maximum variable index exceeded "
-		     TRY_RELAXED_PARSING, lineno_ptr);
+	NONL ("maximum variable index exceeded " TRY_RELAXED_PARSING);
       if (idx)
 	{
 	  assert (sign == 1 || sign == -1);
@@ -391,6 +424,9 @@ parse_dimacs (kissat * solver, strictness strict,
 	return "one clause missing " TRY_RELAXED_PARSING;
       return "more than one clause missing " TRY_RELAXED_PARSING;
     }
+
+  *lineno_ptr = lineno;
+
   return 0;
 }
 
@@ -399,9 +435,9 @@ kissat_parse_dimacs (kissat * solver,
 		     strictness strict,
 		     file * file, uint64_t * lineno_ptr, int *max_var_ptr)
 {
-  const char *res;
   START (parse);
-  res = parse_dimacs (solver, strict, file, lineno_ptr, max_var_ptr);
+  const char *res;
+  res = parse_dimacs (solver, file, strict, lineno_ptr, max_var_ptr);
   if (!solver->inconsistent)
     kissat_defrag_watches (solver);
   STOP (parse);

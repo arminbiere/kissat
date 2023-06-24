@@ -9,7 +9,7 @@
 
 static kissat *volatile solver;
 
-// *INDENT-OFF*
+// clang-format off
 
 static void
 kissat_signal_handler (int sig)
@@ -22,13 +22,11 @@ kissat_signal_handler (int sig)
 #endif
   FLUSH_COVERAGE (); } // Keep this '}' in the same line!
 
-// *INDENT-ON*
+// clang-format on
 
 static volatile bool ignore_alarm = false;
 
-static void
-kissat_alarm_handler (void)
-{
+static void kissat_alarm_handler (void) {
   if (ignore_alarm)
     return;
   assert (solver);
@@ -39,13 +37,11 @@ kissat_alarm_handler (void)
 extern int dump (kissat *);
 #endif
 
-#include "random.h"
 #include "error.h"
+#include "random.h"
 #include <strings.h>
 
-int
-main (int argc, char **argv)
-{
+int main (int argc, char **argv) {
   int res;
   solver = kissat_init ();
   kissat_init_alarm (kissat_alarm_handler);

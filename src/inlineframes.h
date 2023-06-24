@@ -4,9 +4,7 @@
 #include "allocate.h"
 #include "internal.h"
 
-static inline void
-kissat_push_frame (kissat * solver, unsigned decision)
-{
+static inline void kissat_push_frame (kissat *solver, unsigned decision) {
   assert (!solver->level || decision != UINT_MAX);
   const size_t trail = SIZE_ARRAY (solver->trail);
   frame frame;

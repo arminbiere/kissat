@@ -4,6 +4,6 @@
 struct kissat;
 
 unsigned kissat_compact_literals (struct kissat *, unsigned *mfixed_ptr);
-void kissat_finalize_compacting (struct kissat *,
-				 unsigned vars, unsigned mfixed);
+void kissat_finalize_compacting (struct kissat *, unsigned vars,
+                                 unsigned mfixed);
 #endif
