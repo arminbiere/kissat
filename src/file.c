@@ -174,9 +174,13 @@ static FILE *read_pipe (const char *fmt, const int *sig, const char *path) {
   return open_pipe (fmt, path, "r");
 }
 
+#ifndef SAFE
+
 static FILE *write_pipe (const char *fmt, const char *path) {
   return open_pipe (fmt, path, "w");
 }
+
+#endif
 
 #endif
 
@@ -253,7 +257,7 @@ bool kissat_open_to_read_file (file *file, const char *path) {
 }
 
 bool kissat_open_to_write_file (file *file, const char *path) {
-#ifdef KISSAT_HAS_COMPRESSION
+#if defined(KISSAT_HAS_COMPRESSION) && !defined(SAFE)
 #define WRITE_PIPE(SUFFIX, CMD) \
   do { \
     if (kissat_has_suffix (path, SUFFIX)) { \

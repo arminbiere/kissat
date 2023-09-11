@@ -1,3 +1,8 @@
+Version 3.1.1
+-------------
+
+  - configuration option `--safe` disables writing through `popen`
+
 Version 3.1.0
 -------------
 
