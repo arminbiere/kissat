@@ -1,6 +1,7 @@
-Version sc2024
---------------
+Version 4.0.0
+-------------
 
+  - source code matches competition version 'sc2024'
   - fast variable elimination during preprocessing (in `fastel.c`)
   - lucky phases as in `CaDiCaL` but before and after preprocessing
     and with unit extraction and SLURM semantics
