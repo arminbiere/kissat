@@ -12,15 +12,21 @@
 
 const char * kissat_log_lit (kissat *, unsigned lit);
 const char * kissat_log_var (kissat *, unsigned idx);
+const char * kissat_log_repr (kissat *, unsigned lit, const unsigned *);
 
 void kissat_log_msg (kissat *, const char*, const char *fmt, ...)
 ATTRIBUTE_FORMAT (3, 4);
 
-void kissat_log_clause (kissat *, const char*, const clause *, const char *, ...)
+void kissat_log_clause (kissat *, const char*, const clause *,
+                        const char *, ...)
 ATTRIBUTE_FORMAT (4, 5);
 
 void kissat_log_counted_clause (kissat *, const char*, const clause *,
                                 const unsigned *, const char *, ...)
+ATTRIBUTE_FORMAT (5, 6);
+
+void kissat_log_repr_clause (kissat *, const char*, const clause *,
+			     const unsigned *, const char *, ...)
 ATTRIBUTE_FORMAT (5, 6);
 
 void kissat_log_binary (kissat *, const char*,
@@ -42,14 +48,36 @@ void kissat_log_litpart (kissat *, const char*,
                          size_t, const unsigned *, const char *, ...)
 ATTRIBUTE_FORMAT (5, 6);
 
+void kissat_log_counted_ref_lits (kissat *, const char*, reference,
+                                  size_t, const unsigned *,
+			          const unsigned * counts, const char *, ...)
+ATTRIBUTE_FORMAT (7, 8);
+
 void kissat_log_counted_lits (kissat *, const char*,
-                              size_t, const unsigned *,
+			      size_t, const unsigned *,
 			      const unsigned * counts, const char *, ...)
 ATTRIBUTE_FORMAT (6, 7);
 
 void kissat_log_unsigneds (kissat *, const char*,
                            size_t, const unsigned *, const char *, ...)
 ATTRIBUTE_FORMAT (5, 6);
+
+#define INVALID_GATE_ID (~(size_t)0)
+
+void kissat_log_and_gate (kissat *, const char*, size_t id, unsigned * repr,
+                          unsigned lhs, size_t, const unsigned * rhs,
+			  const char *, ...)
+ATTRIBUTE_FORMAT (8, 9);
+
+void kissat_log_xor_gate (kissat *, const char*, size_t id, unsigned * repr,
+                          unsigned lhs, size_t, const unsigned * rhs,
+			  const char *, ...)
+ATTRIBUTE_FORMAT (8, 9);
+
+void kissat_log_ite_gate (kissat *, const char*, size_t id, unsigned * repr,
+                          unsigned lhs, unsigned cond, unsigned then_lit,
+			  unsigned else_lit, const char *, ...)
+ATTRIBUTE_FORMAT (9, 10);
 
 void kissat_log_ints (kissat *, const char*,
                       size_t, const int *, const char *, ...)
@@ -127,6 +155,12 @@ ATTRIBUTE_FORMAT (5, 6);
       kissat_log_litpart (solver, LOGPREFIX, __VA_ARGS__); \
   } while (0)
 
+#define LOGCOUNTEDREFLITS(...) \
+  do { \
+    if (solver && GET_OPTION (log)) \
+      kissat_log_counted_ref_lits (solver, LOGPREFIX, __VA_ARGS__); \
+  } while (0)
+
 #define LOGCOUNTEDLITS(...) \
   do { \
     if (solver && GET_OPTION (log)) \
@@ -175,10 +209,34 @@ ATTRIBUTE_FORMAT (5, 6);
       kissat_log_ints (solver, LOGPREFIX, __VA_ARGS__); \
   } while (0)
 
+#define LOGUNSIGNEDS2(...) \
+  do { \
+    if (GET_OPTION (log) > 1) \
+      kissat_log_unsigneds (solver, LOGPREFIX, __VA_ARGS__); \
+  } while (0)
+
 #define LOGUNSIGNEDS3(...) \
   do { \
     if (GET_OPTION (log) > 2) \
       kissat_log_unsigneds (solver, LOGPREFIX, __VA_ARGS__); \
+  } while (0)
+
+#define LOGANDGATE(...) \
+  do { \
+    if (GET_OPTION (log) > 0) \
+      kissat_log_and_gate (solver, LOGPREFIX, __VA_ARGS__); \
+  } while (0)
+
+#define LOGXORGATE(...) \
+  do { \
+    if (GET_OPTION (log) > 0) \
+      kissat_log_xor_gate (solver, LOGPREFIX, __VA_ARGS__); \
+  } while (0)
+
+#define LOGITEGATE(...) \
+  do { \
+    if (GET_OPTION (log) > 0) \
+      kissat_log_ite_gate (solver, LOGPREFIX, __VA_ARGS__); \
   } while (0)
 
 #define LOGCLS(...) \
@@ -191,6 +249,12 @@ ATTRIBUTE_FORMAT (5, 6);
   do { \
     if (solver && GET_OPTION (log)) \
       kissat_log_counted_clause (solver, LOGPREFIX, __VA_ARGS__); \
+  } while (0)
+
+#define LOGREPRCLS(...) \
+  do { \
+    if (solver && GET_OPTION (log)) \
+      kissat_log_repr_clause (solver, LOGPREFIX, __VA_ARGS__); \
   } while (0)
 
 #define LOGLINE(...) \
@@ -223,6 +287,12 @@ ATTRIBUTE_FORMAT (5, 6);
       kissat_log_ref (solver, LOGPREFIX, __VA_ARGS__); \
   } while (0)
 
+#define LOGREF3(...) \
+  do { \
+    if (solver && GET_OPTION (log) > 2) \
+      kissat_log_ref (solver, LOGPREFIX, __VA_ARGS__); \
+  } while (0)
+
 #define LOGBINARY(...) \
   do { \
     if (solver && GET_OPTION (log)) \
@@ -249,6 +319,7 @@ ATTRIBUTE_FORMAT (5, 6);
 
 #define LOGLIT(LIT) kissat_log_lit (solver, (LIT))
 #define LOGVAR(IDX) kissat_log_var (solver, (IDX))
+#define LOGREPR(LIT, REPR) kissat_log_repr (solver, (LIT), (REPR))
 
 #define LOGWATCH(...) \
   do { \
@@ -297,6 +368,9 @@ ATTRIBUTE_FORMAT (5, 6);
 #define LOGLITS3(...) \
   do { \
   } while (0)
+#define LOGCOUNTEDREFLITS(...) \
+  do { \
+  } while (0)
 #define LOGCOUNTEDLITS(...) \
   do { \
   } while (0)
@@ -312,7 +386,19 @@ ATTRIBUTE_FORMAT (5, 6);
 #define LOGINTS3(...) \
   do { \
   } while (0)
+#define LOGUNSIGNEDS2(...) \
+  do { \
+  } while (0)
 #define LOGUNSIGNEDS3(...) \
+  do { \
+  } while (0)
+#define LOGANDGATE(...) \
+  do { \
+  } while (0)
+#define LOGXORGATE(...) \
+  do { \
+  } while (0)
+#define LOGITEGATE(...) \
   do { \
   } while (0)
 #define LOGCLS(...) \
@@ -327,6 +413,9 @@ ATTRIBUTE_FORMAT (5, 6);
 #define LOGCOUNTEDCLS(...) \
   do { \
   } while (0)
+#define LOGREPRCLS(...) \
+  do { \
+  } while (0)
 #define LOGLINE(...) \
   do { \
   } while (0)
@@ -334,6 +423,9 @@ ATTRIBUTE_FORMAT (5, 6);
   do { \
   } while (0)
 #define LOGREF2(...) \
+  do { \
+  } while (0)
+#define LOGREF3(...) \
   do { \
   } while (0)
 #define LOGBINARY(...) \

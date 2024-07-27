@@ -2,6 +2,7 @@
 #include "analyze.h"
 #include "inlineheap.h"
 #include "inlinequeue.h"
+#include "inlinevector.h"
 #include "internal.h"
 #include "logging.h"
 #include "print.h"
@@ -24,7 +25,7 @@ static void sort_bump (kissat *solver) {
   }
 }
 
-static void rescale_scores (kissat *solver) {
+void kissat_rescale_scores (kissat *solver) {
   INC (rescaled);
   heap *scores = &solver->scores;
   const double max_score = kissat_max_score_on_heap (scores);
@@ -39,7 +40,7 @@ static void rescale_scores (kissat *solver) {
                 factor);
 }
 
-static void bump_score_increment (kissat *solver) {
+void kissat_bump_score_increment (kissat *solver) {
   const double old_scinc = solver->scinc;
   const double decay = GET_OPTION (decay) * 1e-3;
   assert (0 <= decay), assert (decay <= 0.5);
@@ -48,7 +49,7 @@ static void bump_score_increment (kissat *solver) {
   LOG ("new score increment %g = %g * %g", new_scinc, factor, old_scinc);
   solver->scinc = new_scinc;
   if (new_scinc > MAX_SCORE)
-    rescale_scores (solver);
+    kissat_rescale_scores (solver);
 }
 
 static inline void bump_analyzed_variable_score (kissat *solver,
@@ -60,7 +61,11 @@ static inline void bump_analyzed_variable_score (kissat *solver,
   LOG ("new score[%u] = %g = %g + %g", idx, new_score, old_score, inc);
   kissat_update_heap (solver, scores, idx, new_score);
   if (new_score > MAX_SCORE)
-    rescale_scores (solver);
+    kissat_rescale_scores (solver);
+}
+
+void kissat_bump_variable (kissat *solver, unsigned idx) {
+  bump_analyzed_variable_score (solver, idx);
 }
 
 static void bump_analyzed_variable_scores (kissat *solver) {
@@ -70,7 +75,7 @@ static void bump_analyzed_variable_scores (kissat *solver) {
     if (flags[idx].active)
       bump_analyzed_variable_score (solver, idx);
 
-  bump_score_increment (solver);
+  kissat_bump_score_increment (solver);
 }
 
 static void move_analyzed_variables_to_front_of_queue (kissat *solver) {
@@ -78,7 +83,7 @@ static void move_analyzed_variables_to_front_of_queue (kissat *solver) {
   const links *const links = solver->links;
   for (all_stack (unsigned, idx, solver->analyzed)) {
     // clang-format off
-      const datarank rank = { .data = idx, .rank = links[idx].stamp };
+    const datarank rank = { .data = idx, .rank = links[idx].stamp };
     // clang-format on
     PUSH_STACK (solver->ranks, rank);
   }

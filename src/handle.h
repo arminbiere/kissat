@@ -9,9 +9,15 @@ void kissat_reset_signal_handler (void);
 void kissat_init_alarm (void (*handler) (void));
 void kissat_reset_alarm (void);
 
+#ifdef __MINGW32__
+#define SIGNAL_SIGBUS
+#else
+#define SIGNAL_SIGBUS SIGNAL (SIGBUS)
+#endif
+
 #define SIGNALS \
   SIGNAL (SIGABRT) \
-  SIGNAL (SIGBUS) \
+  SIGNAL_SIGBUS \
   SIGNAL (SIGINT) \
   SIGNAL (SIGSEGV) \
   SIGNAL (SIGTERM)
@@ -25,8 +31,10 @@ kissat_signal_name (int sig)
   if (sig == SIG) return #SIG;
   SIGNALS
 #undef SIGNAL
+#ifndef __MINGW32__
   if (sig == SIGALRM)
     return "SIGALRM";
+#endif
   return "SIGUNKNOWN";
 }
 

@@ -3,6 +3,44 @@
 #include "inline.h"
 #include "sort.c"
 
+void kissat_remove_binary_watch (kissat *solver, watches *watches,
+                                 unsigned lit) {
+  watch *const begin = BEGIN_WATCHES (*watches);
+  watch *const end = END_WATCHES (*watches);
+  watch *q = begin;
+  watch const *p = q;
+#ifndef NDEBUG
+  bool found = false;
+#endif
+  while (p != end) {
+    const watch watch = *q++ = *p++;
+    if (!watch.type.binary) {
+      *q++ = *p++;
+      continue;
+    }
+    const unsigned other = watch.binary.lit;
+    if (other != lit)
+      continue;
+#ifndef NDEBUG
+    assert (!found);
+    found = true;
+#endif
+    q--;
+  }
+  assert (found);
+#ifdef COMPACT
+  watches->size -= 1;
+#else
+  assert (begin + 1 <= end);
+  watches->end -= 1;
+#endif
+  const watch empty = {.raw = INVALID_VECTOR_ELEMENT};
+  end[-1] = empty;
+  assert (solver->vectors.usable < MAX_SECTOR - 1);
+  solver->vectors.usable += 1;
+  kissat_check_vectors (solver);
+}
+
 void kissat_remove_blocking_watch (kissat *solver, watches *watches,
                                    reference ref) {
   assert (solver->watching);
@@ -61,18 +99,44 @@ void kissat_substitute_large_watch (kissat *solver, watches *watches,
   assert (found);
 }
 
+void kissat_flush_all_connected (kissat *solver) {
+  assert (!solver->watching);
+  LOG ("flush all connected binaries and clauses");
+  watches *all_watches = solver->watches;
+  for (all_literals (lit))
+    RELEASE_WATCHES (all_watches[lit]);
+}
+
 void kissat_flush_large_watches (kissat *solver) {
   assert (solver->watching);
   LOG ("flush large clause watches");
   watches *all_watches = solver->watches;
+  signed char *marks = solver->marks;
   for (all_literals (lit)) {
     watches *lit_watches = all_watches + lit;
     watch *begin = BEGIN_WATCHES (*lit_watches), *q = begin;
     const watch *const end = END_WATCHES (*lit_watches), *p = q;
-    while (p != end)
-      if (!(*q++ = *p++).type.binary)
-        q--;
+    while (p != end) {
+      const watch watch = *q++ = *p++;
+      if (!watch.type.binary)
+        p++, q--;
+      else {
+        const unsigned other = watch.binary.lit;
+        if (marks[other]) {
+          if (lit < other) {
+            LOGBINARY (lit, other, "flushing duplicated");
+            kissat_delete_binary (solver, lit, other);
+          }
+          q--;
+        } else
+          marks[other] = 1;
+      }
+    }
     SET_END_OF_WATCHES (*lit_watches, q);
+    for (p = begin; p != q; p++) {
+      assert (p->type.binary);
+      marks[p->binary.lit] = 0;
+    }
   }
 }
 

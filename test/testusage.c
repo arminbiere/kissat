@@ -60,6 +60,10 @@ void tissat_schedule_usage (void) {
     APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-reduce");
     APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-rephase");
     APP (0, "--decisions=10 ../test/cnf/hard.cnf --no-restart");
+    APP (0, "--decisions=10 ../test/cnf/hard.cnf "
+            "--reluctantint=200 --reluctantlim=100 --stable=2");
+    APP (0, "--decisions=1000 ../test/cnf/hard.cnf "
+            "--no-reluctant --stable=2");
   }
 
 #else

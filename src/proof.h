@@ -41,6 +41,14 @@ void kissat_delete_internal_from_proof (struct kissat *, size_t,
       kissat_add_binary_to_proof (solver, (A), (B)); \
   } while (0)
 
+#define ADD_TERNARY_TO_PROOF(A, B, C) \
+  do { \
+    if (solver->proof) { \
+      unsigned CLAUSE[3] = {(A), (B), (C)}; \
+      kissat_add_lits_to_proof (solver, 3, CLAUSE); \
+    } \
+  } while (0)
+
 #define ADD_CLAUSE_TO_PROOF(CLAUSE) \
   do { \
     if (solver->proof) \
@@ -80,6 +88,14 @@ void kissat_delete_internal_from_proof (struct kissat *, size_t,
       kissat_delete_binary_from_proof (solver, (A), (B)); \
   } while (0)
 
+#define DELETE_TERNARY_FROM_PROOF(A, B, C) \
+  do { \
+    if (solver->proof) { \
+      unsigned CLAUSE[3] = {(A), (B), (C)}; \
+      kissat_delete_internal_from_proof (solver, 3, CLAUSE); \
+    } \
+  } while (0)
+
 #define DELETE_CLAUSE_FROM_PROOF(CLAUSE) \
   do { \
     if (solver->proof) \
@@ -104,6 +120,9 @@ void kissat_delete_internal_from_proof (struct kissat *, size_t,
 #define ADD_BINARY_TO_PROOF(...) \
   do { \
   } while (0)
+#define ADD_TERNARY_TO_PROOF(...) \
+  do { \
+  } while (0)
 #define ADD_CLAUSE_TO_PROOF(...) \
   do { \
   } while (0)
@@ -125,6 +144,9 @@ void kissat_delete_internal_from_proof (struct kissat *, size_t,
   } while (0)
 
 #define DELETE_BINARY_FROM_PROOF(...) \
+  do { \
+  } while (0)
+#define DELETE_TERNARY_FROM_PROOF(...) \
   do { \
   } while (0)
 #define DELETE_CLAUSE_FROM_PROOF(...) \

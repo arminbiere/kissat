@@ -15,8 +15,8 @@ static inline void kissat_watch_large_delayed (kissat *solver,
     assert (d != end_delayed);
     const reference ref = *d++;
     const unsigned blocking = watch.blocking.lit;
-    LOGREF (ref, "watching %s blocking %s in", LOGLIT (lit),
-            LOGLIT (blocking));
+    LOGREF3 (ref, "watching %s blocking %s in", LOGLIT (lit),
+             LOGLIT (blocking));
     kissat_push_blocking_watch (solver, lit_watches, blocking, ref);
   }
   CLEAR_STACK (*delayed);
@@ -95,10 +95,6 @@ static inline clause *PROPAGATE_LITERAL (kissat *solver,
       const reference ref = tail.raw;
       assert (ref < SIZE_STACK (solver->arena));
       clause *const c = (clause *) (arena + ref);
-#if defined(PROBING_PROPAGATION)
-      if (c == ignore)
-        continue;
-#endif
       ticks++;
       if (c->garbage) {
         q -= 2;
@@ -141,7 +137,7 @@ static inline clause *PROPAGATE_LITERAL (kissat *solver,
       if (replacement_value >= 0) {
         c->searched = r - lits;
         assert (replacement != INVALID_LIT);
-        LOGREF (ref, "unwatching %s in", LOGLIT (not_lit));
+        LOGREF3 (ref, "unwatching %s in", LOGLIT (not_lit));
         q -= 2;
         lits[0] = other;
         lits[1] = replacement;
@@ -154,6 +150,12 @@ static inline clause *PROPAGATE_LITERAL (kissat *solver,
         assert (replacement_value < 0);
         assert (blocking_value < 0);
         assert (other_value < 0);
+#if defined(PROBING_PROPAGATION)
+        if (c == ignore) {
+          LOGREF (ref, "conflicting but ignored");
+          continue;
+        }
+#endif
         LOGREF (ref, "conflicting");
         res = c;
 #ifndef CONTINUE_PROPAGATING_AFTER_CONFLICT
@@ -161,6 +163,12 @@ static inline clause *PROPAGATE_LITERAL (kissat *solver,
 #endif
       } else {
         assert (replacement_value < 0);
+#if defined(PROBING_PROPAGATION)
+        if (c == ignore) {
+          LOGREF (ref, "forcing %s but ignored", LOGLIT (other));
+          continue;
+        }
+#endif
         kissat_fast_assign_reference (solver, values, assigned, other, ref,
                                       c);
         ticks++;

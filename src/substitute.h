@@ -5,6 +5,6 @@
 
 struct kissat;
 
-void kissat_substitute (struct kissat *);
+void kissat_substitute (struct kissat *, bool complete);
 
 #endif

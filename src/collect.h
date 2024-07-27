@@ -3,8 +3,10 @@
 
 #include "internal.h"
 
+bool kissat_compacting (kissat *);
 void kissat_dense_collect (kissat *);
 void kissat_sparse_collect (kissat *, bool compact, reference start);
+void kissat_initial_sparse_collect (kissat *);
 
 static inline void kissat_defrag_watches (kissat *solver) {
   kissat_defrag_vectors (solver, LITS, solver->watches);
@@ -24,5 +26,8 @@ static inline void kissat_defrag_watches_if_needed (kissat *solver) {
   INC (vectors_defrags_needed);
   kissat_defrag_watches (solver);
 }
+
+void kissat_update_last_irredundant (kissat *, clause *last_irredundant);
+void kissat_update_first_reducible (kissat *, clause *first_reducible);
 
 #endif

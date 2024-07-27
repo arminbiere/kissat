@@ -7,6 +7,7 @@
 #define UNIT_REASON (DECISION_REASON - 1)
 
 #define INVALID_LEVEL UINT_MAX
+#define INVALID_TRAIL UINT_MAX
 
 typedef struct assigned assigned;
 struct clause;
@@ -28,7 +29,7 @@ struct assigned {
   (assert (VALID_INTERNAL_LITERAL (LIT)), solver->assigned + IDX (LIT))
 
 #define LEVEL(LIT) (ASSIGNED (LIT)->level)
-
+#define TRAIL(LIT) (ASSIGNED (LIT)->trail)
 #define REASON(LIT) (ASSIGNED (LIT)->reason)
 
 #ifndef FAST_ASSIGN

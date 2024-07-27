@@ -17,6 +17,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+void kissat_reset_last_learned (kissat *solver) {
+  for (really_all_last_learned (p))
+    *p = INVALID_REF;
+}
+
 kissat *kissat_init (void) {
   kissat *solver = kissat_calloc (0, 1, sizeof *solver);
 #ifndef NOPTIONS
@@ -33,10 +38,10 @@ kissat *kissat_init (void) {
   kissat_push_frame (solver, UINT_MAX);
   solver->watching = true;
   solver->conflict.size = 2;
-  solver->conflict.keep = true;
   solver->scinc = 1.0;
   solver->first_reducible = INVALID_REF;
   solver->last_irredundant = INVALID_REF;
+  kissat_reset_last_learned (solver);
 #ifndef NDEBUG
   kissat_init_checker (solver);
 #endif
@@ -69,7 +74,7 @@ void kissat_release (kissat *solver) {
   kissat_require_initialized (solver);
   kissat_release_heap (solver, SCORES);
   kissat_release_heap (solver, &solver->schedule);
-
+  kissat_release_vectors (solver);
   kissat_release_phases (solver);
 
   RELEASE_STACK (solver->export);
@@ -89,7 +94,6 @@ void kissat_release (kissat *solver) {
   RELEASE_STACK (solver->witness);
   RELEASE_STACK (solver->etrail);
 
-  RELEASE_STACK (solver->vectors.stack);
   RELEASE_STACK (solver->delayed);
 
   RELEASE_STACK (solver->clause);
@@ -116,7 +120,7 @@ void kissat_release (kissat *solver) {
   RELEASE_STACK (solver->xorted[0]);
   RELEASE_STACK (solver->xorted[1]);
 
-  RELEASE_STACK (solver->sweep);
+  RELEASE_STACK (solver->sweep_schedule);
 
   RELEASE_STACK (solver->ranks);
 
@@ -159,6 +163,12 @@ void kissat_reserve (kissat *solver, int max_var) {
   kissat_require (max_var <= EXTERNAL_MAX_VAR,
                   "invalid maximum variable argument '%d'", max_var);
   kissat_increase_size (solver, (unsigned) max_var);
+  if (!GET_OPTION (tumble)) {
+    for (int idx = 1; idx <= max_var; idx++)
+      (void) kissat_import_literal (solver, idx);
+    for (unsigned idx = 0; idx != (unsigned) max_var; idx++)
+      kissat_activate_literal (solver, LIT (idx));
+  }
 }
 
 int kissat_get_option (kissat *solver, const char *name) {
@@ -237,6 +247,8 @@ void kissat_print_statistics (kissat *solver) {
     kissat_print_checker_statistics (solver, verbose);
   }
 #endif
+  kissat_section (solver, "glue usage");
+  kissat_print_glue_usage (solver);
   kissat_section (solver, "resources");
   kissat_print_resources (solver);
 #endif

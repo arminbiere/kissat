@@ -5,6 +5,7 @@
 #include "print.h"
 #include "rank.h"
 #include "report.h"
+#include "tiers.h"
 #include "trail.h"
 
 #include <inttypes.h>
@@ -41,7 +42,7 @@ static bool collect_reducibles (kissat *solver, reducibles *reds,
   clause *start = (clause *) (arena + start_ref);
   const clause *const end = (clause *) END_STACK (solver->arena);
   assert (start < end);
-  while (start != end && (!start->redundant || start->keep))
+  while (start != end && !start->redundant)
     start = kissat_next_clause (start);
   if (start == end) {
     solver->first_reducible = INVALID_REF;
@@ -51,29 +52,31 @@ static bool collect_reducibles (kissat *solver, reducibles *reds,
   const reference redundant = (ward *) start - arena;
 #ifdef LOGGING
   if (redundant < solver->first_reducible)
-    LOG ("updating redundant clauses start from %zu to %zu",
+    LOG ("updating start of redundant clauses from %zu to %zu",
          (size_t) solver->first_reducible, (size_t) redundant);
   else
-    LOG ("no update to redundant clauses start %zu",
+    LOG ("no update to start of redundant clauses %zu",
          (size_t) solver->first_reducible);
 #endif
   solver->first_reducible = redundant;
-  const unsigned tier2 = GET_OPTION (tier2);
+  const unsigned tier1 = TIER1;
+  const unsigned tier2 = MAX (tier1, TIER2);
+  assert (tier1 <= tier2);
   for (clause *c = start; c != end; c = kissat_next_clause (c)) {
     if (!c->redundant)
       continue;
     if (c->garbage)
       continue;
+    const unsigned used = c->used;
+    if (used)
+      c->used = used - 1;
     if (c->reason)
       continue;
-    if (c->keep)
+    const unsigned glue = c->glue;
+    if (glue <= tier1 && used)
       continue;
-    if (c->used) {
-      c->used--;
-      if (c->glue <= tier2)
-        continue;
-    }
-    assert (!c->garbage);
+    if (glue <= tier2 && used >= MAX_USED - 1)
+      continue;
     assert (kissat_clause_in_arena (solver, c));
     reducible red;
     const uint64_t negative_size = ~c->size;
@@ -83,7 +86,8 @@ static bool collect_reducibles (kissat *solver, reducibles *reds,
     PUSH_STACK (*reds, red);
   }
   if (EMPTY_STACK (*reds)) {
-    LOG ("did not find any reducible redundant clause");
+    kissat_phase (solver, "reduce", GET (reductions),
+                  "did not find any reducible redundant clause");
     return false;
   }
   return true;
@@ -97,11 +101,19 @@ static void sort_reducibles (kissat *solver, reducibles *reds) {
 
 static void mark_less_useful_clauses_as_garbage (kissat *solver,
                                                  reducibles *reds) {
+  statistics *statistics = &solver->statistics;
+  const double high = GET_OPTION (reducehigh) * 0.1;
+  const double low = GET_OPTION (reducelow) * 0.1;
+  double percent;
+  if (low < high) {
+    const double delta = high - low;
+    percent = high - delta / log10 (statistics->reductions + 9);
+  } else
+    percent = low;
+  const double fraction = percent / 100.0;
   const size_t size = SIZE_STACK (*reds);
-  double fraction = GET_OPTION (reducefraction) / 100.0;
   size_t target = size * fraction;
 #ifndef QUIET
-  statistics *statistics = &solver->statistics;
   const size_t clauses =
       statistics->clauses_irredundant + statistics->clauses_redundant;
   kissat_phase (solver, "reduce", GET (reductions),
@@ -110,34 +122,32 @@ static void mark_less_useful_clauses_as_garbage (kissat *solver,
                 target, kissat_percent (target, size), size,
                 kissat_percent (size, clauses));
 #endif
-  unsigned reduced = 0;
+  unsigned reduced = 0, reduced1 = 0, reduced2 = 0, reduced3 = 0;
   ward *arena = BEGIN_STACK (solver->arena);
   const reducible *const begin = BEGIN_STACK (*reds);
   const reducible *const end = END_STACK (*reds);
+  const unsigned tier1 = TIER1;
+  const unsigned tier2 = TIER2;
   for (const reducible *p = begin; p != end && target--; p++) {
     clause *c = (clause *) (arena + p->ref);
     assert (kissat_clause_in_arena (solver, c));
     assert (!c->garbage);
-    assert (!c->keep);
     assert (!c->reason);
     assert (c->redundant);
     LOGCLS (c, "reducing");
     kissat_mark_clause_as_garbage (solver, c);
     reduced++;
+    if (c->glue <= tier1)
+      reduced1++;
+    else if (c->glue <= tier2)
+      reduced2++;
+    else
+      reduced3++;
   }
+  ADD (clauses_reduced_tier1, reduced1);
+  ADD (clauses_reduced_tier2, reduced2);
+  ADD (clauses_reduced_tier3, reduced3);
   ADD (clauses_reduced, reduced);
-}
-
-static bool compacting (kissat *solver) {
-  if (!GET_OPTION (compact))
-    return false;
-  unsigned inactive = solver->vars - solver->active;
-  unsigned limit = GET_OPTION (compactlim) / 1e2 * solver->vars;
-  bool compact = (inactive > limit);
-  LOG ("%u inactive variables %.0f%% <= limit %u %.0f%%", inactive,
-       kissat_percent (inactive, solver->vars), limit,
-       kissat_percent (limit, solver->vars));
-  return compact;
 }
 
 int kissat_reduce (kissat *solver) {
@@ -146,7 +156,8 @@ int kissat_reduce (kissat *solver) {
   kissat_phase (solver, "reduce", GET (reductions),
                 "reduce limit %" PRIu64 " hit after %" PRIu64 " conflicts",
                 solver->limits.reduce.conflicts, CONFLICTS);
-  bool compact = compacting (solver);
+  kissat_compute_and_set_tier_limits (solver);
+  bool compact = kissat_compacting (solver);
   reference start = compact ? 0 : solver->first_reducible;
   if (start != INVALID_REF) {
 #ifndef QUIET
@@ -178,7 +189,9 @@ int kissat_reduce (kissat *solver) {
       assert (solver->inconsistent);
   } else
     kissat_phase (solver, "reduce", GET (reductions), "nothing to reduce");
+  kissat_classify (solver);
   UPDATE_CONFLICT_LIMIT (reduce, reductions, SQRT, false);
+  solver->last.conflicts.reduce = CONFLICTS;
   REPORT (0, '-');
   STOP (reduce);
   return solver->inconsistent ? 20 : 0;

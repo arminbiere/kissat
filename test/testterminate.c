@@ -63,14 +63,16 @@ TEST_TERMINATE (kitten_terminated_1,-1,0,-1,"add8") \
 TEST_TERMINATE (search_terminated_1,-1,-1,-1,"add8") \
 TEST_TERMINATE (substitute_terminated_1,0,-1,-1,"add8") \
 TEST_TERMINATE (sweep_terminated_1,0,-1,-1,"ph11") \
-TEST_TERMINATE (sweep_terminated_2,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_2,0,-1,-1,"add128") \
 TEST_TERMINATE (sweep_terminated_3,0,-1,-1,"ph11") \
 TEST_TERMINATE (sweep_terminated_4,0,-1,-1,"ph11") \
-TEST_TERMINATE (sweep_terminated_5,0,-1,-1,"ph11") \
-TEST_TERMINATE (sweep_terminated_6,0,-1,-1,"ph11") \
+TEST_TERMINATE (sweep_terminated_5,0,-1,-1,"add128") \
+TEST_TERMINATE (sweep_terminated_6,0,-1,-1,"add128") \
 TEST_TERMINATE (sweep_terminated_7,0,-1,-1,"ph11") \
 TEST_TERMINATE (vivify_terminated_1,0,-1,-1,"ph11") \
 TEST_TERMINATE (vivify_terminated_2,0,-1,-1,"ph11") \
+TEST_TERMINATE (vivify_terminated_3,0,-1,-1,"ph11") \
+TEST_TERMINATE (vivify_terminated_4,0,-1,-1,"ph11") \
 TEST_TERMINATE (walk_terminated_1,-1,-1,-1,"ph11") \
 TEST_TERMINATE (warmup_terminated_1,-1,0,-1,"ph11") \
 

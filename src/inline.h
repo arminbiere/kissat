@@ -40,24 +40,30 @@ static inline void kissat_mark_removed_literal (kissat *solver,
                                                 unsigned lit) {
   const unsigned idx = IDX (lit);
   flags *flags = FLAGS (idx);
-  if (flags->eliminate)
-    return;
   if (flags->fixed)
     return;
-  LOG ("marking %s removed", LOGVAR (idx));
-  flags->eliminate = true;
-  INC (variables_removed);
+  if (!flags->eliminate) {
+    LOG ("marking %s to be eliminated", LOGVAR (idx));
+    flags->eliminate = true;
+    INC (variables_eliminate);
+  }
 }
 
 static inline void kissat_mark_added_literal (kissat *solver,
                                               unsigned lit) {
   const unsigned idx = IDX (lit);
   flags *flags = FLAGS (idx);
-  if (flags->subsume)
-    return;
-  LOG ("marking %s added", LOGVAR (idx));
-  flags->subsume = true;
-  INC (variables_added);
+  if (!flags->subsume) {
+    LOG ("marking %s to forward subsume", LOGVAR (idx));
+    flags->subsume = true;
+    INC (variables_subsume);
+  }
+  const unsigned bit = 1u << NEGATED (lit);
+  if (!(flags->factor & bit)) {
+    flags->factor |= bit;
+    LOG ("marking literal %s to factor", LOGLIT (lit));
+    INC (literals_factor);
+  }
 }
 
 static inline void
@@ -102,8 +108,8 @@ static inline void kissat_watch_blocking (kissat *solver, unsigned lit,
                                           unsigned blocking,
                                           reference ref) {
   assert (solver->watching);
-  LOGREF (ref, "watching %s blocking %s in", LOGLIT (lit),
-          LOGLIT (blocking));
+  LOGREF3 (ref, "watching %s blocking %s in", LOGLIT (lit),
+           LOGLIT (blocking));
   watches *watches = &WATCHES (lit);
   kissat_push_blocking_watch (solver, watches, blocking, ref);
 }
@@ -111,7 +117,7 @@ static inline void kissat_watch_blocking (kissat *solver, unsigned lit,
 static inline void kissat_unwatch_blocking (kissat *solver, unsigned lit,
                                             reference ref) {
   assert (solver->watching);
-  LOGREF (ref, "unwatching %s in", LOGLIT (lit));
+  LOGREF3 (ref, "unwatching %s in", LOGLIT (lit));
   watches *watches = &WATCHES (lit);
   kissat_remove_blocking_watch (solver, watches, ref);
 }
@@ -127,7 +133,7 @@ static inline void kissat_disconnect_binary (kissat *solver, unsigned lit,
 static inline void
 kissat_disconnect_reference (kissat *solver, unsigned lit, reference ref) {
   assert (!solver->watching);
-  LOGREF (ref, "disconnecting %s in", LOGLIT (lit));
+  LOGREF3 (ref, "disconnecting %s in", LOGLIT (lit));
   const watch watch = kissat_large_watch (ref);
   watches *watches = &WATCHES (lit);
   REMOVE_WATCHES (*watches, watch);
@@ -143,7 +149,7 @@ static inline void kissat_watch_reference (kissat *solver, unsigned a,
 static inline void kissat_connect_literal (kissat *solver, unsigned lit,
                                            reference ref) {
   assert (!solver->watching);
-  LOGREF (ref, "connecting %s in", LOGLIT (lit));
+  LOGREF3 (ref, "connecting %s in", LOGLIT (lit));
   watches *watches = &WATCHES (lit);
   kissat_push_large_watch (solver, watches, ref);
 }
@@ -175,7 +181,7 @@ static inline void kissat_inlined_connect_clause (kissat *solver,
   assert (c == kissat_dereference_clause (solver, ref));
   for (all_literals_in_clause (lit, c)) {
     assert (!solver->watching);
-    LOGREF (ref, "connecting %s in", LOGLIT (lit));
+    LOGREF3 (ref, "connecting %s in", LOGLIT (lit));
     assert (lit < LITS);
     watches *lit_watches = all_watches + lit;
     kissat_push_large_watch (solver, lit_watches, ref);

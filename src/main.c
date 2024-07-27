@@ -34,7 +34,7 @@ static void kissat_alarm_handler (void) {
 }
 
 #ifndef NDEBUG
-extern int dump (kissat *);
+extern int kissat_dump (kissat *);
 #endif
 
 #include "error.h"
@@ -53,7 +53,7 @@ int main (int argc, char **argv) {
   kissat_release (solver);
 #ifndef NDEBUG
   if (!res)
-    return dump (0);
+    return kissat_dump (0);
 #endif
   return res;
 }

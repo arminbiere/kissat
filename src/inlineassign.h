@@ -39,6 +39,8 @@ static inline void kissat_assign (kissat *solver, const bool probing,
     if (reason != UNIT_REASON) {
       CHECK_AND_ADD_UNIT (lit);
       ADD_UNIT_TO_PROOF (lit);
+      reason = UNIT_REASON;
+      binary = false;
     }
   }
 
@@ -50,8 +52,9 @@ static inline void kissat_assign (kissat *solver, const bool probing,
 #if !defined(PROBING_PROPAGATION)
   if (!probing) {
     const bool negated = NEGATED (lit);
-    const value value = BOOL_TO_VALUE (negated);
-    SAVED (idx) = value;
+    const value new_value = BOOL_TO_VALUE (negated);
+    value *saved = &SAVED (idx);
+    *saved = new_value;
   }
 #endif
 

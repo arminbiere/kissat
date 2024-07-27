@@ -13,6 +13,7 @@ typedef struct profiles profiles;
   PROF (backbone, 2) \
   PROF (bump, 3) \
   PROF (collect, 3) \
+  PROF (congruence, 2) \
   PROF (decide, 4) \
   PROF (deduce, 3) \
   PROF (definition, 3) \
@@ -20,14 +21,26 @@ typedef struct profiles profiles;
   PROF (dominate, 4) \
   PROF (eliminate, 2) \
   PROF (extend, 2) \
+  PROF (extract, 3) \
+  PROF (extractands, 3) \
+  PROF (extractbinaries, 3) \
+  PROF (extractites, 3) \
+  PROF (extractxors, 3) \
+  PROF (factor, 2) \
+  PROF (fastel, 2) \
   PROF (focused, 2) \
   PROF (forward, 4) \
+  PROF (lucky, 2) \
+  PROF (matching, 3) \
+  PROF (merge, 3) \
   PROF (minimize, 3) \
   PROF (parse, 1) \
+  PROF (preprocess, 2) \
   PROF (probe, 2) \
   PROF (propagate, 4) \
   PROF (radix, 4) \
   PROF (reduce, 2) \
+  PROF (reorder, 3) \
   PROF (rephase, 3) \
   PROF (restart, 3) \
   PROF (search, 1) \
@@ -35,14 +48,21 @@ typedef struct profiles profiles;
   PROF (simplify, 1) \
   PROF (sort, 4) \
   PROF (stable, 2) \
-  PROF (sweep, 2) \
   PROF (substitute, 2) \
   PROF (subsume, 2) \
+  PROF (sweep, 2) \
+  PROF (sweepbackbone, 3) \
+  PROF (sweepequivalences, 3) \
   PROF (total, 0) \
   PROF (transitive, 2) \
   PROF (vivify, 2) \
+  PROF (vivify0, 3) \
+  PROF (vivify1, 3) \
+  PROF (vivify2, 3) \
+  PROF (vivify3, 3) \
+  PROF (vivifysort, 4) \
   PROF (walking, 2) \
-  PROF (warmup, 2)
+  PROF (warmup, 3)
 
 struct profile {
   int level;

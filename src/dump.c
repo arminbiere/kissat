@@ -234,7 +234,7 @@ static void dump_clauses (kissat *solver) {
     dump_clause (solver, c);
 }
 
-void dump_vectors (kissat *solver) {
+void kissat_dump_vectors (kissat *solver) {
   vectors *vectors = &solver->vectors;
   unsigneds *stack = &vectors->stack;
   printf ("vectors.size = %zu\n", SIZE_STACK (*stack));
@@ -253,7 +253,7 @@ void dump_vectors (kissat *solver) {
   fputc ('\n', stdout);
 }
 
-int dump (kissat *solver) {
+int kissat_dump (kissat *solver) {
   if (!solver)
     return 0;
   printf ("vars = %u\n", solver->vars);

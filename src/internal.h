@@ -6,6 +6,7 @@
 #include "assign.h"
 #include "averages.h"
 #include "check.h"
+#include "classify.h"
 #include "clause.h"
 #include "cover.h"
 #include "extend.h"
@@ -43,6 +44,7 @@ typedef struct import import;
 
 struct import {
   unsigned lit;
+  bool extension;
   bool imported;
   bool eliminated;
 };
@@ -81,6 +83,7 @@ struct kissat {
   bool extended;
   bool inconsistent;
   bool iterating;
+  bool preprocessing;
   bool probing;
 #ifndef QUIET
   bool sectioned;
@@ -90,6 +93,7 @@ struct kissat {
   bool transitive_reducing;
   bool vivifying;
 #endif
+  bool warming;
   bool watching;
 
   bool large_clauses_watched_after_binary_clauses;
@@ -171,22 +175,24 @@ struct kissat {
   reference last_irredundant;
   watches *watches;
 
+  reference last_learned[4];
+
   sizes sorter;
 
   generator random;
   averages averages[2];
+  unsigned tier1[2], tier2[2];
   reluctant reluctant;
 
   bounds bounds;
+  classification classification;
   delays delays;
   enabled enabled;
-  effort last;
   limited limited;
   limits limits;
-  waiting waiting;
+  remember last;
   unsigned walked;
 
-  statistics statistics;
   mode mode;
 
   uint64_t ticks;
@@ -205,7 +211,8 @@ struct kissat {
 #else
   bool gate_eliminated;
 #endif
-  unsigneds sweep;
+  bool sweep_incomplete;
+  unsigneds sweep_schedule;
 
 #if !defined(NDEBUG) || !defined(NPROOFS)
   unsigneds added;
@@ -232,10 +239,21 @@ struct kissat {
 #ifndef NPROOFS
   proof *proof;
 #endif
+
+  statistics statistics;
 };
 
 #define VARS (solver->vars)
 #define LITS (2 * solver->vars)
+
+#if 0
+#define TIEDX (GET_OPTION (focusedtiers) ? 0 : solver->stable)
+#define TIER1 (solver->tier1[TIEDX])
+#define TIER2 (solver->tier2[TIEDX])
+#else
+#define TIER1 (solver->tier1[0])
+#define TIER2 (solver->tier2[1])
+#endif
 
 #define SCORES (&solver->scores)
 
@@ -259,5 +277,18 @@ static inline unsigned kissat_assigned (kissat *solver) {
          *const C##_END = (clause *) END_STACK (solver->arena), *C##_NEXT; \
   C != C##_END && (C##_NEXT = kissat_next_clause (C), true); \
   C = C##_NEXT
+
+#define capacity_last_learned \
+  (sizeof solver->last_learned / sizeof *solver->last_learned)
+
+#define real_end_last_learned (solver->last_learned + capacity_last_learned)
+
+#define really_all_last_learned(REF_PTR) \
+  reference *REF_PTR = solver->last_learned, \
+            *REF_PTR##_END = real_end_last_learned; \
+  REF_PTR != REF_PTR##_END; \
+  REF_PTR++
+
+void kissat_reset_last_learned (kissat *solver);
 
 #endif

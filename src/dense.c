@@ -8,6 +8,8 @@
 
 #include "sort.c"
 
+#include <string.h>
+
 static void flush_large_watches (kissat *solver, litpairs *irredundant) {
   assert (!solver->level);
   assert (solver->watching);
@@ -19,27 +21,49 @@ static void flush_large_watches (kissat *solver, litpairs *irredundant) {
     LOG ("keep watching irredundant binary clauses");
 #endif
   const value *const values = solver->values;
+  mark *const marks = solver->marks;
+#ifndef NDEBUG
+  for (all_literals (lit))
+    assert (!marks[lit]);
+#endif
   size_t flushed = 0, collected = 0;
+#ifdef LOGGING
+  size_t deduplicated = 0;
+#endif
   watches *all_watches = solver->watches;
+  unsigneds *marked = &solver->analyzed;
   for (all_literals (lit)) {
     const value lit_value = values[lit];
     watches *watches = all_watches + lit;
     watch *begin = BEGIN_WATCHES (*watches), *q = begin;
     const watch *const end_watches = END_WATCHES (*watches), *p = q;
+    assert (EMPTY_STACK (*marked));
     while (p != end_watches) {
       const watch watch = *p++;
       if (watch.type.binary) {
         const unsigned other = watch.binary.lit;
         const value other_value = values[other];
         if (!lit_value && !other_value) {
-          if (irredundant) {
-            const unsigned other = watch.binary.lit;
+          const mark mark = marks[other];
+          if (mark) {
             if (lit < other) {
-              const litpair litpair = {.lits = {lit, other}};
-              PUSH_STACK (*irredundant, litpair);
+              kissat_delete_binary (solver, lit, other);
+#ifdef LOGGING
+              deduplicated++;
+#endif
             }
-          } else
-            *q++ = watch;
+          } else {
+            marks[other] = 1;
+            PUSH_STACK (*marked, other);
+            if (irredundant) {
+              const unsigned other = watch.binary.lit;
+              if (lit < other) {
+                const litpair litpair = {.lits = {lit, other}};
+                PUSH_STACK (*irredundant, litpair);
+              }
+            } else
+              *q++ = watch;
+          }
         } else {
           assert (lit_value > 0 || other_value > 0);
           if (lit < other) {
@@ -52,12 +76,22 @@ static void flush_large_watches (kissat *solver, litpairs *irredundant) {
         p++;
       }
     }
-    SET_END_OF_WATCHES (*watches, q);
+    if (irredundant)
+      memset (watches, 0, sizeof *watches);
+    else
+      SET_END_OF_WATCHES (*watches, q);
+    for (all_stack (unsigned, other, *marked))
+      marks[other] = 0;
+    CLEAR_ARRAY (*marked);
   }
+  assert (EMPTY_STACK (*marked));
   LOG ("flushed %zu large watches", flushed);
+  LOG ("removed %zu duplicated binary clauses", deduplicated);
   LOG ("collected %zu satisfied binary clauses", collected);
-  if (irredundant)
+  if (irredundant) {
     LOG ("saved %zu irredundant binary clauses", SIZE_STACK (*irredundant));
+    kissat_release_vectors (solver);
+  }
   (void) collected;
   (void) flushed;
 }

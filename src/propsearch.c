@@ -1,5 +1,4 @@
 #include "propsearch.h"
-#include "bump.h"
 #include "fastassign.h"
 #include "print.h"
 #include "trail.h"

@@ -15,6 +15,7 @@ static inline bool non_watching_propagate_literal (kissat *solver,
   ward *const arena = BEGIN_STACK (solver->arena);
   assigned *assigned = solver->assigned;
   value *values = solver->values;
+  flags *flags = solver->flags;
 
   for (all_binary_large_watches (watch, *watches)) {
     if (watch.type.binary) {
@@ -27,6 +28,9 @@ static inline bool non_watching_propagate_literal (kissat *solver,
         LOGBINARY (not_lit, other, "conflicting");
         return false;
       }
+      const unsigned other_idx = IDX (other);
+      if (flags[other_idx].eliminated)
+        continue;
       assert (!solver->level);
       kissat_fast_binary_assign (solver, solver->probing, 0, values,
                                  assigned, other, not_lit);

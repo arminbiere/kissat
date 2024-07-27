@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define NUM_FORMAT_STRINGS 8
+#define NUM_FORMAT_STRINGS 16
 #define FORMAT_STRING_SIZE 128
 
 typedef struct format format;

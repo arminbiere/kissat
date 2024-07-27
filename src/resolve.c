@@ -232,6 +232,7 @@ static bool generate_resolvents (kissat *solver, unsigned lit,
           continue;
         LOGCLS (c, "first antecedent becomes satisfied");
         first_antecedent_satisfied = true;
+        (void) first_antecedent_satisfied;
         break;
       }
 

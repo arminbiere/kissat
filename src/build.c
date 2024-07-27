@@ -12,7 +12,7 @@ const char *kissat_id (void) { return ID; }
 const char *kissat_compiler (void) { return COMPILER; }
 
 static const char *copyright_lines[] = {
-    "Copyright (c) 2021-2023 Armin Biere University of Freiburg",
+    "Copyright (c) 2021-2024 Armin Biere University of Freiburg",
     "Copyright (c) 2019-2021 Armin Biere Johannes Kepler University Linz",
     0};
 

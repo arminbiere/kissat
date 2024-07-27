@@ -51,6 +51,14 @@ ATTRIBUTE_FORMAT (4, 5);
 
 #endif
 
+#define VERY_VERBOSE_OR_LOG(ONLY_LOG, SOLVER, ...) \
+do { \
+  if (ONLY_LOG) \
+    LOG (__VA_ARGS__); \
+  else \
+    kissat_very_verbose (SOLVER, __VA_ARGS__); \
+} while (0)
+
 #endif
 
 // clang-format on

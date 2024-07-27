@@ -1,3 +1,25 @@
+Version sc2024
+--------------
+
+  - fast variable elimination during preprocessing (in `fastel.c`)
+  - lucky phases as in `CaDiCaL` but before and after preprocessing
+    and with unit extraction and SLURM semantics
+  - reason jumping only for formulas with large binary clauses fraction
+  - U-shaped delta scaling of probing and elimination interval 
+  - option `-o <output>` to write simplified formula to a file
+  - dynamically increased reduced-clauses fraction (60% - 90%)
+  - bounded variable addition (in `factor.c`)
+  - clausal congruence closure algorithm (in `congruence.c`)
+  - generic preprocessing phase (using a subset-set of simplifiers)
+  - more vivification (tier0=irredundant,tier1,tier2,tier3)
+  - added `--no-conflicts` as synonym to `--conflicts=0`
+  - optimized and simplified vivification
+
+Version 3.1.1
+-------------
+
+  - configuration option `--safe` disables writing through `popen`
+
 Version 3.1.0
 -------------
 

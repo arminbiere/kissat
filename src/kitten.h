@@ -34,6 +34,7 @@ int kitten_solve (kitten *);
 int kitten_status (kitten *);
 
 signed char kitten_value (kitten *, unsigned);
+signed char kitten_fixed (kitten *, unsigned);
 bool kitten_failed (kitten *, unsigned);
 bool kitten_flip_literal (kitten *, unsigned);
 

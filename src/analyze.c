@@ -5,9 +5,11 @@
 #include "inline.h"
 #include "learn.h"
 #include "minimize.h"
+#include "print.h"
 #include "rank.h"
 #include "shrink.h"
 #include "sort.h"
+#include "tiers.h"
 
 #include <inttypes.h>
 
@@ -171,12 +173,8 @@ static void analyze_reason_side_literals (kissat *solver) {
     return;
   if (solver->probing)
     return;
-  if (solver->delays.bumpreasons.count) {
-    solver->delays.bumpreasons.count--;
-    LOG ("bump reasons still delayed (%u more times)",
-         solver->delays.bumpreasons.count);
+  if (DELAYING (bumpreasons))
     return;
-  }
   const double decision_rate = AVERAGE (decision_rate);
   const int decision_rate_limit = GET_OPTION (bumpreasonsrate);
   if (decision_rate >= decision_rate_limit) {
@@ -208,21 +206,9 @@ static void analyze_reason_side_literals (kissat *solver) {
       assert (a->analyzed);
       a->analyzed = false;
     }
-    if (solver->delays.bumpreasons.current < UINT_MAX) {
-      solver->delays.bumpreasons.current++;
-      LOG ("solver delay bump reasons interval increased to %u",
-           solver->delays.bumpreasons.current);
-    }
-  } else if (solver->delays.bumpreasons.current) {
-    solver->delays.bumpreasons.current /= 2;
-    LOG ("bump reasons delay interval decreased to %u",
-         solver->delays.bumpreasons.current);
+    BUMP_DELAY (bumpreasons);
   } else
-    LOG ("keeping zero bump reasons delays");
-
-  solver->delays.bumpreasons.count = solver->delays.bumpreasons.current;
-  LOG ("next bump reasons delayed %u times",
-       solver->delays.bumpreasons.count);
+    REDUCE_DELAY (bumpreasons);
 }
 
 #define RADIX_SORT_LEVELS_LIMIT 32
@@ -524,7 +510,18 @@ DONE:
   for (all_stack (unsigned, lit, *units))
     kissat_learned_unit (solver, lit);
   CLEAR_STACK (*units);
-  solver->iterating = true;
+  if (!solver->probing) {
+    solver->iterating = true;
+    INC (iterations);
+  }
+}
+
+static void update_tier_limits (kissat *solver) {
+  INC (retiered);
+  kissat_compute_and_set_tier_limits (solver);
+  if (solver->limits.glue.interval < (1u << 16))
+    solver->limits.glue.interval *= 2;
+  solver->limits.glue.conflicts = CONFLICTS + solver->limits.glue.interval;
 }
 
 int kissat_analyze (kissat *solver, clause *conflict) {
@@ -555,7 +552,10 @@ int kissat_analyze (kissat *solver, clause *conflict) {
     } else if ((conflict =
                     kissat_deduce_first_uip_clause (solver, conflict))) {
       reset_analysis_but_not_analyzed_literals (solver);
-      res = 0;
+      INC (conflicts);
+      if (CONFLICTS > solver->limits.glue.conflicts)
+        update_tier_limits (solver);
+      res = 0; // And continue with new conflict analysis.
     } else {
       if (GET_OPTION (minimize)) {
         sort_deduced_clause (solver);

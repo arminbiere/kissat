@@ -36,29 +36,21 @@ double kissat_nlogpown (uint64_t count, unsigned exponent) {
   return res;
 }
 
-double kissat_quadratic (uint64_t count) {
-  assert (count > 0);
-  const double res = count * count;
-  assert (res >= 1);
-  return res;
-}
-
 uint64_t kissat_scale_delta (kissat *solver, const char *pretty,
                              uint64_t delta) {
   const uint64_t C = BINIRR_CLAUSES;
-  const double f = kissat_logn (C + 1);
-  assert (f >= 1);
+  double f = kissat_logn (C + 1) - 5;
   const double ff = f * f;
-  assert (ff >= 1);
-  uint64_t scaled = ff * delta;
+  assert (ff >= 0);
+  const double fff = 4.5 * ff + 25;
+  uint64_t scaled = fff * delta;
   assert (delta <= scaled);
   // clang-format off
   kissat_very_verbose (solver,
     "scaled %s delta %" PRIu64
     " = %g * %" PRIu64
-    " = %g^2 * %" PRIu64
-    " = log10^2(%" PRIu64 ") * %" PRIu64,
-    pretty, scaled, ff, delta, f, delta, C, delta);
+    " = (4.5 (log10(%" PRIu64 ") - 5)^2 + 25) * %" PRIu64,
+    pretty, scaled, fff, delta, C, delta);
   // clang-format on
   (void) pretty;
   return scaled;
@@ -117,6 +109,9 @@ void kissat_init_limits (kissat *solver) {
   if (GET_OPTION (reduce))
     INIT_CONFLICT_LIMIT (reduce, false);
 
+  if (GET_OPTION (reorder))
+    INIT_CONFLICT_LIMIT (reorder, false);
+
   if (GET_OPTION (rephase))
     INIT_CONFLICT_LIMIT (rephase, false);
 
@@ -134,4 +129,66 @@ void kissat_init_limits (kissat *solver) {
 
   if (solver->enabled.probe)
     INIT_CONFLICT_LIMIT (probe, true);
+}
+
+#ifndef QUIET
+
+static const char *delay_description (kissat *solver, delay *delay) {
+  delays *delays = &solver->delays;
+  if (delay == &delays->bumpreasons)
+    return "bumping reason side literals";
+  else if (delay == &delays->congruence)
+    return "congruence closure";
+  else if (delay == &delays->sweep)
+    return "sweeping";
+  else {
+    assert (delay == &delays->vivifyirr);
+    return "vivifying irredundant clauses";
+  }
+}
+
+#endif
+
+#define VERY_VERBOSE_IF_NOT_BUMPREASONS(...) \
+  VERY_VERBOSE_OR_LOG (delay == &solver->delays.bumpreasons, __VA_ARGS__)
+
+void kissat_reduce_delay (kissat *solver, delay *delay) {
+  if (!delay->current)
+    return;
+  delay->current /= 2;
+  VERY_VERBOSE_IF_NOT_BUMPREASONS (
+      solver, "%s delay interval decreased to %u",
+      delay_description (solver, delay), delay->current);
+  delay->count = delay->current;
+#ifdef QUIET
+  (void) solver;
+#endif
+}
+
+void kissat_bump_delay (kissat *solver, delay *delay) {
+  delay->current += delay->current < UINT_MAX;
+  VERY_VERBOSE_IF_NOT_BUMPREASONS (
+      solver, "%s delay interval increased to %u",
+      delay_description (solver, delay), delay->current);
+  delay->count = delay->current;
+#ifdef QUIET
+  (void) solver;
+#endif
+}
+
+bool kissat_delaying (kissat *solver, delay *delay) {
+  if (delay->count) {
+    delay->count--;
+    VERY_VERBOSE_IF_NOT_BUMPREASONS (
+        solver, "%s still delayed (%u more times)",
+        delay_description (solver, delay), delay->current);
+    return true;
+  } else {
+    VERY_VERBOSE_IF_NOT_BUMPREASONS (solver, "%s not delayed",
+                                     delay_description (solver, delay));
+    return false;
+  }
+#ifdef QUIET
+  (void) solver;
+#endif
 }

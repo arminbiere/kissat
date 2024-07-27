@@ -16,6 +16,8 @@
 #ifdef STAND_ALONE_KITTEN
 /*------------------------------------------------------------------------*/
 
+#include <unistd.h>
+
 // clang-format off
 
 static const char * usage =
@@ -34,6 +36,7 @@ static const char * usage =
 "  -O[<effort>]  core shrinking effort\n"
 "  -p            produce DRAT proof\n"
 "  -a <lit>      assume a literal\n"
+"  -t <sec>      set time limit\n"
 "\n"
 "and\n"
 "\n"
@@ -130,8 +133,9 @@ static inline void *kitten_calloc (size_t n, size_t size) {
 typedef struct kar kar;
 typedef struct kink kink;
 typedef struct klause klause;
+typedef struct katch katch;
 typedef STACK (unsigned) klauses;
-typedef unsigneds katches;
+typedef STACK (katch) katches;
 
 // clang-format on
 
@@ -145,6 +149,24 @@ struct kink {
   unsigned prev;
   uint64_t stamp;
 };
+
+#define KITTEN_BLIT
+
+#ifdef KITTEN_BLIT
+
+struct katch {
+  unsigned blit;
+  unsigned ref : 31;
+  bool binary : 1;
+};
+
+#else
+
+struct katch {
+  unsigned ref;
+};
+
+#endif
 
 struct klause {
   unsigned aux;
@@ -163,6 +185,7 @@ struct statistics {
   uint64_t kitten_flip;
   uint64_t kitten_flipped;
   uint64_t kitten_sat;
+  uint64_t kitten_solve;
   uint64_t kitten_solved;
   uint64_t kitten_conflicts;
   uint64_t kitten_decisions;
@@ -233,7 +256,6 @@ struct kitten {
   unsigneds analyzed;
   unsigneds assumptions;
   unsigneds core;
-  unsigneds rcore;
   unsigneds eclause;
   unsigneds export;
   unsigneds klause;
@@ -524,7 +546,8 @@ static void clear_kitten (kitten *kitten) {
     void *OLD_PTR = (P); \
     CALLOC ((P), new_size / 2); \
     const size_t BYTES = old_vars * sizeof *(P); \
-    memcpy ((P), OLD_PTR, BYTES); \
+    if (BYTES) \
+      memcpy ((P), OLD_PTR, BYTES); \
     void *NEW_PTR = (P); \
     (P) = OLD_PTR; \
     DEALLOC ((P), old_size / 2); \
@@ -536,26 +559,23 @@ static void clear_kitten (kitten *kitten) {
     void *OLD_PTR = (P); \
     CALLOC ((P), new_size); \
     const size_t BYTES = old_lits * sizeof *(P); \
-    memcpy ((P), OLD_PTR, BYTES); \
+    if (BYTES) \
+      memcpy ((P), OLD_PTR, BYTES); \
     void *NEW_PTR = (P); \
     (P) = OLD_PTR; \
     DEALLOC ((P), old_size); \
     (P) = NEW_PTR; \
   } while (0)
 
-static void enlarge_internal (kitten *kitten, size_t lit) {
-  const size_t new_lits = (lit | 1) + 1;
+static void enlarge_internal (kitten *kitten, size_t new_lits) {
   const size_t old_lits = kitten->lits;
-  assert (old_lits <= lit);
   assert (old_lits < new_lits);
-  assert ((lit ^ 1) < new_lits);
-  assert (lit < new_lits);
   const size_t old_size = kitten->size;
   const unsigned new_vars = new_lits / 2;
   const unsigned old_vars = old_lits / 2;
   if (old_size < new_lits) {
     size_t new_size = old_size ? 2 * old_size : 2;
-    while (new_size <= lit)
+    while (new_size <= new_lits)
       new_size *= 2;
     LOG ("internal literals resized to %zu from %zu (requested %zu)",
          new_size, old_size, new_lits);
@@ -741,7 +761,7 @@ void kitten_set_ticks_limit (kitten *kitten, uint64_t delta) {
 
 static void shuffle_unsigned_array (kitten *kitten, size_t size,
                                     unsigned *a) {
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i != size; i++) {
     const size_t j = kissat_pick_random (&kitten->generator, 0, i);
     if (j == i)
       continue;
@@ -758,17 +778,36 @@ static void shuffle_unsigned_stack (kitten *kitten, unsigneds *stack) {
   shuffle_unsigned_array (kitten, size, a);
 }
 
+static void shuffle_katches_array (kitten *kitten, size_t size, katch *a) {
+  for (size_t i = 0; i != size; i++) {
+    const size_t j = kissat_pick_random (&kitten->generator, 0, i);
+    if (j == i)
+      continue;
+    const katch first = a[i];
+    const katch second = a[j];
+    a[i] = second;
+    a[j] = first;
+  }
+}
+
+static void shuffle_katches_stack (kitten *kitten, katches *stack) {
+  const size_t size = SIZE_STACK (*stack);
+  katch *a = BEGIN_STACK (*stack);
+  shuffle_katches_array (kitten, size, a);
+}
+
 static void shuffle_katches (kitten *kitten) {
   LOG ("shuffling watch lists");
-  for (size_t lit = 0; lit < kitten->lits; lit++)
-    shuffle_unsigned_stack (kitten, &KATCHES (lit));
+  const size_t lits = kitten->lits;
+  for (size_t lit = 0; lit != lits; lit++)
+    shuffle_katches_stack (kitten, &KATCHES (lit));
 }
 
 static void shuffle_queue (kitten *kitten) {
   LOG ("shuffling variable decision order");
 
   const unsigned vars = kitten->lits / 2;
-  for (unsigned i = 0; i < vars; i++) {
+  for (unsigned i = 0; i != vars; i++) {
     const unsigned idx = kissat_pick_random (&kitten->generator, 0, vars);
     dequeue (kitten, idx);
     enqueue (kitten, idx);
@@ -793,11 +832,25 @@ static inline unsigned *antecedents (klause *c) {
   return c->lits + c->size;
 }
 
-static inline void watch_klause (kitten *kitten, unsigned lit,
+static inline void watch_klause (kitten *kitten, unsigned lit, klause *c,
                                  unsigned ref) {
   ROG (ref, "watching %u in", lit);
   katches *watches = &KATCHES (lit);
-  PUSH_STACK (*watches, ref);
+  katch katch;
+  katch.ref = ref;
+#ifdef KITTEN_BLIT
+  const unsigned size = c->size;
+  assert (lit == c->lits[0] || lit == c->lits[1]);
+  const unsigned blit = c->lits[0] ^ c->lits[1] ^ lit;
+  const bool binary = size == 2;
+  assert (size > 1);
+  assert (ref < (1u << 31));
+  katch.blit = blit;
+  katch.binary = binary;
+#else
+  (void) c;
+#endif
+  PUSH_STACK (*watches, katch);
 }
 
 static inline void connect_new_klause (kitten *kitten, unsigned ref) {
@@ -815,8 +868,8 @@ static inline void connect_new_klause (kitten *kitten, unsigned ref) {
     ROG (ref, "watching unit");
     PUSH_STACK (kitten->units, ref);
   } else {
-    watch_klause (kitten, c->lits[0], ref);
-    watch_klause (kitten, c->lits[1], ref);
+    watch_klause (kitten, c->lits[0], c, ref);
+    watch_klause (kitten, c->lits[1], c, ref);
   }
 }
 
@@ -865,7 +918,8 @@ static void enlarge_external (kitten *kitten, size_t eidx) {
     unsigned *old_import = kitten->import;
     CALLOC (kitten->import, new_size);
     const size_t bytes = old_evars * sizeof *kitten->import;
-    memcpy (kitten->import, old_import, bytes);
+    if (bytes)
+      memcpy (kitten->import, old_import, bytes);
     DEALLOC (old_import, old_size);
     kitten->esize = new_size;
   }
@@ -887,8 +941,11 @@ static unsigned import_literal (kitten *kitten, unsigned elit) {
     iidx--;
   unsigned ilit = 2 * iidx + (elit & 1);
   LOG ("imported external literal %u as internal literal %u", elit, ilit);
-  if (ilit >= kitten->lits)
-    enlarge_internal (kitten, ilit);
+  const size_t new_lits = (ilit | 1) + (size_t) 1;
+  assert (ilit < new_lits);
+  assert (ilit / 2 < new_lits / 2);
+  if (new_lits > kitten->lits)
+    enlarge_internal (kitten, new_lits);
   return ilit;
 }
 
@@ -928,6 +985,7 @@ void kitten_clear (kitten *kitten) {
   LOG ("clear kitten of size %zu", kitten->size);
 
   assert (EMPTY_STACK (kitten->analyzed));
+  assert (EMPTY_STACK (kitten->klause));
   assert (EMPTY_STACK (kitten->eclause));
   assert (EMPTY_STACK (kitten->resolved));
 
@@ -952,10 +1010,15 @@ void kitten_clear (kitten *kitten) {
     assert (!kitten->marks[i]);
 #endif
 
-  memset (kitten->phases, 0, vars);
-  memset (kitten->values, 0, lits);
-  memset (kitten->failed, 0, lits);
-  memset (kitten->vars, 0, vars);
+  if (vars) {
+    memset (kitten->phases, 0, vars);
+    memset (kitten->vars, 0, vars);
+  }
+
+  if (lits) {
+    memset (kitten->values, 0, lits);
+    memset (kitten->failed, 0, lits);
+  }
 
   clear_kitten (kitten);
 }
@@ -1054,20 +1117,44 @@ static inline unsigned propagate_literal (kitten *kitten, unsigned lit) {
   const unsigned not_lit = lit ^ 1;
   katches *watches = kitten->watches + not_lit;
   unsigned conflict = INVALID;
-  unsigned *q = BEGIN_STACK (*watches);
-  const unsigned *const end_watches = END_STACK (*watches);
-  unsigned const *p = q;
+  katch *q = BEGIN_STACK (*watches);
+  const katch *const end_watches = END_STACK (*watches);
+  katch const *p = q;
   uint64_t ticks = (((char *) end_watches - (char *) q) >> 7) + 1;
   while (p != end_watches) {
-    const unsigned ref = *q++ = *p++;
+    katch katch = *q++ = *p++;
+    const unsigned ref = katch.ref;
+#ifdef KITTEN_BLIT
+    const unsigned blit = katch.blit;
+    assert (blit != not_lit);
+    const value blit_value = values[blit];
+    if (blit_value > 0)
+      continue;
+    if (katch.binary) {
+      if (blit_value < 0) {
+        ROG (ref, "conflict");
+        INC (kitten_conflicts);
+        conflict = ref;
+        break;
+      } else {
+        assert (!blit_value);
+        assign (kitten, blit, ref);
+        continue;
+      }
+    }
+#endif
     klause *c = dereference_klause (kitten, ref);
     assert (c->size > 1);
     unsigned *lits = c->lits;
     const unsigned other = lits[0] ^ lits[1] ^ not_lit;
     const value other_value = values[other];
     ticks++;
-    if (other_value > 0)
+    if (other_value > 0) {
+#ifdef KITTEN_BLIT
+      q[-1].blit = other;
+#endif
       continue;
+    }
     value replacement_value = -1;
     unsigned replacement = INVALID;
     const unsigned *const end_lits = lits + c->size;
@@ -1084,7 +1171,7 @@ static inline unsigned propagate_literal (kitten *kitten, unsigned lit) {
       lits[0] = other;
       lits[1] = replacement;
       *r = not_lit;
-      watch_klause (kitten, replacement, ref);
+      watch_klause (kitten, replacement, c, ref);
       q--;
     } else if (other_value < 0) {
       ROG (ref, "conflict");
@@ -1595,18 +1682,31 @@ static void reset_incremental (kitten *kitten) {
 static bool flip_literal (kitten *kitten, unsigned lit) {
   INC (kitten_flip);
   signed char *values = kitten->values;
+  assert (values[lit]);
+  if (!kitten->vars[lit / 2].level) {
+    LOG ("can not flip root-level assigned literal %u", lit);
+    return false;
+  }
   if (values[lit] < 0)
     lit ^= 1;
   LOG ("trying to flip value of satisfied literal %u", lit);
   assert (values[lit] > 0);
   katches *watches = kitten->watches + lit;
-  unsigned *q = BEGIN_STACK (*watches);
-  const unsigned *const end_watches = END_STACK (*watches);
-  unsigned const *p = q;
+  katch *q = BEGIN_STACK (*watches);
+  const katch *const end_watches = END_STACK (*watches);
+  katch const *p = q;
   uint64_t ticks = (((char *) end_watches - (char *) q) >> 7) + 1;
   bool res = true;
   while (p != end_watches) {
-    const unsigned ref = *q++ = *p++;
+    const katch katch = *q++ = *p++;
+#ifdef KITTEN_BLIT
+    const unsigned blit = katch.blit;
+    assert (blit != lit);
+    const value blit_value = values[blit];
+    if (blit_value > 0)
+      continue;
+#endif
+    const unsigned ref = katch.ref;
     klause *c = dereference_klause (kitten, ref);
     unsigned *lits = c->lits;
     const unsigned other = lits[0] ^ lits[1] ^ lit;
@@ -1632,7 +1732,7 @@ static bool flip_literal (kitten *kitten, unsigned lit) {
       lits[0] = other;
       lits[1] = replacement;
       *r = lit;
-      watch_klause (kitten, replacement, ref);
+      watch_klause (kitten, replacement, c, ref);
       q--;
     } else {
       assert (replacement_value < 0);
@@ -1709,6 +1809,10 @@ void kitten_binary (kitten *kitten, unsigned a, unsigned b) {
   kitten_clause (kitten, 2, clause);
 }
 
+#ifdef STAND_ALONE_KITTEN
+static volatile bool time_limit_hit;
+#endif
+
 int kitten_solve (kitten *kitten) {
   REQUIRE_INITIALIZED ();
   if (kitten->status)
@@ -1732,6 +1836,12 @@ int kitten_solve (kitten *kitten) {
         res = 20;
       }
     } else
+#ifdef STAND_ALONE_KITTEN
+        if (time_limit_hit) {
+      time_limit_hit = false;
+      break;
+    } else
+#endif
       res = decide (kitten);
   }
 
@@ -1940,8 +2050,8 @@ void kitten_shrink_to_clausal_core (kitten *kitten) {
     } else if (size == 1)
       PUSH_STACK (kitten->units, dst);
     else {
-      watch_klause (kitten, c->lits[0], dst);
-      watch_klause (kitten, c->lits[1], dst);
+      watch_klause (kitten, c->lits[0], c, dst);
+      watch_klause (kitten, c->lits[1], c, dst);
     }
     if (c == q)
       q = next;
@@ -1974,6 +2084,24 @@ signed char kitten_value (kitten *kitten, unsigned elit) {
     return 0;
   const unsigned ilit = 2 * (iidx - 1) + (elit & 1);
   return kitten->values[ilit];
+}
+
+signed char kitten_fixed (kitten *kitten, unsigned elit) {
+  const unsigned eidx = elit / 2;
+  if (eidx >= kitten->evars)
+    return 0;
+  unsigned iidx = kitten->import[eidx];
+  if (!iidx)
+    return 0;
+  iidx--;
+  const unsigned ilit = 2 * iidx + (elit & 1);
+  signed char res = kitten->values[ilit];
+  if (!res)
+    return 0;
+  kar *v = kitten->vars + iidx;
+  if (v->level)
+    return 0;
+  return res;
 }
 
 bool kitten_flip_literal (kitten *kitten, unsigned elit) {
@@ -2207,7 +2335,8 @@ static kitten *parse (parser *parser, ints *originals, int *max_var) {
           new_size_marks *= 2;
         signed char *new_marks;
         CALLOC (new_marks, new_size_marks);
-        memcpy (new_marks, marks, size_marks);
+        if (size_marks)
+          memcpy (new_marks, marks, size_marks);
         DEALLOC (marks, size_marks);
         size_marks = new_size_marks;
         marks = new_marks;
@@ -2378,6 +2507,7 @@ static void print_statistics (statistics statistics) {
   msg ("process-time:              %23.2f seconds", process_time ());
 }
 
+static volatile int time_limit;
 static volatile kitten *static_kitten;
 
 #define SIGNALS \
@@ -2394,7 +2524,16 @@ static void (*SIG ## _handler)(int);
 SIGNALS
 #undef SIGNAL
 
+static void (*SIGALRM_handler)(int);
+
 // clang-format on
+
+static void reset_alarm (void) {
+  if (time_limit > 0) {
+    time_limit = 0;
+    time_limit_hit = false;
+  }
+}
 
 static void reset_signals (void) {
 #define SIGNAL(SIG) signal (SIG, SIG##_handler);
@@ -2422,11 +2561,22 @@ static void catch_signal (int sig) {
   raise (sig);
 }
 
+static void catch_alarm (int sig) {
+  assert (sig == SIGALRM);
+  if (time_limit > 0)
+    time_limit_hit = true;
+  (void) sig;
+}
+
 static void init_signals (kitten *kitten) {
   static_kitten = kitten;
 #define SIGNAL(SIG) SIG##_handler = signal (SIG, catch_signal);
   SIGNALS
 #undef SIGNAL
+  if (time_limit > 0) {
+    SIGALRM_handler = signal (SIGALRM, catch_alarm);
+    alarm (time_limit);
+  }
 }
 
 static bool parse_arg (const char *arg, unsigned *res_ptr) {
@@ -2503,6 +2653,11 @@ int main (int argc, char **argv) {
       if (!parse_lit (argv[i], &lit) || !lit)
         die ("invalid '-a %s'", argv[i]);
       PUSH_STACK (assumptions, lit);
+    } else if (!strcmp (arg, "-t")) {
+      if (++i == argc)
+        die ("argument to '-t' missing");
+      if ((time_limit = atoi (argv[i])) <= 0)
+        die ("invalid argument in '-t %s'", argv[i]);
     } else if (arg[0] == '-' && arg[1] == 'O' && !arg[2])
       shrink = 1;
     else if (arg[0] == '-' && arg[1] == 'O' && parse_arg (arg + 2, &shrink))
@@ -2527,7 +2682,7 @@ int main (int argc, char **argv) {
   else if (!(dimacs_file = fopen (dimacs_path, "r")))
     die ("can not open '%s' for reading", dimacs_path);
   msg ("Kitten SAT Solver");
-  msg ("Copyright (c) 2021-2023 Armin Biere University of Freiburg");
+  msg ("Copyright (c) 2021-2024 Armin Biere University of Freiburg");
   msg ("Copyright (c) 2020-2021 Armin Biere Johannes Kepler University "
        "Linz");
   msg ("reading '%s'", dimacs_path);
@@ -2600,6 +2755,7 @@ int main (int argc, char **argv) {
         kitten_shrink_to_clausal_core (kitten);
         kitten_shuffle_clauses (kitten);
 
+        reset_alarm ();
         res = kitten_solve (kitten);
         assert (res == 20);
       }
@@ -2621,8 +2777,10 @@ int main (int argc, char **argv) {
       }
       fclose (output_file);
     }
-  } else
-    msg ("unknown result");
+  } else {
+    fputs ("s UNKNOWN\n", stdout);
+    fflush (stdout);
+  }
   RELEASE_STACK (originals);
   RELEASE_STACK (assumptions);
   statistics statistics = kitten->statistics;

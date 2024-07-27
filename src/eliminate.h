@@ -7,9 +7,6 @@ struct kissat;
 struct clause;
 struct heap;
 
-void kissat_update_after_removing_variable (struct kissat *, unsigned);
-void kissat_update_after_removing_clause (struct kissat *, struct clause *,
-                                          unsigned except);
 void kissat_flush_units_while_connected (struct kissat *);
 
 bool kissat_eliminating (struct kissat *);

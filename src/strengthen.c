@@ -1,4 +1,5 @@
 #include "strengthen.h"
+#include "collect.h"
 #include "inline.h"
 #include "promote.h"
 
@@ -91,7 +92,6 @@ static clause *large_on_the_fly_strengthen (kissat *solver, clause *c,
   assert (old_next == new_next);
 #endif
   LOGCLS (c, "conflicting");
-  INC (conflicts);
   return c;
 }
 
@@ -136,7 +136,6 @@ static clause *binary_on_the_fly_strengthen (kissat *solver, clause *c,
   kissat_unwatch_blocking (solver, c->lits[1], ref);
   kissat_mark_clause_as_garbage (solver, c);
   clause *conflict = kissat_binary_conflict (solver, first, second);
-  INC (conflicts);
   return conflict;
 }
 
@@ -164,12 +163,8 @@ void kissat_on_the_fly_subsume (kissat *solver, clause *c, clause *d) {
   kissat_mark_clause_as_garbage (solver, d);
   INC (on_the_fly_subsumed);
   if (d->redundant) {
-    if (c->redundant && !c->keep) {
-      if (c->glue > d->glue)
-        kissat_promote_clause (solver, c, d->glue);
-      if (c->glue <= (unsigned) GET_OPTION (tier2) && c->used <= 1)
-        c->used = 2;
-    }
+    if (c->redundant && c->glue > d->glue)
+      kissat_promote_clause (solver, c, d->glue);
     return;
   }
   if (!c->redundant)
@@ -177,12 +172,7 @@ void kissat_on_the_fly_subsume (kissat *solver, clause *c, clause *d) {
   if (c->size > 2) {
     c->redundant = false;
     LOGCLS (c, "turned");
-    clause *last_irredundant = kissat_last_irredundant_clause (solver);
-    if (!last_irredundant || last_irredundant < c) {
-      LOGCLS (c, "updating last irredundant clause as");
-      reference ref = kissat_reference_clause (solver, c);
-      solver->last_irredundant = ref;
-    }
+    kissat_update_last_irredundant (solver, c);
   }
   statistics *statistics = &solver->statistics;
   if (c->size > 2) {

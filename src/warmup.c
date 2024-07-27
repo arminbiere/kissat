@@ -12,23 +12,13 @@ void kissat_warmup (kissat *solver) {
   assert (!solver->inconsistent);
   assert (GET_OPTION (warmup));
   START (warmup);
-  bool all_saved = true;
-  if (!GET_OPTION (forcephase) && GET_OPTION (phasesaving)) {
-    signed char *saved = solver->phases.saved;
-    for (all_variables (idx)) {
-      if (saved[idx])
-        continue;
-      all_saved = false;
-      break;
-    }
-  }
-  if (all_saved)
-    goto SKIP;
+  assert (!solver->warming);
+  solver->warming = true;
   INC (warmups);
 #ifndef QUIET
   const statistics *stats = &solver->statistics;
-  uint64_t propagations = stats->propagations;
-  uint64_t decisions = stats->decisions;
+  uint64_t propagations = stats->warming_propagations;
+  uint64_t decisions = stats->warming_decisions;
 #endif
   while (solver->unassigned) {
     if (TERMINATED (warmup_terminated_1))
@@ -38,8 +28,8 @@ void kissat_warmup (kissat *solver) {
   }
   assert (!solver->inconsistent);
 #ifndef QUIET
-  decisions = stats->decisions - decisions;
-  propagations = stats->propagations - propagations;
+  decisions = stats->warming_decisions - decisions;
+  propagations = stats->warming_propagations - propagations;
 
   kissat_very_verbose (solver,
                        "warming-up needed %" PRIu64
@@ -58,6 +48,7 @@ void kissat_warmup (kissat *solver) {
                     solver->level);
 #endif
   kissat_backtrack_without_updating_phases (solver, 0);
-SKIP:
+  assert (solver->warming);
+  solver->warming = false;
   STOP (warmup);
 }

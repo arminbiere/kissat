@@ -17,20 +17,24 @@ update_beyond_propagation_statistics (kissat *solver,
   LOG ("propagated %u literals", propagated);
   LOG ("propagation took %" PRIu64 " ticks", solver->ticks);
 
-  ADD (propagations, propagated);
   ADD (ticks, solver->ticks);
+
+  ADD (propagations, propagated);
+  ADD (warming_propagations, propagated);
 }
 
 static void propagate_literals_beyond_conflicts (kissat *solver) {
   unsigned *propagate = solver->propagate;
   while (propagate != END_ARRAY (solver->trail))
-    (void) propagate_literal_beyond_conflicts (solver, *propagate++);
+    if (propagate_literal_beyond_conflicts (solver, *propagate++))
+      INC (warming_conflicts);
   solver->propagate = propagate;
 }
 
 void kissat_propagate_beyond_conflicts (kissat *solver) {
   assert (!solver->probing);
   assert (solver->watching);
+  assert (solver->warming);
   assert (!solver->inconsistent);
 
   START (propagate);

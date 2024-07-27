@@ -26,34 +26,33 @@ static void dec_clause (kissat *solver, bool redundant, bool binary) {
     DEC (clauses_irredundant);
 }
 
-static void init_clause (kissat *solver, clause *res, bool redundant,
-                         unsigned glue, unsigned size) {
+static void init_clause (clause *res, bool redundant, unsigned glue,
+                         unsigned size) {
   assert (size <= UINT_MAX);
   assert (redundant || !glue);
 
   glue = MIN (MAX_GLUE, glue);
 
-  const unsigned tier1 = GET_OPTION (tier1);
-  const bool keep = (glue <= tier1);
-
   res->glue = glue;
-
   res->garbage = false;
-  res->keep = keep;
+  res->quotient = false;
   res->reason = false;
   res->redundant = redundant;
   res->shrunken = false;
   res->subsume = false;
-  res->sweeped = false;
+  res->swept = false;
   res->vivify = false;
 
   res->used = 0;
 
   res->searched = 2;
   res->size = size;
-#ifdef NOPTIONS
-  (void) solver;
-#endif
+}
+
+void kissat_connect_referenced (kissat *solver, reference ref) {
+  watches *all_watches = solver->watches;
+  clause *c = kissat_dereference_clause (solver, ref);
+  kissat_inlined_connect_clause (solver, all_watches, c, ref);
 }
 
 void kissat_connect_clause (kissat *solver, clause *c) {
@@ -63,10 +62,12 @@ void kissat_connect_clause (kissat *solver, clause *c) {
 }
 
 static reference new_binary_clause (kissat *solver, bool original,
-                                    unsigned first, unsigned second) {
+                                    bool watch, unsigned first,
+                                    unsigned second) {
   assert (first != second);
   assert (first != NOT (second));
-  kissat_watch_binary (solver, first, second);
+  if (watch)
+    kissat_watch_binary (solver, first, second);
   kissat_mark_added_literal (solver, first);
   kissat_mark_added_literal (solver, second);
   inc_clause (solver, original, false, true);
@@ -83,7 +84,7 @@ static reference new_large_clause (kissat *solver, bool original,
   assert (size > 2);
   reference res = kissat_allocate_clause (solver, size);
   clause *c = kissat_unchecked_dereference_clause (solver, res);
-  init_clause (solver, c, redundant, glue, size);
+  init_clause (c, redundant, glue, size);
   memcpy (c->lits, lits, size * sizeof (unsigned));
   LOGREF (res, "new");
   if (solver->watching)
@@ -91,7 +92,7 @@ static reference new_large_clause (kissat *solver, bool original,
   else
     kissat_connect_clause (solver, c);
   if (redundant) {
-    if (!c->keep && solver->first_reducible == INVALID_REF)
+    if (solver->first_reducible == INVALID_REF)
       solver->first_reducible = res;
   } else {
     kissat_mark_added_literals (solver, size, lits);
@@ -109,7 +110,7 @@ static reference new_clause (kissat *solver, bool original, bool redundant,
                              unsigned glue, unsigned size, unsigned *lits) {
   reference res;
   if (size == 2)
-    res = new_binary_clause (solver, original, lits[0], lits[1]);
+    res = new_binary_clause (solver, original, true, lits[0], lits[1]);
   else
     res = new_large_clause (solver, original, redundant, glue, size, lits);
   kissat_defrag_watches_if_needed (solver);
@@ -118,7 +119,12 @@ static reference new_clause (kissat *solver, bool original, bool redundant,
 
 void kissat_new_binary_clause (kissat *solver, unsigned first,
                                unsigned second) {
-  (void) new_binary_clause (solver, false, first, second);
+  (void) new_binary_clause (solver, false, true, first, second);
+}
+
+void kissat_new_unwatched_binary_clause (kissat *solver, unsigned first,
+                                         unsigned second) {
+  (void) new_binary_clause (solver, false, false, first, second);
 }
 
 reference kissat_new_original_clause (kissat *solver) {

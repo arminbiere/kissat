@@ -24,12 +24,12 @@ static void test_dump (void) {
   assert (a > 0);
   assert (b > 0);
 #ifndef NDEBUG
-  void dump (kissat *);
+  void kissat_dump (kissat *);
   printf ("\nCompletely dumping solver:\n\n");
-  dump (solver);
+  kissat_dump (solver);
   printf ("\nDumping also vectors:\n\n");
-  void dump_vectors (kissat *);
-  dump_vectors (solver);
+  void kissat_dump_vectors (kissat *);
+  kissat_dump_vectors (solver);
 #endif
   kissat_release (solver);
 }

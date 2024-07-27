@@ -46,8 +46,7 @@ static bool less_str (const char *a, const char *b) {
 }
 
 static void test_sort_strings (void) {
-  struct kissat dummy, *solver = &dummy;
-  memset (&dummy, 0, sizeof dummy);
+  DECLARE_AND_INIT_SOLVER (solver);
   STACK (const char *) stack;
   INIT_STACK (stack);
   SORT_STACK (const char *, stack, less_str);

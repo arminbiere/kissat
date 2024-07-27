@@ -18,11 +18,49 @@
   CNF (20, full4, false) \
   CNF (10, and1, false) \
   CNF (10, and2, false) \
+  CNF (10, and3, false) \
+  CNF (10, ite0, false) \
   CNF (10, ite1, false) \
+  CNF (10, ite2, false) \
+  CNF (10, ite3, false) \
+  CNF (10, ite4, false) \
+  CNF (10, ite5, false) \
+  CNF (10, ite6, false) \
+  CNF (10, ite7, false) \
+  CNF (10, ite8, false) \
+  CNF (10, ite9, false) \
+  CNF (10, ite10, false) \
+  CNF (10, ite11, false) \
+  CNF (10, ite12, false) \
+  CNF (10, ite13, false) \
+  CNF (10, ite14, false) \
+  CNF (10, ite15, false) \
+  CNF (10, ite16, false) \
+  CNF (10, ite17, false) \
+  CNF (10, ite18, false) \
+  CNF (10, ite19, false) \
+  CNF (10, ite20, false) \
+  CNF (10, ite21, false) \
+  CNF (10, ite22, false) \
+  CNF (10, ite23, false) \
+  CNF (10, ite24, false) \
+  CNF (10, ite25, false) \
+  CNF (10, ite26, false) \
+  CNF (10, ite27, false) \
+  CNF (10, ite28, false) \
+  CNF (10, ite29, false) \
+  CNF (10, ite30, false) \
+  CNF (10, ite31, false) \
+  CNF (10, ite32, false) \
+  CNF (10, ite33, false) \
+  CNF (10, ite34, false) \
+  CNF (10, xor0, false) \
   CNF (10, xor1, false) \
   CNF (10, xor2, false) \
   CNF (10, xor3, false) \
   CNF (10, xor4, false) \
+  CNF (20, xor5, false) \
+  CNF (10, xor6, false) \
   CNF (20, ph2, false) \
   CNF (20, ph3, false) \
   CNF (20, ph4, false) \
@@ -71,6 +109,18 @@
   CNF (20, add64, false) \
   CNF (20, add128, false) \
   CNF (20, strash1, false) \
-  CNF (20, strash2, false)
+  CNF (20, strash2, false) \
+  CNF (20, congr1, false) \
+  CNF (20, congr2, false) \
+  CNF (20, congr3, false) \
+  CNF (10, congr4, false) \
+  CNF (20, congr5, false) \
+  CNF (20, congr6, false) \
+  CNF (10, congr7, false) \
+  CNF (10, factor1, false) \
+  CNF (10, factor2, false) \
+  CNF (10, factor3, false) \
+  CNF (10, factor4, false) \
+  CNF (10, factor5, false)
 
 #endif

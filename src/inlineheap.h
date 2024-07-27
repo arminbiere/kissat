@@ -133,6 +133,23 @@ static inline unsigned kissat_pop_max_heap (kissat *solver, heap *heap) {
   return idx;
 }
 
+static inline void kissat_adjust_heap (kissat *solver, heap *heap,
+                                       unsigned idx) {
+  const unsigned new_vars = idx + 1;
+  const unsigned old_vars = heap->vars;
+  if (new_vars <= old_vars)
+    return;
+  const unsigned old_size = heap->size;
+  if (idx >= old_size) {
+    size_t new_size = old_size ? 2 * old_size : 1;
+    while (idx >= new_size)
+      new_size *= 2;
+    assert (new_size < DISCONTAIN);
+    kissat_resize_heap (solver, heap, new_size);
+  }
+  kissat_enlarge_heap (solver, heap, idx + 1);
+}
+
 static inline void kissat_update_heap (kissat *solver, heap *heap,
                                        unsigned idx, double new_score) {
   const double old_score = kissat_get_heap_score (heap, idx);

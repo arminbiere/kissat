@@ -87,6 +87,9 @@ static unsigned next_random_decision (kissat *solver) {
   if (!VARS)
     return INVALID_IDX;
 
+  if (solver->warming)
+    return INVALID_IDX;
+
   if (!GET_OPTION (randec))
     return INVALID_IDX;
 
@@ -120,7 +123,7 @@ static unsigned next_random_decision (kissat *solver) {
   }
 }
 
-static unsigned kissat_next_decision_variable (kissat *solver) {
+unsigned kissat_next_decision_variable (kissat *solver) {
 #ifdef LOGGING
   const char *type = 0;
 #endif
@@ -149,7 +152,7 @@ static unsigned kissat_next_decision_variable (kissat *solver) {
   return res;
 }
 
-static inline value decide_phase (kissat *solver, unsigned idx) {
+int kissat_decide_phase (kissat *solver, unsigned idx) {
   bool force = GET_OPTION (forcephase);
 
   value *target;
@@ -200,21 +203,25 @@ static inline value decide_phase (kissat *solver, unsigned idx) {
   }
   assert (res);
 
-  return res;
+  return res < 0 ? -1 : 1;
 }
 
 void kissat_decide (kissat *solver) {
   START (decide);
   assert (solver->unassigned);
-  INC (decisions);
-  if (solver->stable)
-    INC (stable_decisions);
-  else
-    INC (focused_decisions);
+  if (solver->warming)
+    INC (warming_decisions);
+  else {
+    INC (decisions);
+    if (solver->stable)
+      INC (stable_decisions);
+    else
+      INC (focused_decisions);
+  }
   solver->level++;
   assert (solver->level != INVALID_LEVEL);
   const unsigned idx = kissat_next_decision_variable (solver);
-  const value value = decide_phase (solver, idx);
+  const value value = kissat_decide_phase (solver, idx);
   unsigned lit = LIT (idx);
   if (value < 0)
     lit = NOT (lit);

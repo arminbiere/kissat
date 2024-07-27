@@ -52,6 +52,14 @@ void kissat_remove_checker_internal (struct kissat *, size_t,
       kissat_check_and_add_binary (solver, (A), (B)); \
   } while (0)
 
+#define CHECK_AND_ADD_TERNARY(A, B, C) \
+  do { \
+    if (GET_OPTION (check) > 1) { \
+      unsigned CLAUSE[3] = {(A), (B), (C)}; \
+      kissat_check_and_add_internal (solver, 3, CLAUSE); \
+    } \
+  } while (0)
+
 #define CHECK_AND_ADD_CLAUSE(CLAUSE) \
   do { \
     if (GET_OPTION (check) > 1) \
@@ -91,6 +99,14 @@ void kissat_remove_checker_internal (struct kissat *, size_t,
       kissat_remove_checker_binary (solver, (A), (B)); \
   } while (0)
 
+#define REMOVE_CHECKER_TERNARY(A, B, C) \
+  do { \
+    if (GET_OPTION (check) > 1) { \
+      unsigned CLAUSE[3] = {(A), (B), (C)}; \
+      kissat_remove_checker_internal (solver, 3, CLAUSE); \
+    } \
+  } while (0)
+
 #define REMOVE_CHECKER_CLAUSE(CLAUSE) \
   do { \
     if (GET_OPTION (check) > 1) \
@@ -115,8 +131,10 @@ void kissat_remove_checker_internal (struct kissat *, size_t,
 #define ADD_UNCHECKED_EXTERNAL(...) \
   do { \
   } while (0)
-
 #define CHECK_AND_ADD_BINARY(...) \
+  do { \
+  } while (0)
+#define CHECK_AND_ADD_TERNARY(...) \
   do { \
   } while (0)
 #define CHECK_AND_ADD_CLAUSE(...) \
@@ -134,12 +152,13 @@ void kissat_remove_checker_internal (struct kissat *, size_t,
 #define CHECK_AND_ADD_UNIT(...) \
   do { \
   } while (0)
-
 #define CHECK_SHRINK_CLAUSE(...) \
   do { \
   } while (0)
-
 #define REMOVE_CHECKER_BINARY(...) \
+  do { \
+  } while (0)
+#define REMOVE_CHECKER_TERNARY(...) \
   do { \
   } while (0)
 #define REMOVE_CHECKER_CLAUSE(...) \

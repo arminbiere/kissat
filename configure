@@ -25,6 +25,7 @@ pic=no
 profile=no
 proofs=yes
 quiet=no
+safe=no
 sat=no
 shared=no
 static=no
@@ -77,13 +78,18 @@ fi
 cat << EOF
 Options used to instrument the code for coverage and performance profiling.
 
-  --coverage       include line coverage code (to be used with 'gcov')
-  --profile        include profiling code (to be used with 'gprof')
+  --coverage        include line coverage code (to be used with 'gcov')
+  --profile         include profiling code (to be used with 'gprof')
 
 For coverage testing it might be useful to enforce different compiler
 optimization levels, i.e., lower than the default '-O3' (without '-g').
   
-  -O[0|1|2|3]      set the optimization level of the compiler explicitly
+  -O[0|1|2|3]       set the optimization level of the compiler explicitly
+
+Writing through 'popen' can be considered harmful in certain library usage.
+
+  --safe            disable the use of writing through 'popen'
+                    (and thus disables writing zipped files too)
 
 We have compile time options which save memory and speed up the solver by
 limiting the size of formulas that can be handled, fix the default
@@ -216,6 +222,8 @@ do
     -O2) optimize=2;;
     -O3) optimize=3;;
 
+    --safe) safe=yes;;
+
     --compact) compact=yes;;
     --no-options) options=no;;
     --quiet) quiet=yes;;
@@ -321,6 +329,7 @@ tissat:
 	\$(MAKE) -C "$BUILD" tissat
 clean:
 	rm -f "$ROOT"/makefile
+	rm -f "$ROOT"/src/makefile
 	-\$(MAKE) -C "$BUILD" clean
 	rm -rf "$BUILD"
 coverage:
@@ -595,6 +604,7 @@ fi
 [ $options = no ] && CFLAGS="$CFLAGS -DNOPTIONS"
 [ $proofs = no ] && CFLAGS="$CFLAGS -DNPROOFS"
 [ $quiet = yes ] && CFLAGS="$CFLAGS -DQUIET"
+[ $safe = yes ] && CFLAGS="$CFLAGS -DSAFE"
 [ $sat = yes ] && CFLAGS="$CFLAGS -DSAT"
 [ $statistics = yes -a $metrics = no ] && CFLAGS="$CFLAGS -DSTATISTICS"
 [ $unsat = yes ] && CFLAGS="$CFLAGS -DUNSAT"

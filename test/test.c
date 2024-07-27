@@ -64,6 +64,7 @@ int tissat_processes;
 
 bool tissat_found_drabt;
 bool tissat_found_drat_trim;
+bool tissat_found_dpr_trim;
 
 #endif
 
@@ -140,6 +141,8 @@ static int default_number_of_processes (void) {
   int res = get_number_of_cores ();
   return res <= 0 ? DEFAULT_NUMBER_OF_PROCESSES : res;
 }
+
+kissat kissat_test_dummy_solver;
 
 int main (int argc, char **argv) {
   const double start = kissat_wall_clock_time ();
@@ -374,6 +377,7 @@ int main (int argc, char **argv) {
 
   FIND (drabt, drabt);
   FIND (drat-trim, drat_trim);
+  FIND (dpr-trim, dpr_trim);
 
   // clang-format on
 
@@ -440,6 +444,7 @@ int main (int argc, char **argv) {
   SCHEDULE (allocate);
   SCHEDULE (array);
   SCHEDULE (stack);
+  SCHEDULE (fifo);
   SCHEDULE (arena);
   SCHEDULE (heap);
   SCHEDULE (vector);

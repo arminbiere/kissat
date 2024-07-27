@@ -386,7 +386,7 @@ void kissat_shrink_clause (kissat *solver) {
   assert (q + total_shrunken == end_lits);
   SET_END_OF_STACK (solver->clause, q);
   ADD (literals_shrunken, total_shrunken);
-  ADD (literals_minimize_shrunken, total_minimized);
+  ADD (literals_minshrunken, total_minimized);
 
   LOGTMP ("shrunken learned");
   kissat_reset_poisoned (solver);

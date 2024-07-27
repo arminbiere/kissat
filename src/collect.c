@@ -180,6 +180,36 @@ static void update_last_irredundant (kissat *solver, const clause *end,
   }
 }
 
+void kissat_update_first_reducible (kissat *solver, clause *reducible) {
+  assert (reducible);
+  assert (!reducible->garbage);
+  assert (reducible->redundant);
+  if (solver->first_reducible != INVALID_REF) {
+    reference ref = kissat_reference_clause (solver, reducible);
+    if (ref >= solver->first_reducible) {
+      LOG ("no need to update larger first reducible");
+      return;
+    }
+  }
+  clause *end = (clause *) END_STACK (solver->arena);
+  update_first_reducible (solver, end, reducible);
+}
+
+void kissat_update_last_irredundant (kissat *solver, clause *irredundant) {
+  assert (irredundant);
+  assert (!irredundant->garbage);
+  assert (!irredundant->redundant);
+  if (solver->last_irredundant != INVALID_REF) {
+    reference ref = kissat_reference_clause (solver, irredundant);
+    if (ref <= solver->last_irredundant) {
+      LOG ("no need to update smaller last irredundant");
+      return;
+    }
+  }
+  clause *end = (clause *) END_STACK (solver->arena);
+  update_last_irredundant (solver, end, irredundant);
+}
+
 static void move_redundant_clauses_to_the_end (kissat *solver,
                                                reference ref) {
   INC (moved);
@@ -229,7 +259,7 @@ static void move_redundant_clauses_to_the_end (kissat *solver,
     if (q->reason)
       get_forced_and_update_large_reason (solver, assigned, values, q);
     assert (q->redundant);
-    if (!first_reducible && !q->keep)
+    if (!first_reducible)
       first_reducible = q;
     r = (clause *) (bytes + (char *) r);
     q = (clause *) (bytes + (char *) q);
@@ -241,6 +271,7 @@ static void move_redundant_clauses_to_the_end (kissat *solver,
 
   update_first_reducible (solver, q, first_reducible);
   update_last_irredundant (solver, q, last_irredundant);
+  kissat_reset_last_learned (solver);
 }
 
 static reference sparse_sweep_garbage_clauses (kissat *solver, bool compact,
@@ -446,7 +477,7 @@ static reference sparse_sweep_garbage_clauses (kissat *solver, bool compact,
       clause *next_dst = kissat_next_clause (dst);
 
       if (dst->redundant) {
-        if (!first_reducible && !dst->keep)
+        if (!first_reducible)
           first_reducible = dst;
 #ifdef LOGGING
         redundant_bytes += (char *) next_dst - (char *) dst;
@@ -480,6 +511,7 @@ static reference sparse_sweep_garbage_clauses (kissat *solver, bool compact,
 
   update_first_reducible (solver, dst, first_reducible);
   update_last_irredundant (solver, dst, last_irredundant);
+  kissat_reset_last_learned (solver);
 
   if (first_redundant)
     LOGCLS (first_redundant, "determined first redundant clause as");
@@ -577,7 +609,7 @@ void kissat_sparse_collect (kissat *solver, bool compact, reference start) {
   assert (solver->watching);
   START (collect);
   INC (garbage_collections);
-  INC (sparse_garbage_collections);
+  INC (sparse_gcs);
   REPORT (1, 'G');
   unsigned vars, mfixed;
   if (compact)
@@ -596,6 +628,30 @@ void kissat_sparse_collect (kissat *solver, bool compact, reference start) {
   REPORT (1, 'C');
   kissat_check_statistics (solver);
   STOP (collect);
+}
+
+bool kissat_compacting (kissat *solver) {
+  if (!GET_OPTION (compact))
+    return false;
+  unsigned inactive = solver->vars - solver->active;
+  unsigned limit = GET_OPTION (compactlim) / 1e2 * solver->vars;
+  bool compact = (inactive > limit);
+  LOG ("%u inactive variables %.0f%% <= limit %u %.0f%%", inactive,
+       kissat_percent (inactive, solver->vars), limit,
+       kissat_percent (limit, solver->vars));
+  return compact;
+}
+
+void kissat_initial_sparse_collect (kissat *solver) {
+  assert (!solver->level);
+  assert (!solver->inconsistent);
+  assert (solver->watching);
+  assert (kissat_trail_flushed (solver));
+  if (solver->statistics.units) {
+    bool compact = GET_OPTION (compact);
+    kissat_sparse_collect (solver, compact, 0);
+  }
+  REPORT (0, '.');
 }
 
 static void dense_sweep_garbage_clauses (kissat *solver) {
@@ -636,13 +692,14 @@ static void dense_sweep_garbage_clauses (kissat *solver) {
     LOGCLS (dst, "DST");
     if (!dst->redundant)
       last_irredundant = dst;
-    else if (!first_reducible && !dst->keep)
+    else if (!first_reducible)
       first_reducible = dst;
     dst = kissat_next_clause (dst);
   }
 
   update_first_reducible (solver, dst, first_reducible);
   update_last_irredundant (solver, dst, last_irredundant);
+  kissat_reset_last_learned (solver);
 
 #if !defined(QUIET) || defined(METRICS)
   size_t bytes = (char *) END_STACK (solver->arena) - (char *) dst;

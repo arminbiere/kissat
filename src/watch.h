@@ -47,11 +47,11 @@ typedef vector watches;
 
 typedef struct litwatch litwatch;
 typedef struct litpair litpair;
+typedef struct litriple litriple;
 
-// clang-format off
 typedef STACK (litwatch) litwatches;
 typedef STACK (litpair) litpairs;
-// clang-format on
+typedef STACK (litriple) litriples;
 
 struct litwatch {
   unsigned lit;
@@ -60,6 +60,10 @@ struct litwatch {
 
 struct litpair {
   unsigned lits[2];
+};
+
+struct litriple {
+  unsigned lits[3];
 };
 
 static inline litpair kissat_litpair (unsigned lit, unsigned other) {
@@ -156,16 +160,17 @@ static inline watch kissat_blocking_watch (unsigned lit) {
   WATCH##_PTR != WATCH##_END && ((WATCH = *WATCH##_PTR), true); \
   ++WATCH##_PTR
 
+void kissat_remove_binary_watch (struct kissat *, watches *, unsigned);
 void kissat_remove_blocking_watch (struct kissat *, watches *, reference);
 
 void kissat_substitute_large_watch (struct kissat *, watches *, watch src,
                                     watch dst);
 
+void kissat_flush_all_connected (struct kissat *);
 void kissat_flush_large_watches (struct kissat *);
 void kissat_watch_large_clauses (struct kissat *);
+void kissat_flush_large_connected (struct kissat *);
 
 void kissat_connect_irredundant_large_clauses (struct kissat *);
-
-void kissat_flush_large_connected (struct kissat *);
 
 #endif

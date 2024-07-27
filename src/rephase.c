@@ -43,9 +43,7 @@ static char rephase_best (kissat *solver) {
   value const *b;
 
   value *const saved = solver->phases.saved;
-  value *s;
-
-  value tmp;
+  value *s, tmp;
 
   for (s = saved, b = best; b != end_of_best; s++, b++)
     if ((tmp = *b))
@@ -58,16 +56,20 @@ static char rephase_best (kissat *solver) {
 
 static char rephase_original (kissat *solver) {
   const value initial_phase = INITIAL_PHASE;
-  for (all_phases (saved, p))
-    *p = initial_phase;
+  value *s = solver->phases.saved;
+  const value *const end = s + VARS;
+  while (s != end)
+    *s++ = initial_phase;
   INC (rephased_original);
   return 'O';
 }
 
 static char rephase_inverted (kissat *solver) {
   const value inverted_initial_phase = -INITIAL_PHASE;
-  for (all_phases (saved, p))
-    *p = inverted_initial_phase;
+  value *s = solver->phases.saved;
+  const value *const end = s + VARS;
+  while (s != end)
+    *s++ = inverted_initial_phase;
   INC (rephased_inverted);
   return 'I';
 }
@@ -81,8 +83,6 @@ static char rephase_walking (kissat *solver) {
   return 'W';
 }
 
-// *IDENT-OFF*
-
 static char (*rephase_schedule[]) (kissat *) = {
     rephase_best, rephase_walking, rephase_inverted,
     rephase_best, rephase_walking, rephase_original,
@@ -90,8 +90,6 @@ static char (*rephase_schedule[]) (kissat *) = {
 
 #define size_rephase_schedule \
   (sizeof rephase_schedule / sizeof *rephase_schedule)
-
-// *IDENT-ON*
 
 #ifndef QUIET
 

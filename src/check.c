@@ -82,6 +82,8 @@ struct checker {
 
   buckets *watches;
   bool *marks;
+  bool *large;
+  bool *used;
   signed char *values;
 
   bool marked;
@@ -93,11 +95,14 @@ struct checker {
   unsigned nonces[32];
 
   uint64_t added;
+  uint64_t blocked;
   uint64_t checked;
   uint64_t collisions;
   uint64_t decisions;
   uint64_t propagations;
+  uint64_t pure;
   uint64_t removed;
+  uint64_t satisfied;
   uint64_t searches;
   uint64_t unchecked;
 };
@@ -175,6 +180,8 @@ void kissat_release_checker (kissat *solver) {
   RELEASE_STACK (checker->imported);
   RELEASE_STACK (checker->trail);
   kissat_free (solver, checker->marks, 2 * checker->size * sizeof (bool));
+  kissat_free (solver, checker->used, 2 * checker->size * sizeof (bool));
+  kissat_free (solver, checker->large, 2 * checker->size * sizeof (bool));
   kissat_free (solver, checker->values, 2 * checker->size);
   release_watches (solver, checker);
   kissat_free (solver, checker, sizeof (struct checker));
@@ -185,27 +192,38 @@ void kissat_release_checker (kissat *solver) {
 #include <inttypes.h>
 
 #define PERCENT_ADDED(NAME) kissat_percent (checker->NAME, checker->added)
+#define PERCENT_CHECKED(NAME) \
+  kissat_percent (checker->NAME, checker->checked)
 
 void kissat_print_checker_statistics (kissat *solver, bool verbose) {
   checker *checker = solver->checker;
+  PRINT_STAT ("checker_added", checker->added, 100, "%", "");
   if (verbose)
-    PRINT_STAT ("checker_added", checker->added, 100, "%", "");
+    PRINT_STAT ("checker_blocked", checker->blocked,
+                PERCENT_CHECKED (blocked), "%", "checked");
   PRINT_STAT ("checker_checked", checker->checked, PERCENT_ADDED (checked),
               "%", "added");
-  if (verbose)
+  if (verbose) {
     PRINT_STAT ("checker_collisions", checker->collisions,
                 kissat_percent (checker->collisions, checker->searches),
                 "%", "per search");
-  PRINT_STAT ("checker_decisions", checker->decisions,
-              kissat_average (checker->decisions, checker->checked), "",
-              "per check");
-  PRINT_STAT ("checker_propagations", checker->propagations,
-              kissat_average (checker->propagations, checker->checked), "",
-              "per check");
+    PRINT_STAT ("checker_decisions", checker->decisions,
+                kissat_average (checker->decisions, checker->checked), "",
+                "per check");
+    PRINT_STAT ("checker_propagations", checker->propagations,
+                kissat_average (checker->propagations, checker->checked),
+                "", "per check");
+    PRINT_STAT ("checker_pure", checker->pure, PERCENT_CHECKED (pure), "%",
+                "checked");
+  }
   PRINT_STAT ("checker_removed", checker->removed, PERCENT_ADDED (removed),
               "%", "added");
-  PRINT_STAT ("checker_unchecked", checker->unchecked,
-              PERCENT_ADDED (unchecked), "%", "added");
+  if (verbose) {
+    PRINT_STAT ("checker_satisfied", checker->satisfied,
+                PERCENT_CHECKED (satisfied), "%", "checked");
+    PRINT_STAT ("checker_unchecked", checker->unchecked,
+                PERCENT_ADDED (unchecked), "%", "added");
+  }
 }
 
 #endif
@@ -422,6 +440,37 @@ static bool simplify_imported (kissat *solver, checker *checker) {
   return res;
 }
 
+static void use_literal (kissat *solver, checker *checker, unsigned lit) {
+  if (checker->used[lit])
+    return;
+  checker->used[lit] = true;
+#ifdef LOGGING
+  LOG3 ("used checker literal %u", lit);
+#else
+  (void) solver;
+#endif
+}
+
+static void large_literal (kissat *solver, checker *checker, unsigned lit) {
+  if (checker->large[lit])
+    return;
+  checker->large[lit] = true;
+#ifdef LOGGING
+  LOG3 ("large checker literal %u", lit);
+#else
+  (void) solver;
+#endif
+}
+
+static void use_line (kissat *solver, checker *checker) {
+  bool large = (SIZE_STACK (checker->imported) > 2);
+  for (all_stack (unsigned, lit, checker->imported)) {
+    use_literal (solver, checker, lit);
+    if (large)
+      large_literal (solver, checker, lit);
+  }
+}
+
 static void insert_imported (kissat *solver, checker *checker,
                              unsigned hash) {
   size_t size = SIZE_STACK (checker->imported);
@@ -448,8 +497,10 @@ static void insert_imported_if_not_simplified (kissat *solver,
                                                checker *checker) {
   sort_line (solver, checker);
   const unsigned hash = hash_line (checker);
-  if (!simplify_imported (solver, checker))
+  if (!simplify_imported (solver, checker)) {
     insert_imported (solver, checker, hash);
+    use_line (solver, checker);
+  }
 }
 
 static bool match_line (checker *checker, unsigned size, unsigned hash,
@@ -484,6 +535,10 @@ static void resize_checker (kissat *solver, checker *checker,
     const unsigned new_size2 = 2 * new_size;
     checker->marks = kissat_realloc (solver, checker->marks, size2,
                                      new_size2 * sizeof (bool));
+    checker->used = kissat_realloc (solver, checker->used, size2,
+                                    new_size2 * sizeof (bool));
+    checker->large = kissat_realloc (solver, checker->large, size2,
+                                     new_size2 * sizeof (bool));
     checker->values =
         kissat_realloc (solver, checker->values, size2, new_size2);
     checker->watches = kissat_realloc (
@@ -503,6 +558,8 @@ static void resize_checker (kissat *solver, checker *checker,
   assert (delta2 == new_vars2 - vars2);
   memset (checker->watches + vars2, 0, delta2 * sizeof *checker->watches);
   memset (checker->marks + vars2, 0, delta2);
+  memset (checker->used + vars2, 0, delta2);
+  memset (checker->large + vars2, 0, delta2);
   memset (checker->values + vars2, 0, delta2);
   checker->vars = new_vars;
 }
@@ -627,7 +684,7 @@ static bool checker_propagate (kissat *solver, checker *checker) {
     assert (values[not_lit] < 0);
     propagated++;
     buckets *buckets = checker_watches (checker, not_lit);
-    bucket **begin_of_line = BEGIN_STACK (*buckets), **q = begin_of_line;
+    bucket **begin_of_lines = BEGIN_STACK (*buckets), **q = begin_of_lines;
     bucket *const *end_of_lines = END_STACK (*buckets), *const *p = q;
     while (p != end_of_lines) {
       bucket *bucket = *q++ = *p++;
@@ -727,6 +784,47 @@ static void checker_backtrack (checker *checker, unsigned saved) {
   SET_END_OF_STACK (checker->trail, begin);
 }
 
+static bool checker_blocked_literal (kissat *solver, checker *checker,
+                                     unsigned lit) {
+  signed char *values = checker->values;
+  assert (values[lit] < 0);
+  const unsigned not_lit = lit ^ 1;
+  if (checker->large[not_lit])
+    return false;
+  buckets *buckets = checker_watches (checker, not_lit);
+  bucket *const *const begin_of_lines = BEGIN_STACK (*buckets);
+  bucket *const *const end_of_lines = END_STACK (*buckets);
+  bucket *const *p = begin_of_lines;
+  while (p != end_of_lines) {
+    bucket *bucket = *p++;
+    const unsigned *const lits = bucket->lits;
+    const unsigned *const end_of_lits = lits + bucket->size;
+    const unsigned *l = lits;
+    while (l != end_of_lits) {
+      const unsigned other = *l++;
+      if (other == not_lit)
+        continue;
+      if (values[other] > 0)
+        goto CONTINUE_WITH_NEXT_BUCKET;
+    }
+    return false;
+  CONTINUE_WITH_NEXT_BUCKET:;
+  }
+#ifdef LOGGING
+  LOG3 ("blocked literal %u", lit);
+#else
+  (void) solver;
+#endif
+  return true;
+}
+
+static bool checker_blocked_imported (kissat *solver, checker *checker) {
+  for (all_stack (unsigned, lit, checker->imported))
+    if (checker_blocked_literal (solver, checker, lit))
+      return true;
+  return false;
+}
+
 static void check_line (kissat *solver, checker *checker) {
   checker->checked++;
   if (checker->inconsistent)
@@ -739,31 +837,48 @@ static void check_line (kissat *solver, checker *checker) {
   }
   const unsigned saved = SIZE_STACK (checker->trail);
   signed char *values = checker->values;
-  bool satisfied = false;
-  unsigned decisions = 0;
+  bool satisfied = false, pure = false;
+  unsigned decisions = 0, prev = INVALID_LIT;
   for (all_stack (unsigned, lit, checker->imported)) {
+    assert (prev != lit);
+    prev = lit;
     signed char lit_value = values[lit];
     if (lit_value < 0)
       continue;
     if (lit_value > 0) {
+      LOG3 ("found satisfied literal %u", lit);
+      checker->satisfied++;
       satisfied = true;
       break;
     }
     const unsigned not_lit = lit ^ 1;
+    bool used = checker->used[not_lit];
+    if (!used) {
+      LOG3 ("found pure literal %u", lit);
+      checker->pure++;
+      pure = true;
+      break;
+    }
     checker_assign (solver, checker, not_lit, &decision_line);
     decisions++;
   }
   checker->decisions += decisions;
-  if (!satisfied && checker_propagate (solver, checker)) {
-    kissat_fatal_message_start ();
-    fputs ("failed to check clause:\n", stderr);
-    for (all_stack (unsigned, lit, checker->imported))
-      fprintf (stderr, "%d ", export_checker (checker, lit));
-    fputs ("0\n", stderr);
-    fflush (stderr);
-    kissat_abort ();
+  if (!satisfied && !pure) {
+    if (!checker_propagate (solver, checker))
+      LOG3 ("checker imported clause unit implied");
+    else if (checker_blocked_imported (solver, checker)) {
+      LOG3 ("checker imported clause binary blocked");
+      checker->blocked++;
+    } else {
+      kissat_fatal_message_start ();
+      fputs ("failed to check clause:\n", stderr);
+      for (all_stack (unsigned, lit, checker->imported))
+        fprintf (stderr, "%d ", export_checker (checker, lit));
+      fputs ("0\n", stderr);
+      fflush (stderr);
+      kissat_abort ();
+    }
   }
-  LOG3 ("checker imported clause unit implied");
   checker_backtrack (checker, saved);
 }
 

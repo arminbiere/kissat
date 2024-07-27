@@ -388,9 +388,11 @@ static bool forward_subsumed_clause (kissat *solver, clause *c,
     LOGCLS (c, "forward subsumed");
     kissat_mark_clause_as_garbage (solver, c);
     INC (subsumed);
+    INC (forward_subsumed);
   } else if (remove != INVALID_LIT) {
     *strengthened = true;
     INC (strengthened);
+    INC (forward_strengthened);
     LOGCLS (c, "forward strengthening by removing %s in", LOGLIT (remove));
     if (non_false == 2) {
       unit ^= remove;

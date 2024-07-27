@@ -305,7 +305,7 @@ static void print_delete_proof_line (proof *proof) {
 #ifdef LOGGING
   struct kissat *solver = proof->solver;
   if (SIZE_STACK (proof->imported) == SIZE_STACK (proof->line))
-    LOGIMPORTED3 ("added internal proof line");
+    LOGIMPORTED3 ("deleted internal proof line");
   LOGLINE3 ("deleted external proof line");
 #endif
   write_char (proof, 'd');

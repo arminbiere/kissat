@@ -35,7 +35,7 @@ void kissat_assign_binary (kissat *solver, unsigned lit, unsigned other) {
   const unsigned other_idx = IDX (other);
   struct assigned *a = assigned + other_idx;
   unsigned level = a->level;
-  if (level && a->binary) {
+  if (GET_OPTION (jumpreasons) && level && a->binary) {
     LOGBINARY (lit, other, "jumping %s reason", LOGLIT (lit));
     INC (jumped_reasons);
     other = a->reason;

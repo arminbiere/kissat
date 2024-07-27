@@ -50,5 +50,6 @@ unsigned *kissat_enlarge_vector (struct kissat *, vector *);
 void kissat_defrag_vectors (struct kissat *, size_t, vector *);
 void kissat_remove_from_vector (struct kissat *, vector *, unsigned);
 void kissat_resize_vector (struct kissat *, vector *, size_t);
+void kissat_release_vectors (struct kissat *);
 
 #endif

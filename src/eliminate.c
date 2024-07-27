@@ -24,14 +24,16 @@ bool kissat_eliminating (kissat *solver) {
   statistics *statistics = &solver->statistics;
   if (!statistics->clauses_irredundant)
     return false;
-  if (solver->waiting.eliminate.reduce > statistics->reductions)
+  const uint64_t conflicts = statistics->conflicts;
+  if (solver->last.conflicts.reduce == conflicts)
     return false;
   limits *limits = &solver->limits;
-  if (limits->eliminate.conflicts > statistics->conflicts)
+  if (limits->eliminate.conflicts > conflicts)
     return false;
-  if (limits->eliminate.variables.added < statistics->variables_added)
+  if (limits->eliminate.variables.eliminate <
+      statistics->variables_eliminate)
     return true;
-  if (limits->eliminate.variables.removed < statistics->variables_removed)
+  if (limits->eliminate.variables.subsume < statistics->variables_subsume)
     return true;
   return false;
 }
@@ -91,34 +93,27 @@ static inline void update_after_adding_stack (kissat *solver,
 
 static inline void update_after_removing_variable (kissat *solver,
                                                    unsigned idx) {
+  heap *schedule = &solver->schedule;
+  if (!schedule->size)
+    return;
   assert (!solver->probing);
   flags *f = solver->flags + idx;
   if (f->fixed)
     return;
   assert (!f->eliminated);
-  heap *schedule = &solver->schedule;
-  if (!schedule->size)
-    return;
   update_variable_score (solver, schedule, idx);
   if (!kissat_heap_contains (schedule, idx))
     kissat_push_heap (solver, schedule, idx);
 }
 
-void kissat_update_after_removing_variable (kissat *solver, unsigned idx) {
-  update_after_removing_variable (solver, idx);
-}
-
 static inline void update_after_removing_clause (kissat *solver, clause *c,
                                                  unsigned except) {
+  if (!solver->schedule.size)
+    return;
   assert (c->garbage);
   for (all_literals_in_clause (lit, c))
     if (lit != except)
       update_after_removing_variable (solver, IDX (lit));
-}
-
-void kissat_update_after_removing_clause (kissat *solver, clause *c,
-                                          unsigned except) {
-  update_after_removing_clause (solver, c, except);
 }
 
 void kissat_eliminate_binary (kissat *solver, unsigned lit,
@@ -338,7 +333,7 @@ static void try_to_eliminate_all_variables_again (kissat *solver) {
     flags *flags = all_flags + idx;
     flags->eliminate = true;
   }
-  solver->limits.eliminate.variables.removed = 0;
+  solver->limits.eliminate.variables.eliminate = 0;
 }
 
 static void set_next_elimination_bound (kissat *solver, bool complete) {
@@ -354,8 +349,9 @@ static void set_next_elimination_bound (kissat *solver, bool complete) {
                     current_bound);
       limits *limits = &solver->limits;
       statistics *statistics = &solver->statistics;
-      limits->eliminate.variables.added = statistics->variables_added;
-      limits->eliminate.variables.removed = statistics->variables_removed;
+      limits->eliminate.variables.eliminate =
+          statistics->variables_eliminate;
+      limits->eliminate.variables.subsume = statistics->variables_subsume;
 #ifndef QUIET
       bool first = !solver->bounds.eliminate.max_bound_completed++;
       REPORT (!first, first ? '!' : ':');
@@ -600,8 +596,8 @@ int kissat_eliminate (kissat *solver) {
   assert (!solver->inconsistent);
   INC (eliminations);
   eliminate (solver);
+  kissat_classify (solver);
   UPDATE_CONFLICT_LIMIT (eliminate, eliminations, NLOG2N, true);
-  solver->waiting.eliminate.reduce = solver->statistics.reductions + 1;
-  solver->last.eliminate = solver->statistics.search_ticks;
+  solver->last.ticks.eliminate = solver->statistics.search_ticks;
   return solver->inconsistent ? 20 : 0;
 }

@@ -362,7 +362,7 @@ void kissat_finalize_compacting (kissat *solver, unsigned vars,
   memset (solver->watches + 2 * vars, 0, 2 * reduced * sizeof (watches));
 
   compact_queue (solver);
-  compact_stack (solver, &solver->sweep);
+  compact_stack (solver, &solver->sweep_schedule);
   compact_scores (solver, SCORES, vars);
   compact_frames (solver);
   compact_export (solver, vars);

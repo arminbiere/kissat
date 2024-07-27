@@ -106,11 +106,14 @@ unsigned *kissat_enlarge_vector (kissat *solver, vector *vector) {
   const size_t delta_size = new_vector_size - old_vector_size;
   assert (MAX_SIZE_T / sizeof (unsigned) >= delta_size);
   const size_t delta_bytes = delta_size * sizeof (unsigned);
-  memcpy (begin_new_vector, begin_old_vector, old_bytes);
-  memset (begin_old_vector, 0xff, old_bytes);
+  if (old_bytes) {
+    memcpy (begin_new_vector, begin_old_vector, old_bytes);
+    memset (begin_old_vector, 0xff, old_bytes);
+  }
   solver->vectors.usable += old_vector_size;
   kissat_add_usable (solver, delta_size);
-  memset (middle_new_vector, 0xff, delta_bytes);
+  if (delta_bytes)
+    memset (middle_new_vector, 0xff, delta_bytes);
 #ifdef COMPACT
   const uint64_t offset = SIZE_STACK (*stack);
   assert (offset <= MAX_VECTORS);
@@ -276,19 +279,27 @@ void kissat_resize_vector (kissat *solver, vector *vector,
 #endif
 }
 
+void kissat_release_vectors (kissat *solver) {
+  RELEASE_STACK (solver->vectors.stack);
+  solver->vectors.usable = 0;
+}
+
 #ifdef CHECK_VECTORS
 
 void kissat_check_vector (kissat *solver, vector *vector) {
   const unsigned *const begin = kissat_begin_vector (solver, vector);
   const unsigned *const end = kissat_end_vector (solver, vector);
-  for (const unsigned *p = begin; p != end; p++)
-    assert (*p != INVALID_VECTOR_ELEMENT);
+  if (!solver->transitive_reducing)
+    for (const unsigned *p = begin; p != end; p++)
+      assert (*p != INVALID_VECTOR_ELEMENT);
 #ifdef NDEBUG
   (void) solver;
 #endif
 }
 
 void kissat_check_vectors (kissat *solver) {
+  if (solver->transitive_reducing)
+    return;
   for (all_literals (lit)) {
     vector *vector = &WATCHES (lit);
     kissat_check_vector (solver, vector);

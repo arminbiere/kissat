@@ -10,22 +10,25 @@
 
 typedef struct clause clause;
 
-#define LD_MAX_GLUE 22u
+#define LD_MAX_GLUE 19
+#define LD_MAX_USED 5
+
 #define MAX_GLUE ((1u << LD_MAX_GLUE) - 1)
+#define MAX_USED ((1u << LD_MAX_USED) - 1)
 
 struct clause {
   unsigned glue : LD_MAX_GLUE;
 
   bool garbage : 1;
-  bool keep : 1;
+  bool quotient : 1;
   bool reason : 1;
   bool redundant : 1;
   bool shrunken : 1;
   bool subsume : 1;
-  bool sweeped : 1;
+  bool swept : 1;
   bool vivify : 1;
 
-  unsigned used : 2;
+  unsigned used : LD_MAX_USED;
 
   unsigned searched;
   unsigned size;
@@ -65,6 +68,8 @@ static inline clause *kissat_next_clause (clause *c) {
 struct kissat;
 
 void kissat_new_binary_clause (struct kissat *, unsigned, unsigned);
+void kissat_new_unwatched_binary_clause (struct kissat *, unsigned,
+                                         unsigned);
 
 reference kissat_new_original_clause (struct kissat *);
 reference kissat_new_irredundant_clause (struct kissat *);
@@ -75,6 +80,7 @@ void kissat_sort_literals (struct kissat *, unsigned size, unsigned *lits);
 #endif
 
 void kissat_connect_clause (struct kissat *, clause *);
+void kissat_connect_referenced (struct kissat *solver, reference);
 
 clause *kissat_delete_clause (struct kissat *, clause *);
 void kissat_delete_binary (struct kissat *, unsigned, unsigned);

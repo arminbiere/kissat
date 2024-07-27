@@ -17,6 +17,11 @@ static inline void activate_literal (kissat *solver, unsigned lit) {
   kissat_enqueue (solver, idx);
   const double score = 1.0 - 1.0 / solver->statistics.variables_activated;
   kissat_update_heap (solver, &solver->scores, idx, score);
+  if (solver->stable) {
+    const unsigned lit = LIT (idx);
+    if (!VALUE (lit))
+      kissat_push_heap (solver, &solver->scores, idx);
+  }
   assert (solver->unassigned < UINT_MAX);
   solver->unassigned++;
   kissat_mark_removed_literal (solver, lit);

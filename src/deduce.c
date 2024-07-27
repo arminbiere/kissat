@@ -3,20 +3,37 @@
 #include "promote.h"
 #include "strengthen.h"
 
-static inline void mark_clause_as_used (kissat *solver, clause *c) {
-  if (!c->redundant)
-    return;
-  if (c->keep)
-    return;
-  const unsigned used = c->used;
-  LOGCLS (c, "using");
-  c->used = 1;
+static inline void recompute_and_promote (kissat *solver, clause *c) {
+  assert (c->redundant);
   const unsigned old_glue = c->glue;
   const unsigned new_glue = kissat_recompute_glue (solver, c, old_glue);
   if (new_glue < old_glue)
     kissat_promote_clause (solver, c, new_glue);
-  else if (used && c->glue <= (unsigned) GET_OPTION (tier2))
-    c->used = 2;
+}
+
+static inline void mark_clause_as_used (kissat *solver, clause *c) {
+  if (!c->redundant)
+    return;
+  INC (clauses_used);
+  c->used = MAX_USED;
+  LOGCLS (c, "using");
+  recompute_and_promote (solver, c);
+  unsigned glue = MIN (c->glue, MAX_GLUE_USED);
+  solver->statistics.used[solver->stable].glue[glue]++;
+  if (solver->stable)
+    INC (clauses_used_stable);
+  else
+    INC (clauses_used_focused);
+}
+
+bool kissat_recompute_and_promote (kissat *solver, clause *c) {
+  assert (c->redundant);
+  const unsigned old_glue = c->glue;
+  const unsigned new_glue = kissat_recompute_glue (solver, c, old_glue);
+  if (new_glue >= old_glue)
+    return false;
+  kissat_promote_clause (solver, c, new_glue);
+  return true;
 }
 
 static inline bool analyze_literal (kissat *solver, assigned *all_assigned,

@@ -1,18 +1,25 @@
 #include "vivify.h"
 #include "allocate.h"
 #include "backtrack.h"
+#include "collect.h"
 #include "colors.h"
 #include "decide.h"
+#include "deduce.h"
 #include "inline.h"
 #include "print.h"
 #include "promote.h"
 #include "proprobe.h"
+#include "rank.h"
 #include "report.h"
 #include "sort.h"
 #include "terminate.h"
+#include "tiers.h"
 #include "trail.h"
 
+#include "cover.h"
+
 #include <inttypes.h>
+#include <string.h>
 
 static inline bool more_occurrences (unsigned *counts, unsigned a,
                                      unsigned b) {
@@ -51,83 +58,208 @@ static void count_clause (clause *c, unsigned *counts) {
 static bool simplify_vivification_candidate (kissat *solver,
                                              clause *const c) {
   assert (!solver->level);
-  bool satisfied = false;
-  assert (EMPTY_STACK (solver->clause));
+  CLEAR_STACK (solver->clause);
+
   const value *const values = solver->values;
+
   for (all_literals_in_clause (lit, c)) {
     const value value = values[lit];
     if (value > 0) {
-      satisfied = true;
       LOGCLS (c, "vivification %s satisfied candidate", LOGLIT (lit));
       kissat_mark_clause_as_garbage (solver, c);
-      break;
+      return true;
     }
     if (!value)
       PUSH_STACK (solver->clause, lit);
   }
+
   unsigned non_false = SIZE_STACK (solver->clause);
-  if (satisfied) {
-    CLEAR_STACK (solver->clause);
-    return true;
-  }
-  if (non_false == c->size) {
-    CLEAR_STACK (solver->clause);
-    return false;
-  }
-  assert (1 < non_false);
   assert (non_false <= c->size);
+  if (non_false == c->size)
+    return false;
+
   if (non_false == 2) {
     const unsigned first = PEEK_STACK (solver->clause, 0);
     const unsigned second = PEEK_STACK (solver->clause, 1);
     LOGBINARY (first, second, "vivification shrunken candidate");
     kissat_new_binary_clause (solver, first, second);
     kissat_mark_clause_as_garbage (solver, c);
-  } else {
-    CHECK_AND_ADD_STACK (solver->clause);
-    ADD_STACK_TO_PROOF (solver->clause);
-
-    REMOVE_CHECKER_CLAUSE (c);
-    DELETE_CLAUSE_FROM_PROOF (c);
-
-    const unsigned old_size = c->size;
-    unsigned new_size = 0, *lits = c->lits;
-    for (unsigned i = 0; i < old_size; i++) {
-      const unsigned lit = lits[i];
-      const value value = kissat_fixed (solver, lit);
-      assert (value <= 0);
-      if (value < 0)
-        continue;
-      lits[new_size++] = lit;
-    }
-    assert (2 < new_size);
-    assert (new_size == non_false);
-    assert (new_size < old_size);
-    c->size = new_size;
-    c->searched = 2;
-    if (c->redundant && c->glue >= new_size)
-      kissat_promote_clause (solver, c, new_size - 1);
-    if (!c->shrunken) {
-      c->shrunken = true;
-      lits[old_size - 1] = INVALID_LIT;
-    }
-    LOGCLS (c, "vivification shrunken candidate");
+    return true;
   }
-  CLEAR_STACK (solver->clause);
+
+  assert (2 < non_false);
+
+  CHECK_AND_ADD_STACK (solver->clause);
+  ADD_STACK_TO_PROOF (solver->clause);
+
+  REMOVE_CHECKER_CLAUSE (c);
+  DELETE_CLAUSE_FROM_PROOF (c);
+
+  const unsigned old_size = c->size;
+  unsigned new_size = 0, *lits = c->lits;
+  for (unsigned i = 0; i < old_size; i++) {
+    const unsigned lit = lits[i];
+    const value value = values[lit];
+    assert (value <= 0);
+    if (!value)
+      lits[new_size++] = lit;
+  }
+
+  assert (2 < new_size);
+  assert (new_size == non_false);
+  assert (new_size < old_size);
+
+  c->size = new_size;
+  c->searched = 2;
+
+  if (c->redundant && c->glue >= new_size)
+    kissat_promote_clause (solver, c, new_size - 1);
+  if (!c->shrunken) {
+    c->shrunken = true;
+    lits[old_size - 1] = INVALID_LIT;
+  }
+
+  LOGCLS (c, "vivification shrunken candidate");
+  LOG ("vivification candidate does not need to be simplified");
+
   return false;
 }
 
-static void schedule_vivification_candidates (kissat *solver,
+static unsigned vivify_tier1_limit (kissat *solver) {
+  return GET_OPTION (vivifyfocusedtiers) ? solver->tier1[0] : TIER1;
+}
+
+static unsigned vivify_tier2_limit (kissat *solver) {
+  return GET_OPTION (vivifyfocusedtiers) ? solver->tier2[0] : TIER2;
+}
+
+#define COUNTREF_COUNTS 1
+#define LD_MAX_COUNTREF_SIZE 31
+#define MAX_COUNTREF_SIZE ((1u << LD_MAX_COUNTREF_SIZE) - 1)
+
+struct countref {
+  unsigned vivify : 1;
+  unsigned size : LD_MAX_COUNTREF_SIZE;
+  unsigned count[COUNTREF_COUNTS];
+  reference ref;
+};
+
+typedef struct countref countref;
+typedef STACK (countref) countrefs;
+
+struct vivifier {
+  kissat *solver;
+  unsigned *counts;
+  references schedule;
+  size_t scheduled, tried, vivified;
+  countrefs countrefs;
+  unsigneds sorted;
 #ifndef QUIET
-                                              const char *mode,
+  const char *mode;
+  const char *name;
+  char tag;
 #endif
-                                              references *const schedule,
-                                              unsigned *const counts,
-                                              int tier) {
+  int tier;
+};
+
+typedef struct vivifier vivifier;
+
+static void init_vivifier (kissat *solver, vivifier *vivifier) {
+  vivifier->solver = solver;
+  vivifier->counts = kissat_calloc (solver, LITS, sizeof (unsigned));
+  INIT_STACK (vivifier->schedule);
+  INIT_STACK (vivifier->countrefs);
+  INIT_STACK (vivifier->sorted);
+  LOG ("initialized vivifier");
+}
+
+static void set_vivifier_mode (vivifier *vivifier, int tier) {
+  vivifier->tier = tier;
+#ifndef QUIET
+  switch (tier) {
+  case 1:
+    vivifier->mode = "vivify-tier1";
+    vivifier->name = "tier1";
+    vivifier->tag = 'u';
+    break;
+  case 2:
+    vivifier->mode = "vivify-tier2";
+    vivifier->name = "tier2";
+    vivifier->tag = 'v';
+    break;
+  case 3:
+    assert (tier == 3);
+    vivifier->mode = "vivify-tier3";
+    vivifier->name = "tier3";
+    vivifier->tag = 'w';
+    break;
+  default:
+    assert (tier == 0);
+    vivifier->mode = "vivify-irredundant";
+    vivifier->name = "irredundant";
+    vivifier->tag = 'x';
+    break;
+  }
+#ifdef LOGGING
+  kissat *solver = vivifier->solver;
+  LOG ("set vivifier tier %d mode '%s' with tag '%c'", tier, vivifier->mode,
+       vivifier->tag);
+#endif
+#endif
+}
+
+static void clear_vivifier (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  LOG ("clearing vivifier");
+  unsigned *counts = vivifier->counts;
+  memset (counts, 0, LITS * sizeof *counts);
+  CLEAR_STACK (vivifier->schedule);
+  CLEAR_STACK (vivifier->countrefs);
+  CLEAR_STACK (vivifier->sorted);
+}
+
+static void release_vivifier (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  LOG ("releasing vivifier");
+  unsigned *counts = vivifier->counts;
+  kissat_dealloc (solver, counts, LITS, sizeof *counts);
+  RELEASE_STACK (vivifier->schedule);
+  RELEASE_STACK (vivifier->countrefs);
+  RELEASE_STACK (vivifier->sorted);
+}
+
+static void schedule_vivification_candidates (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  LOG ("scheduling vivification candidates");
+  int tier = vivifier->tier;
   unsigned lower_glue_limit, upper_glue_limit;
-  lower_glue_limit = tier == 2 ? GET_OPTION (tier1) + 1 : 0;
-  upper_glue_limit = tier == 2 ? GET_OPTION (tier2) : GET_OPTION (tier1);
+  unsigned tier1 = vivify_tier1_limit (solver);
+  unsigned tier2 = MAX (tier1, vivify_tier2_limit (solver));
+  assert (tier1 <= tier2);
+  switch (tier) {
+  case 1:
+    lower_glue_limit = 0;
+    upper_glue_limit = tier1;
+    break;
+  case 2:
+    lower_glue_limit = tier1 < tier2 ? tier1 + 1 : 0;
+    upper_glue_limit = tier2;
+    break;
+  case 3:
+    lower_glue_limit = tier2 + 1;
+    upper_glue_limit = UINT_MAX;
+    break;
+  default:
+    assert (tier == 0);
+    lower_glue_limit = 0;
+    upper_glue_limit = UINT_MAX;
+    break;
+  }
+  assert (lower_glue_limit <= upper_glue_limit);
   ward *const arena = BEGIN_STACK (solver->arena);
   size_t prioritized = 0;
+  unsigned *counts = vivifier->counts;
+  references *schedule = &vivifier->schedule;
   for (unsigned prioritize = 0; prioritize < 2; prioritize++) {
     for (all_clauses (c)) {
       if (c->garbage)
@@ -153,15 +285,14 @@ static void schedule_vivification_candidates (kissat *solver,
       PUSH_STACK (*schedule, ref);
     }
   }
-#ifndef QUIET
+  CLEAR_STACK (solver->clause);
   size_t scheduled = SIZE_STACK (*schedule);
-#endif
   if (prioritized) {
-    kissat_phase (solver, mode, GET (vivifications),
+    kissat_phase (solver, vivifier->mode, GET (vivifications),
                   "prioritized %zu clauses %.0f%%", prioritized,
                   kissat_percent (prioritized, scheduled));
   } else {
-    kissat_phase (solver, mode, GET (vivifications),
+    kissat_phase (solver, vivifier->mode, GET (vivifications),
                   "prioritizing all %zu scheduled clauses", scheduled);
     for (all_stack (reference, ref, *schedule)) {
       clause *c = (clause *) (arena + ref);
@@ -169,6 +300,8 @@ static void schedule_vivification_candidates (kissat *solver,
       c->vivify = true;
     }
   }
+  vivifier->scheduled = scheduled;
+  vivifier->tried = vivifier->vivified = 0;
 }
 
 static inline bool worse_candidate (kissat *solver, unsigned *counts,
@@ -187,45 +320,156 @@ static inline bool worse_candidate (kissat *solver, unsigned *counts,
   const unsigned *const e = END_LITS (c);
   const unsigned *const f = END_LITS (d);
 
+  unsigned a = INVALID_LIT, b = INVALID_LIT;
+
   while (p != e && q != f) {
-    const unsigned a = *p++;
-    const unsigned b = *q++;
+    a = *p++;
+    b = *q++;
     const unsigned u = counts[a];
     const unsigned v = counts[b];
     if (u < v)
       return true;
     if (u > v)
       return false;
-    if (a < b)
-      return true;
-    if (a > b)
-      return false;
   }
 
   if (p != e && q == f)
-    return false;
+    return true;
 
   if (p == e && q != f)
+    return false;
+
+  assert (p == e && q == f);
+
+  if (a < b)
     return true;
+  if (a > b)
+    return false;
 
   return r < s;
 }
 
 #define WORSE_CANDIDATE(A, B) worse_candidate (solver, counts, (A), (B))
 
-static void sort_vivification_candidates (kissat *solver,
-                                          references *schedule,
-                                          unsigned *counts) {
+static void
+sort_vivification_candidates_after_sorting_literals (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  unsigned *counts = vivifier->counts;
+  references *schedule = &vivifier->schedule;
+  SORT_STACK (reference, *schedule, WORSE_CANDIDATE);
+}
+
+static void sort_scheduled_candidate_literals (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  unsigned *counts = vivifier->counts;
+  references *schedule = &vivifier->schedule;
   for (all_stack (reference, ref, *schedule)) {
     clause *c = kissat_dereference_clause (solver, ref);
     vivify_sort_clause_by_counts (solver, c, counts);
   }
-  SORT_STACK (reference, *schedule, WORSE_CANDIDATE);
 }
 
-static bool vivify_deduce (kissat *solver, clause *candidate,
-                           clause *conflict, unsigned implied) {
+static inline void init_countref (countref *cr, clause *c, reference ref,
+                                  unsigned *counts) {
+  assert (COUNTREF_COUNTS <= c->size);
+  assert (c->size <= MAX_COUNTREF_SIZE);
+  cr->size = c->size;
+  cr->vivify = c->vivify;
+  cr->ref = ref;
+  unsigned lits[COUNTREF_COUNTS];
+  for (unsigned i = 0; i != COUNTREF_COUNTS; i++) {
+    unsigned best = INVALID_LIT;
+    unsigned best_count = 0;
+    for (all_literals_in_clause (lit, c)) {
+      for (unsigned j = 0; j != i; j++)
+        if (lits[j] == lit)
+          goto CONTINUE_WITH_NEXT_LITERAL;
+      const unsigned lit_count = counts[lit];
+      assert (lit_count);
+      if (lit_count <= best_count)
+        continue;
+      best_count = lit_count;
+      best = lit;
+    CONTINUE_WITH_NEXT_LITERAL:;
+    }
+    assert (best != INVALID_LIT);
+    assert (best_count);
+    cr->count[i] = best_count;
+    lits[i] = best;
+  }
+}
+
+static void init_countrefs (vivifier *vivifier) {
+  kissat *const solver = vivifier->solver;
+  references *schedule = &vivifier->schedule;
+  countrefs *countrefs = &vivifier->countrefs;
+  unsigned *counts = vivifier->counts;
+  assert (EMPTY_STACK (*countrefs));
+  for (all_stack (reference, ref, *schedule)) {
+    clause *c = kissat_dereference_clause (solver, ref);
+    countref countref;
+    init_countref (&countref, c, ref, counts);
+    PUSH_STACK (*countrefs, countref);
+  }
+  RELEASE_STACK (*schedule);
+}
+
+#define RANK_COUNTREF_BY_INVERSE_SIZE(CR) ((unsigned) (~(CR).size))
+#define RANK_COUNTREF_BY_VIVIFY(CR) ((unsigned) ((CR).vivify))
+#define RANK_COUNTREF_BY_COUNT(CR) \
+  ((unsigned) ((CR).count[COUNTREF_COUNTS - 1 - i]))
+
+static void rank_vivification_candidates (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  countrefs *countrefs = &vivifier->countrefs;
+  RADIX_STACK (countref, unsigned, *countrefs,
+               RANK_COUNTREF_BY_INVERSE_SIZE);
+  for (unsigned i = 0; i != COUNTREF_COUNTS; i++)
+    RADIX_STACK (countref, unsigned, *countrefs, RANK_COUNTREF_BY_COUNT);
+  RADIX_STACK (countref, unsigned, *countrefs, RANK_COUNTREF_BY_VIVIFY);
+}
+
+static void copy_countrefs (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  references *schedule = &vivifier->schedule;
+  countrefs *countrefs = &vivifier->countrefs;
+  assert (EMPTY_STACK (*schedule));
+  for (all_stack (countref, cr, *countrefs))
+    PUSH_STACK (*schedule, cr.ref);
+  RELEASE_STACK (*countrefs);
+}
+
+static void sort_vivification_candidates (vivifier *vivifier) {
+#ifndef QUIET
+  kissat *solver = vivifier->solver;
+#endif
+  START (vivifysort);
+  if (vivifier->tier) {
+    kissat_extremely_verbose (
+        solver, "sorting %s vivification candidates precisely",
+        vivifier->name);
+    sort_scheduled_candidate_literals (vivifier);
+    sort_vivification_candidates_after_sorting_literals (vivifier);
+  } else {
+    kissat_extremely_verbose (
+        solver,
+        "sorting %s vivification candidates imprecisely "
+        "by first %u literals",
+        vivifier->name, (unsigned) COUNTREF_COUNTS);
+    init_countrefs (vivifier);
+    rank_vivification_candidates (vivifier);
+    copy_countrefs (vivifier);
+  }
+  STOP (vivifysort);
+}
+
+static void vivify_deduce (vivifier *vivifier, clause *candidate,
+                           clause *conflict, unsigned implied,
+                           clause **subsuming_ptr, bool *redundant_ptr) {
+  kissat *solver = vivifier->solver;
+  LOG ("starting vivification conflict analysis");
   bool redundant = false;
+  bool subsumes = false;
 
   assert (solver->level);
   assert (EMPTY_STACK (solver->clause));
@@ -245,8 +489,9 @@ static bool vivify_deduce (kissat *solver, clause *candidate,
     assert (reason), assert (!reason->garbage);
     if (reason->redundant)
       redundant = true;
+    subsumes = (reason != candidate);
     for (all_literals_in_clause (other, reason)) {
-      assert (solver->values[other] < 0);
+      assert (VALUE (other) < 0);
       const value value = kissat_fixed (solver, other);
       if (value < 0)
         continue;
@@ -257,13 +502,25 @@ static bool vivify_deduce (kissat *solver, clause *candidate,
       assert (!a->analyzed);
       a->analyzed = true;
       PUSH_STACK (solver->analyzed, other);
+      if (solver->marks[other] <= 0)
+        subsumes = false;
+    }
+    if (reason != candidate && reason->redundant)
+      kissat_recompute_and_promote (solver, reason);
+    if (subsumes) {
+      LOGCLS (candidate, "vivify subsumed");
+      LOGCLS (reason, "vivify subsuming");
+      *subsuming_ptr = reason;
+      return;
     }
   }
 
+  const mark *const marks = solver->marks;
   size_t analyzed = 0;
   while (analyzed < SIZE_STACK (solver->analyzed)) {
     const unsigned not_lit = PEEK_STACK (solver->analyzed, analyzed);
     const unsigned lit = NOT (not_lit);
+    assert (VALUE (lit) > 0);
     analyzed++;
     assigned *a = ASSIGNED (lit);
     assert (a->level);
@@ -273,6 +530,12 @@ static bool vivify_deduce (kissat *solver, clause *candidate,
       PUSH_STACK (solver->clause, not_lit);
     } else if (a->binary) {
       const unsigned other = a->reason;
+      if (marks[lit] > 0 && marks[other] > 0) {
+        LOGCLS (candidate, "vivify subsumed");
+        LOGBINARY (lit, other, "vivify subsuming"); // Might be jumped!
+        *subsuming_ptr = kissat_binary_conflict (solver, lit, other);
+        return;
+      }
       assert (VALUE (other) < 0);
       assigned *b = ASSIGNED (other);
       assert (b->level);
@@ -288,11 +551,13 @@ static bool vivify_deduce (kissat *solver, clause *candidate,
       assert (reason != candidate);
       if (reason->redundant)
         redundant = true;
+      subsumes = true;
       for (all_literals_in_clause (other, reason)) {
+        if (marks[other] <= 0)
+          subsumes = false;
         if (other == lit)
           continue;
-        if (other == not_lit)
-          continue;
+        assert (other != not_lit);
         assert (VALUE (other) < 0);
         assigned *b = ASSIGNED (other);
         if (!b->level)
@@ -302,14 +567,27 @@ static bool vivify_deduce (kissat *solver, clause *candidate,
         b->analyzed = true;
         PUSH_STACK (solver->analyzed, other);
       }
+      if (reason->redundant)
+        kissat_recompute_and_promote (solver, reason);
+      if (subsumes) {
+        LOGCLS (candidate, "vivify subsumed");
+        LOGCLS (reason, "vivify subsuming");
+        *subsuming_ptr = reason;
+        return;
+      }
     }
   }
 
-  LOGTMP ("vivify %sredundantly deduced", redundant ? "" : "ir");
-  return redundant;
+  LOG ("vivification analysis %s redundant clause",
+       redundant ? "used" : "without");
+  LOGTMP ("vivification analysis");
+
+  *redundant_ptr = redundant;
 }
 
-static void reset_vivify_analyzed (kissat *solver) {
+static void reset_vivify_analyzed (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  LOG ("reset vivification conflict analysis");
   struct assigned *assigned = solver->assigned;
   for (all_stack (unsigned, lit, solver->analyzed)) {
     const unsigned idx = IDX (lit);
@@ -320,182 +598,344 @@ static void reset_vivify_analyzed (kissat *solver) {
   CLEAR_STACK (solver->clause);
 }
 
-static bool vivify_shrink (kissat *solver, clause *c, bool *subsumed_ptr) {
-  const value *const values = solver->values;
+static bool vivify_shrinkable (kissat *solver, unsigneds *sorted,
+                               clause *conflict) {
+  assert (SIZE_STACK (solver->clause) <= SIZE_STACK (*sorted));
+  if (SIZE_STACK (solver->clause) == SIZE_STACK (*sorted))
+    return false;
   const assigned *const assigned = solver->assigned;
-  bool subsumed = false;
-  for (all_literals_in_clause (lit, c)) {
+  const value *const values = solver->values;
+  unsigned count_implied = 0;
+  for (all_stack (unsigned, lit, *sorted)) {
     value value = values[lit];
     if (!value) {
-      LOG ("vivification removes at least unassigned %s", LOGLIT (lit));
+      LOG ("vivification unassigned %s thus shrinking", LOGLIT (lit));
       return true;
     }
     if (value > 0) {
       LOG ("vivification implied satisfied %s", LOGLIT (lit));
-      subsumed = true;
-      continue;
-    }
-    const unsigned idx = IDX (lit);
-    const struct assigned *const a = assigned + idx;
-    if (a->level && !a->analyzed) {
-      LOG ("vivification removes at least non-analyzed %s", LOGLIT (lit));
-      return true;
+      if (conflict) {
+        LOG ("at least one implied literal with conflict thus shrinking");
+        return true;
+      }
+      if (count_implied++) {
+        LOG ("at least two implied literals thus shrinking");
+        return true;
+      }
+    } else {
+      assert (value < 0);
+      const unsigned idx = IDX (lit);
+      const struct assigned *const a = assigned + idx;
+      assert (a->level);
+      if (!a->analyzed) {
+        LOG ("vivification non-analyzed %s thus shrinking", LOGLIT (lit));
+        return true;
+      }
+      if (a->reason != DECISION_REASON) {
+        LOG ("vivification implied falsified %s thus shrinking",
+             LOGLIT (lit));
+        return true;
+      }
     }
   }
-  *subsumed_ptr = subsumed;
+  LOG ("vivification learned clause not shrinkable");
   return false;
+}
+
+static void vivify_learn_unit (kissat *solver, clause *c) {
+  LOG ("vivification learns unit clause");
+  assert (SIZE_STACK (solver->clause) == 1);
+  kissat_backtrack_without_updating_phases (solver, 0);
+  const unsigned unit = PEEK_STACK (solver->clause, 0);
+  kissat_learned_unit (solver, unit);
+  solver->iterating = true;
+  kissat_mark_clause_as_garbage (solver, c);
+  assert (!solver->level);
+  clause *conflict = kissat_probing_propagate (solver, 0, true);
+  assert (!conflict || solver->inconsistent);
+  INC (vivify_units);
+  (void) conflict;
+}
+
+static void vivify_learn_binary (kissat *solver, clause *c) {
+  LOG ("vivification learns binary clause");
+  kissat_backtrack_without_updating_phases (solver, 0);
+  assert (SIZE_STACK (solver->clause) == 2);
+  if (c->redundant)
+    (void) kissat_new_redundant_clause (solver, 1);
+  else
+    (void) kissat_new_irredundant_clause (solver);
+  kissat_mark_clause_as_garbage (solver, c);
+}
+
+static void swap_first_literal_with_best_watch (kissat *solver,
+                                                unsigned *lits,
+                                                unsigned size) {
+  assert (size);
+  unsigned *best_ptr = lits;
+  unsigned first = *best_ptr, best = first;
+  signed char value = VALUE (best);
+  unsigned best_level = LEVEL (best);
+  const unsigned *const end = lits + size;
+  for (unsigned *p = lits + 1; value < 0 && p != end; p++) {
+    unsigned lit = *p;
+    const signed char value = VALUE (lit);
+    if (value < 0) {
+      const unsigned level = LEVEL (lit);
+      if (level <= best_level)
+        continue;
+      best_level = level;
+    }
+    best_ptr = p;
+    best = lit;
+  }
+  if (best_ptr == lits)
+    return;
+  LOG ("better watch %s instead of %s", LOGLIT (best), LOGLIT (first));
+  *best_ptr = first;
+  *lits = best;
+}
+
+static void vivify_unwatch_clause (kissat *solver, clause *c) {
+  unsigned *lits = c->lits;
+  const reference ref = kissat_reference_clause (solver, c);
+  kissat_unwatch_blocking (solver, lits[0], ref);
+  kissat_unwatch_blocking (solver, lits[1], ref);
+}
+
+static void vivify_watch_clause (kissat *solver, clause *c) {
+  unsigned size = c->size;
+  unsigned *lits = c->lits;
+  const reference ref = kissat_reference_clause (solver, c);
+  swap_first_literal_with_best_watch (solver, lits, size);
+  swap_first_literal_with_best_watch (solver, lits + 1, size - 1);
+  kissat_watch_blocking (solver, lits[0], lits[1], ref);
+  kissat_watch_blocking (solver, lits[1], lits[0], ref);
+}
+
+static void vivify_learn_large (kissat *solver, clause *c,
+                                unsigned implied) {
+  assert (!c->garbage);
+  LOG ("vivification learns large clause");
+
+  CHECK_AND_ADD_STACK (solver->clause);
+  ADD_STACK_TO_PROOF (solver->clause);
+
+  REMOVE_CHECKER_CLAUSE (c);
+  DELETE_CLAUSE_FROM_PROOF (c);
+
+  vivify_unwatch_clause (solver, c);
+
+  bool irredundant = !c->redundant;
+
+  if (irredundant) { // TODO this could be made more precise.
+    for (all_literals_in_clause (lit, c))
+      kissat_mark_removed_literal (solver, lit);
+  }
+
+  unsigneds *learned = &solver->clause;
+  const unsigned old_size = c->size;
+  const unsigned new_size = SIZE_STACK (*learned);
+  assert (new_size <= old_size);
+
+  unsigned *lits = c->lits;
+  memcpy (lits, BEGIN_STACK (*learned), new_size * sizeof *lits);
+
+  if (irredundant)
+    for (all_literals_in_clause (lit, c))
+      kissat_mark_added_literal (solver, lit);
+
+  assert (new_size < old_size);
+  if (!c->shrunken) {
+    c->shrunken = true;
+    lits[old_size - 1] = INVALID_LIT;
+  }
+  c->size = new_size;
+  if (!irredundant && c->glue >= new_size)
+    kissat_promote_clause (solver, c, new_size - 1);
+  c->searched = 2;
+
+  if (implied == INVALID_LIT) {
+    LOGCLS (c, "vivified shrunken after conflict");
+    kissat_backtrack_without_updating_phases (solver, new_size - 2);
+  } else {
+    LOGCLS (c, "vivified shrunken after implied");
+    assert (solver->level >= new_size - 1);
+  }
+
+  vivify_watch_clause (solver, c);
 }
 
 static void vivify_learn (kissat *solver, clause *c, unsigned implied) {
   size_t size = SIZE_STACK (solver->clause);
-
-  if (size == 1) {
-    LOG ("size 1 learned unit clause forces jump level 0");
-    if (solver->level)
-      kissat_backtrack_without_updating_phases (solver, 0);
-
-    const unsigned unit = PEEK_STACK (solver->clause, 0);
-    kissat_learned_unit (solver, unit);
-    solver->iterating = true;
-    kissat_mark_clause_as_garbage (solver, c);
-    assert (!solver->level);
-    (void) kissat_probing_propagate (solver, 0, true);
-    INC (vivify_units);
-  } else {
-    const assigned *const assigned = solver->assigned;
-    const value *const values = solver->values;
-
-    unsigned highest_level = 0;
-    for (all_stack (unsigned, lit, solver->clause)) {
-      const value value = values[lit];
-      if (!value) {
-        LOG ("unassigned literal %s in learned clause", LOGLIT (lit));
-        highest_level = INVALID_LEVEL;
-        break;
-      }
-      const unsigned idx = IDX (lit);
-      const struct assigned *a = assigned + idx;
-      const unsigned level = a->level;
-      assert (level > 0);
-      if (level > highest_level)
-        highest_level = level;
-    }
-
-    if (highest_level != INVALID_LEVEL)
-      LOG ("highest level %u in learned clause", highest_level);
-
-    unsigned literals_on_highest_level = 0;
-    for (all_stack (unsigned, lit, solver->clause)) {
-      const value value = values[lit];
-      if (!value)
-        literals_on_highest_level++;
-      else {
-        const unsigned idx = IDX (lit);
-        const struct assigned *a = assigned + idx;
-        const unsigned level = a->level;
-        assert (level > 0);
-        if (level == highest_level)
-          literals_on_highest_level++;
-      }
-    }
-#ifdef LOGGING
-    if (highest_level == INVALID_LEVEL)
-      LOG ("found %u unassigned literals", literals_on_highest_level);
-    else
-      LOG ("found %u literals on highest level", literals_on_highest_level);
-#endif
-    if (highest_level == INVALID_LEVEL && literals_on_highest_level > 1)
-      LOG ("no need to backtrack with more than one unassigned literal");
-    else {
-      unsigned jump_level = 0;
-      for (all_stack (unsigned, lit, solver->clause)) {
-        const value value = values[lit];
-        if (!value)
-          continue;
-        const unsigned idx = IDX (lit);
-        const struct assigned *a = assigned + idx;
-        const unsigned level = a->level;
-        if (level == highest_level)
-          continue;
-        if (level > jump_level)
-          jump_level = level;
-      }
-      LOG ("determined jump level %u", jump_level);
-
-      if (jump_level < solver->level)
-        kissat_backtrack_without_updating_phases (solver, jump_level);
-    }
-
-    if (size == 2) {
-      if (c->redundant)
-        (void) kissat_new_redundant_clause (solver, 1);
-      else
-        (void) kissat_new_irredundant_clause (solver);
-      kissat_mark_clause_as_garbage (solver, c);
-    } else {
-      CHECK_AND_ADD_STACK (solver->clause);
-      ADD_STACK_TO_PROOF (solver->clause);
-
-      REMOVE_CHECKER_CLAUSE (c);
-      DELETE_CLAUSE_FROM_PROOF (c);
-
-      assert (size > 2);
-      bool irredundant = !c->redundant;
-      const unsigned old_size = c->size;
-      unsigned new_size = 0, *lits = c->lits;
-      unsigned watched[2] = {lits[0], lits[1]};
-      for (unsigned i = 0; i < old_size; i++) {
-        const unsigned lit = lits[i];
-        bool keep = true;
-        if (lit != implied) {
-          const unsigned idx = IDX (lit);
-          const struct assigned *a = assigned + idx;
-          if (!a->analyzed)
-            keep = false;
-          else if (a->reason != DECISION_REASON)
-            keep = false;
-        }
-        if (keep) {
-          lits[new_size++] = lit;
-          if (irredundant)
-            kissat_mark_added_literal (solver, lit);
-        } else if (irredundant)
-          kissat_mark_removed_literal (solver, lit);
-      }
-      assert (new_size < old_size);
-      assert (new_size == size);
-      if (!c->shrunken) {
-        c->shrunken = true;
-        lits[old_size - 1] = INVALID_LIT;
-      }
-      c->size = new_size;
-      if (!irredundant && c->glue >= new_size)
-        kissat_promote_clause (solver, c, new_size - 1);
-      c->searched = 2;
-      LOGCLS (c, "vivified shrunken");
-
-      const reference ref = kissat_reference_clause (solver, c);
-
-      // Beware of 'stale blocking literals' ... so rewatch if shrunken.
-
-      kissat_unwatch_blocking (solver, watched[0], ref);
-      kissat_unwatch_blocking (solver, watched[1], ref);
-      kissat_watch_blocking (solver, lits[0], lits[1], ref);
-      kissat_watch_blocking (solver, lits[1], lits[0], ref);
-    }
-  }
+  if (size == 1)
+    vivify_learn_unit (solver, c);
+  else if (size == 2)
+    vivify_learn_binary (solver, c);
+  else
+    vivify_learn_large (solver, c, implied);
 }
 
-static bool vivify_clause (kissat *solver, clause *candidate,
-                           unsigneds *sorted, unsigned *counts) {
+static void binary_strengthen_after_instantiation (kissat *solver,
+                                                   clause *c,
+                                                   unsigned remove) {
+  LOG ("vivification instantiation yields binary clause");
+  assert (solver->level == 3);
+
+  unsigned first = INVALID_LIT, second = INVALID_LIT;
+  for (all_literals_in_clause (lit, c))
+    if (lit != remove) {
+      assert (VALUE (lit) < 0);
+      if (LEVEL (lit)) {
+        if (first == INVALID_LIT)
+          first = lit;
+        else {
+          assert (second == INVALID_LIT);
+          second = lit;
+        }
+      }
+    }
+  assert (first != INVALID_LIT);
+  assert (second != INVALID_LIT);
+  LOGBINARY (first, second, "vivified strengthened through instantiation");
+  CLEAR_STACK (solver->clause);
+  PUSH_STACK (solver->clause, first);
+  PUSH_STACK (solver->clause, second);
+  if (c->redundant)
+    (void) kissat_new_redundant_clause (solver, 1);
+  else
+    (void) kissat_new_irredundant_clause (solver);
+
+  kissat_mark_clause_as_garbage (solver, c);
+  kissat_backtrack_without_updating_phases (solver, 0);
+}
+
+static void large_strengthen_after_instantiation (kissat *solver, clause *c,
+                                                  unsigned remove) {
+  LOG ("vivification instantiation yields large clause");
+  assert (solver->level > 3);
+
+  SHRINK_CLAUSE_IN_PROOF (c, remove, INVALID_LIT);
+  CHECK_SHRINK_CLAUSE (c, remove, INVALID_LIT);
+
+  vivify_unwatch_clause (solver, c);
+
+  bool irredundant = !c->redundant;
+  const unsigned old_size = c->size;
+  assert (old_size > 3);
+  unsigned new_size = 0, *lits = c->lits;
+  for (unsigned i = 0; i != old_size; i++) {
+    const unsigned lit = lits[i];
+    if (lit == remove) {
+      if (irredundant)
+        kissat_mark_removed_literal (solver, lit);
+    } else if (kissat_fixed (solver, lit) >= 0) {
+      lits[new_size++] = lit;
+      if (irredundant)
+        kissat_mark_added_literal (solver, lit);
+    }
+  }
+  assert (2 < new_size);
+  assert (new_size < old_size);
+  if (!c->shrunken) {
+    c->shrunken = true;
+    lits[old_size - 1] = INVALID_LIT;
+  }
+  c->size = new_size;
+  if (!irredundant && c->glue >= new_size)
+    kissat_promote_clause (solver, c, new_size - 1);
+  c->searched = 2;
+  LOGCLS (c, "vivified strengthened through instantiation");
+
+  kissat_backtrack_without_updating_phases (solver, solver->level - 2);
+  vivify_watch_clause (solver, c);
+}
+
+static void vivify_strengthen_after_instantiation (kissat *solver,
+                                                   clause *c,
+                                                   unsigned remove) {
+  assert (solver->level >= 3);
+  assert (VALUE (remove) > 0);
+  assert (LEVEL (remove) == solver->level);
+
+  if (solver->level == 3)
+    binary_strengthen_after_instantiation (solver, c, remove);
+  else
+    large_strengthen_after_instantiation (solver, c, remove);
+}
+
+static void vivify_mark_sorted_literals (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  LOG ("marking sorted literals");
+  unsigneds *sorted = &vivifier->sorted;
+  value *marks = solver->marks;
+  for (all_stack (unsigned, lit, *sorted))
+    assert (!marks[lit]), marks[lit] = 1, marks[NOT (lit)] = -1;
+}
+
+static void vivify_unmark_sorted_literals (vivifier *vivifier) {
+  kissat *solver = vivifier->solver;
+  LOG ("unmarking sorted literals");
+  unsigneds *sorted = &vivifier->sorted;
+  value *marks = solver->marks;
+  for (all_stack (unsigned, lit, *sorted))
+    assert (solver->marks[lit] > 0), assert (marks[NOT (lit)] < 0),
+        marks[lit] = marks[NOT (lit)] = 0;
+}
+
+static void reestablish_watch_invariant_for_candidate (kissat *solver,
+                                                       clause *candidate) {
+  if (!solver->level)
+    return;
+  if (candidate->garbage)
+    return;
+  unsigned *lits = candidate->lits;
+  unsigned first = lits[0];
+  unsigned second = lits[1];
+  const signed char first_val = VALUE (first);
+  const signed char second_val = VALUE (second);
+  unsigned first_level = first_val ? LEVEL (first) : 0;
+  unsigned second_level = second_val ? LEVEL (second) : 0;
+  unsigned new_level;
+  if (first_val >= 0 && second_val >= 0)
+    return;
+  if (first_val < 0 && !second_val)
+    new_level = first_level;
+  else if (first_val < 0 && second_val > 0) {
+    if (first_level >= second_level)
+      return;
+    new_level = first_level;
+  } else if (second_val < 0 && !first_val)
+    new_level = second_level;
+  else if (second_val < 0 && first_val > 0) {
+    if (second_level >= first_level)
+      return;
+    new_level = second_level;
+  } else {
+    assert (first_val < 0), assert (second_val < 0);
+    new_level = MIN (first_level, second_level);
+  }
+  assert (new_level);
+  LOGCLS (candidate, "reestablish watch invariant by backtracking to %u",
+          new_level - 1);
+  kissat_backtrack_without_updating_phases (solver, new_level - 1);
+}
+
+static bool vivify_clause (vivifier *vivifier, clause *candidate) {
+
   assert (!candidate->garbage);
+
+  kissat *solver = vivifier->solver;
+
   assert (solver->probing);
   assert (solver->watching);
   assert (!solver->inconsistent);
 
   LOGCLS (candidate, "vivifying candidate");
-  LOGCOUNTEDCLS (candidate, counts, "vivifying unsorted counted candidate");
+  LOGCOUNTEDCLS (candidate, vivifier->counts,
+                 "vivifying unsorted counted candidate");
 
+  unsigneds *sorted = &vivifier->sorted;
   CLEAR_STACK (*sorted);
 
   for (all_literals_in_clause (lit, candidate)) {
@@ -505,13 +945,12 @@ static bool vivify_clause (kissat *solver, clause *candidate,
     if (value > 0) {
       LOGCLS (candidate, "%s satisfied", LOGLIT (lit));
       kissat_mark_clause_as_garbage (solver, candidate);
-      break;
+      return false;
     }
     PUSH_STACK (*sorted, lit);
   }
 
-  if (candidate->garbage)
-    return false;
+  assert (!candidate->garbage);
 
   const unsigned non_false = SIZE_STACK (*sorted);
 
@@ -519,9 +958,7 @@ static bool vivify_clause (kissat *solver, clause *candidate,
   assert (non_false <= candidate->size);
 
 #ifdef LOGGING
-  if (!non_false)
-    LOG ("no root level falsified literal");
-  else if (non_false == candidate->size)
+  if (non_false == candidate->size)
     LOG ("all literals root level unassigned");
   else
     LOG ("found %u root level non-falsified literals", non_false);
@@ -550,14 +987,14 @@ static bool vivify_clause (kissat *solver, clause *candidate,
     }
     unit = lit;
   }
+  reference cand_ref = kissat_reference_clause (solver, candidate);
   if (unit != INVALID_LIT) {
     assigned *a = ASSIGNED (unit);
     assert (a->level);
     if (a->binary)
       unit = INVALID_LIT;
     else {
-      reference ref = kissat_reference_clause (solver, candidate);
-      if (a->reason != ref)
+      if (a->reason != cand_ref)
         unit = INVALID_LIT;
     }
   }
@@ -574,10 +1011,20 @@ static bool vivify_clause (kissat *solver, clause *candidate,
   assert (EMPTY_STACK (solver->analyzed));
   assert (EMPTY_STACK (solver->clause));
 
+  unsigned *counts = vivifier->counts;
   vivify_sort_stack_by_counts (solver, sorted, counts);
 
-  LOGCOUNTEDLITS (SIZE_STACK (*sorted), sorted->begin, counts,
-                  "vivifying counted sorted candidate");
+#ifdef LOGGING
+  if (candidate->redundant)
+    LOGCOUNTEDREFLITS (cand_ref, SIZE_STACK (*sorted), sorted->begin,
+                       counts, "vivifying sorted redundant glue %u",
+                       candidate->glue);
+  else
+    LOGCOUNTEDREFLITS (cand_ref, SIZE_STACK (*sorted), sorted->begin,
+                       counts, "vivifying sorted irredundant");
+#endif
+
+  vivify_mark_sorted_literals (vivifier);
 
   unsigned implied = INVALID_LIT;
   clause *conflict = 0;
@@ -610,7 +1057,7 @@ static bool vivify_clause (kissat *solver, clause *candidate,
 
     if (value > 0) {
       assert (LEVEL (lit));
-      LOG ("literal %s already satisfied", LOGLIT (lit));
+      LOG ("literal %s already initially satisfied", LOGLIT (lit));
       implied = lit;
       break;
     }
@@ -624,163 +1071,325 @@ static bool vivify_clause (kissat *solver, clause *candidate,
     kissat_internal_assume (solver, not_lit);
     assert (solver->level >= 1);
 
+    const unsigned *p = solver->propagate;
     conflict = kissat_probing_propagate (solver, candidate, true);
     if (conflict)
       break;
+
+    const unsigned *end = END_ARRAY (solver->trail);
+    const signed char *const marks = solver->marks;
+    while (p != end) {
+      const unsigned other = *p++;
+      const signed char mark = marks[other];
+      if (mark > 0) {
+        LOG ("literal %s already implied satisfied", LOGLIT (other));
+        implied = other;
+        goto EXIT_ASSUMPTION_LOOP;
+      }
+    }
+  }
+EXIT_ASSUMPTION_LOOP:;
+
+#ifdef LOGGING
+  if (!conflict && implied == INVALID_LIT)
+    LOG ("vivification assumptions propagate without conflict nor "
+         "producing an implied literal");
+#endif
+  assert (!conflict || implied == INVALID_LIT);
+
+  if (implied != INVALID_LIT) {
+    unsigned better_implied = INVALID_LIT;
+    unsigned better_implied_trail = INVALID_TRAIL;
+    for (all_stack (unsigned, lit, *sorted)) {
+      if (VALUE (lit) <= 0)
+        continue;
+      unsigned lit_trail = TRAIL (lit);
+      if (lit_trail > better_implied_trail)
+        continue;
+      better_implied_trail = lit_trail;
+      better_implied = lit;
+    }
+    if (better_implied != implied) {
+      LOG ("better implied satisfied literal %s at level %u",
+           LOGLIT (better_implied), LEVEL (better_implied));
+      implied = better_implied;
+    }
   }
 
-  bool redundant = vivify_deduce (solver, candidate, conflict, implied);
-  bool subsumed;
-  bool res = vivify_shrink (solver, candidate, &subsumed);
-  if (res)
+  unsigned level_after_assumptions = solver->level;
+  assert (level_after_assumptions);
+
+  clause *subsuming = 0;
+  bool redundant = false;
+  vivify_deduce (vivifier, candidate, conflict, implied, &subsuming,
+                 &redundant);
+
+  vivify_unmark_sorted_literals (vivifier);
+
+  bool res;
+
+  if (subsuming) {
+    assert (!subsuming->garbage);
+    if (candidate->redundant) {
+      LOGCLS (candidate, "vivification subsumed");
+      kissat_mark_clause_as_garbage (solver, candidate);
+      if (subsuming->redundant && candidate->glue < subsuming->glue) {
+        LOG ("vivify candidate with smaller glue than subsuming clause");
+        kissat_promote_clause (solver, subsuming, candidate->glue);
+      }
+      INC (vivified_subred);
+      INC (vivified_subsumed);
+      res = true;
+    } else if (!subsuming->redundant) {
+      assert (!candidate->redundant);
+      LOGCLS (candidate, "vivification subsumed");
+      kissat_mark_clause_as_garbage (solver, candidate);
+      INC (vivified_subirr);
+      INC (vivified_subsumed);
+      res = true;
+    } else {
+      assert (!candidate->redundant);
+      assert (subsuming->redundant);
+      LOGCLS (candidate, "vivification subsumed");
+      kissat_mark_clause_as_garbage (solver, candidate);
+      subsuming->redundant = false;
+      assert (solver->statistics.clauses_redundant);
+      solver->statistics.clauses_redundant--;
+      assert (solver->statistics.clauses_irredundant < UINT64_MAX);
+      solver->statistics.clauses_irredundant++;
+      INC (vivified_promoted);
+      LOGCLS (subsuming, "vivification promoted from redundant to");
+      kissat_update_last_irredundant (solver, subsuming);
+      kissat_mark_added_literals (solver, subsuming->size, subsuming->lits);
+      INC (vivified_subirr);
+      INC (vivified_subsumed);
+      res = true;
+    }
+  } else if (vivify_shrinkable (solver, sorted, conflict)) {
     vivify_learn (solver, candidate, implied);
-  else if (subsumed && !redundant && !candidate->redundant) {
-    LOGCLS (candidate, "vivification subsumed");
-    kissat_mark_removed_literals (solver, candidate->size, candidate->lits);
-    assert (solver->statistics.clauses_irredundant);
-    solver->statistics.clauses_irredundant--;
-    assert (solver->statistics.clauses_redundant < UINT64_MAX);
-    solver->statistics.clauses_redundant++;
-    candidate->glue = 0;
-    candidate->redundant = true;
-    LOGCLS (candidate, "vivification demoted");
+    INC (vivified_shrunken);
+    if (candidate->redundant)
+      INC (vivified_shrunkred);
+    else
+      INC (vivified_shrunkirr);
     res = true;
-  } else
-    LOGCLS (candidate, "vivification failed on");
+  } else if (implied != INVALID_LIT && candidate->redundant) {
+    LOGCLS (candidate, "vivification implied");
+    kissat_mark_clause_as_garbage (solver, candidate);
+    INC (vivified_implied);
+    res = true;
+  } else if ((conflict || implied != INVALID_LIT) &&
+             !candidate->redundant && !redundant) {
+    LOGCLS (candidate, "vivification asymmetric tautology");
+    kissat_mark_clause_as_garbage (solver, candidate);
+    INC (vivified_asym);
+    res = true;
+  } else if (implied != INVALID_LIT) {
+    LOGCLS (candidate,
+            "no vivification instantiation with implied literal %s",
+            LOGLIT (implied));
+    assert (!candidate->redundant);
+    assert (redundant);
+    res = false;
+  } else {
+    assert (solver->level > 2);
+    assert (solver->level == SIZE_STACK (*sorted));
+    unsigned lit = TOP_STACK (*sorted);
+    assert (VALUE (lit) < 0);
+    assert (LEVEL (lit) == solver->level);
+    LOG ("trying vivification instantiation of %s#%u respectively %s#%u",
+         LOGLIT (lit), counts[lit], LOGLIT (NOT (lit)), counts[NOT (lit)]);
+    kissat_backtrack_without_updating_phases (solver, solver->level - 1);
+    conflict = 0;
+    assert (!VALUE (lit));
+    kissat_internal_assume (solver, lit);
+    LOGCLS (candidate, "vivification instantiation candidate");
+    conflict = kissat_probing_propagate (solver, candidate, true);
+    if (conflict) {
+      LOG ("vivification instantiation succeeded");
+      vivify_strengthen_after_instantiation (solver, candidate, lit);
+      INC (vivified_instantiated);
+      if (candidate->redundant)
+        INC (vivified_instred);
+      else
+        INC (vivified_instirr);
+      res = true;
+    } else {
+      LOG ("vivification instantiation failed");
+      kissat_backtrack_without_updating_phases (solver, solver->level - 2);
+      res = false;
+    }
+  }
 
-  reset_vivify_analyzed (solver);
+  reset_vivify_analyzed (vivifier);
+  if (conflict && solver->level == level_after_assumptions) {
+    LOG ("forcing backtracking at least one level after conflict");
+    kissat_backtrack_without_updating_phases (solver, solver->level - 1);
+  }
+  reestablish_watch_invariant_for_candidate (solver, candidate);
 
-  if (res)
+  if (res) {
     INC (vivified);
+    switch (vivifier->tier) {
+    case 1:
+      INC (vivified_tier1);
+      break;
+    case 2:
+      INC (vivified_tier2);
+      break;
+    case 3:
+      INC (vivified_tier3);
+      break;
+    default:
+      assert (vivifier->tier == 0);
+      INC (vivified_irredundant);
+      break;
+    }
+  }
 
+  LOG ("vivification %s", res ? "succeeded" : "failed");
   return res;
 }
 
-static void vivify_round (kissat *solver, int tier, uint64_t limit) {
+static void vivify_round (vivifier *vivifier, uint64_t limit) {
+  int tier = vivifier->tier;
+  kissat *solver = vivifier->solver;
+
   if (tier && !REDUNDANT_CLAUSES)
     return;
 
-  assert (0 <= tier && tier <= 2);
+  assert (0 <= tier && tier <= 3);
   assert (solver->watching);
   assert (solver->probing);
 
-#ifndef QUIET
-  const char *mode;
-  char tag;
-  switch (tier) {
-  case 1:
-    mode = "vivify-tier1";
-    tag = 'u';
-    break;
-  case 2:
-    mode = "vivify-tier2";
-    tag = 'v';
-    break;
-  default:
-    assert (tier == 0);
-    mode = "vivify-irredundant";
-    tag = 'w';
-    break;
-  }
-#endif
-
-  references schedule;
-  INIT_STACK (schedule);
-
   kissat_flush_large_watches (solver);
 
-  unsigned *counts = kissat_calloc (solver, LITS, sizeof (unsigned));
+  schedule_vivification_candidates (vivifier);
+  if (GET_OPTION (vivifysort)) {
+    if (tier || IRREDUNDANT_CLAUSES / 10 <= REDUNDANT_CLAUSES)
+      sort_vivification_candidates (vivifier);
+    else
+      kissat_extremely_verbose (
+          solver, "not sorting %s vivification candidates", vivifier->name);
+  }
 
-  schedule_vivification_candidates (solver,
-#ifndef QUIET
-                                    mode,
-#endif
-                                    &schedule, counts, tier);
-
-  sort_vivification_candidates (solver, &schedule, counts);
   kissat_watch_large_clauses (solver);
 #ifndef QUIET
   uint64_t start = solver->statistics.probing_ticks;
   uint64_t delta = limit - start;
   kissat_very_verbose (solver,
-                       "%s effort limit %" PRIu64 " = %" PRIu64
+                       "vivification %s effort limit %" PRIu64 " = %" PRIu64
                        " + %" PRIu64 " 'probing_ticks'",
-                       mode, limit, start, delta);
-  const size_t total = REDUNDANT_CLAUSES;
-  const size_t scheduled = SIZE_STACK (schedule);
-  kissat_phase (solver, mode, GET (vivifications),
+                       vivifier->name, limit, start, delta);
+  const size_t total = tier ? REDUNDANT_CLAUSES : IRREDUNDANT_CLAUSES;
+  const size_t scheduled = SIZE_STACK (vivifier->schedule);
+  kissat_phase (solver, vivifier->mode, GET (vivifications),
                 "scheduled %zu clauses %.0f%% of %zu", scheduled,
                 kissat_percent (scheduled, total), total);
-  size_t vivified = 0, tried = 0;
 #endif
-  unsigneds sorted;
-  INIT_STACK (sorted);
-  while (!EMPTY_STACK (schedule)) {
+  assert (!vivifier->vivified);
+  assert (!vivifier->tried);
+  while (!EMPTY_STACK (vivifier->schedule)) {
     const uint64_t probing_ticks = solver->statistics.probing_ticks;
     if (probing_ticks > limit) {
       kissat_extremely_verbose (solver,
-                                "%s ticks limit %" PRIu64
+                                "vivification %s ticks limit %" PRIu64
                                 " hit after %" PRIu64 " 'probing_ticks'",
-                                mode, limit, probing_ticks);
+                                vivifier->name, limit, probing_ticks);
       break;
     }
     if (TERMINATED (vivify_terminated_1))
       break;
-    const reference ref = POP_STACK (schedule);
+    const reference ref = POP_STACK (vivifier->schedule);
     clause *candidate = kissat_dereference_clause (solver, ref);
-    if (candidate->garbage)
-      continue;
-#ifndef QUIET
-    tried++;
-#endif
-    if (vivify_clause (solver, candidate, &sorted, counts)) {
-#ifndef QUIET
-      vivified++;
-#endif
-      if (!candidate->garbage && (tier || !candidate->redundant))
-        PUSH_STACK (schedule, ref);
-    }
-    candidate->vivify = false;
+    assert (!candidate->garbage);
+    vivifier->tried++;
+    if (vivify_clause (vivifier, candidate))
+      vivifier->vivified++;
     if (solver->inconsistent)
       break;
+    candidate->vivify = false;
   }
   if (solver->level)
     kissat_backtrack_without_updating_phases (solver, 0);
-  kissat_dealloc (solver, counts, LITS, sizeof *counts);
-  RELEASE_STACK (sorted);
 #ifndef QUIET
-  kissat_phase (solver, mode, GET (vivifications),
-                "vivified %zu clauses %.0f%% out of %zu tried", vivified,
-                kissat_percent (vivified, tried), tried);
+  kissat_phase (solver, vivifier->mode, GET (vivifications),
+                "vivified %zu clauses %.0f%% out of %zu tried",
+                vivifier->vivified,
+                kissat_percent (vivifier->vivified, vivifier->tried),
+                vivifier->tried);
   if (!solver->inconsistent) {
-    size_t remain = SIZE_STACK (schedule);
+    size_t remain = SIZE_STACK (vivifier->schedule);
     if (remain) {
-      kissat_phase (solver, mode, GET (vivifications),
+      kissat_phase (solver, vivifier->mode, GET (vivifications),
                     "%zu clauses remain %.0f%% out of %zu scheduled",
                     remain, kissat_percent (remain, scheduled), scheduled);
 
       ward *const arena = BEGIN_STACK (solver->arena);
       size_t prioritized = 0;
-      while (!EMPTY_STACK (schedule)) {
-        const unsigned ref = POP_STACK (schedule);
+      while (!EMPTY_STACK (vivifier->schedule)) {
+        const reference ref = POP_STACK (vivifier->schedule);
         clause *c = (clause *) (arena + ref);
         if (c->vivify)
           prioritized++;
       }
       if (!prioritized)
-        kissat_phase (solver, mode, GET (vivifications),
-                      "no prioritized clauses left");
+        kissat_phase (solver, vivifier->mode, GET (vivifications),
+                      "no remaining prioritized clauses");
       else
-        kissat_phase (solver, mode, GET (vivifications),
-                      "keeping %zu clauses prioritized %.0f%%", prioritized,
-                      kissat_percent (prioritized, remain));
+        kissat_phase (solver, vivifier->mode, GET (vivifications),
+                      "keeping all %zu remaining clauses "
+                      "prioritized %.0f%%",
+                      prioritized, kissat_percent (prioritized, remain));
     } else
-      kissat_phase (solver, mode, GET (vivifications),
-                    "all scheduled clauses tried");
+      kissat_phase (solver, vivifier->mode, GET (vivifications),
+                    "no untried clauses remain");
   }
 #endif
-  RELEASE_STACK (schedule);
-  REPORT (!vivified, tag);
+  REPORT (!vivifier->vivified, vivifier->tag);
+}
+
+static void vivify_tier1 (vivifier *vivifier, uint64_t limit) {
+#ifndef QUIET
+  kissat *solver = vivifier->solver;
+#endif
+  START (vivify1);
+  set_vivifier_mode (vivifier, 1);
+  vivify_round (vivifier, limit);
+  STOP (vivify1);
+}
+
+static void vivify_tier2 (vivifier *vivifier, uint64_t limit) {
+#ifndef QUIET
+  kissat *solver = vivifier->solver;
+#endif
+  START (vivify2);
+  clear_vivifier (vivifier);
+  set_vivifier_mode (vivifier, 2);
+  vivify_round (vivifier, limit);
+  STOP (vivify2);
+}
+
+static void vivify_tier3 (vivifier *vivifier, uint64_t limit) {
+#ifndef QUIET
+  kissat *solver = vivifier->solver;
+#endif
+  START (vivify3);
+  clear_vivifier (vivifier);
+  set_vivifier_mode (vivifier, 3);
+  vivify_round (vivifier, limit);
+  STOP (vivify3);
+}
+
+static void vivify_irredundant (vivifier *vivifier, uint64_t limit) {
+#ifndef QUIET
+  kissat *solver = vivifier->solver;
+#endif
+  START (vivify0);
+  clear_vivifier (vivifier);
+  set_vivifier_mode (vivifier, 0);
+  vivify_round (vivifier, limit);
+  STOP (vivify0);
 }
 
 void kissat_vivify (kissat *solver) {
@@ -791,32 +1400,78 @@ void kissat_vivify (kissat *solver) {
   assert (solver->watching);
   if (!GET_OPTION (vivify))
     return;
-  double tier1 = GET_OPTION (vivifytier1);
-  double tier2 = GET_OPTION (vivifytier2);
-  double irr = GET_OPTION (vivifyirr);
+  if (TERMINATED (vivify_terminated_2))
+    return;
+  double irr_budget = DELAYING (vivifyirr) ? 0 : GET_OPTION (vivifyirr);
+  double tier1_budget = GET_OPTION (vivifytier1);
+  double tier2_budget = GET_OPTION (vivifytier2);
+  double tier3_buget = GET_OPTION (vivifytier3);
   if (!REDUNDANT_CLAUSES)
-    tier1 = tier2 = 0;
-  double sum = tier1 + tier2 + irr;
+    tier1_budget = tier2_budget = tier3_buget = 0;
+  double sum = irr_budget + tier1_budget + tier2_budget + tier3_buget;
   if (!sum)
-    sum = irr = 1;
+    return;
+
   START (vivify);
   INC (vivifications);
 #if !defined(NDEBUG) || defined(METRICS)
   assert (!solver->vivifying);
   solver->vivifying = true;
 #endif
+
   SET_EFFORT_LIMIT (limit, vivify, probing_ticks);
   const uint64_t total = limit - solver->statistics.probing_ticks;
-  limit = solver->statistics.probing_ticks + (total * tier1) / sum;
-  vivify_round (solver, 1, limit);
-  if (!solver->inconsistent && !TERMINATED (vivify_terminated_2)) {
-    limit += (total * tier2) / sum;
-    vivify_round (solver, 2, limit);
-    if (!solver->inconsistent && !TERMINATED (vivify_terminated_3)) {
-      limit += (total * irr) / sum;
-      vivify_round (solver, 0, limit);
-    }
+  limit = solver->statistics.probing_ticks;
+  unsigned tier1_limit = vivify_tier1_limit (solver);
+  unsigned tier2_limit = vivify_tier2_limit (solver);
+  if (tier1_budget && tier2_budget && tier1_limit == tier2_limit) {
+    tier1_budget += tier2_budget, tier2_budget = 0;
+    LOG ("vivification tier1 matches tier2 "
+         "thus using tier2 budget for tier1");
   }
+
+  {
+    vivifier vivifier;
+    init_vivifier (solver, &vivifier);
+    if (tier1_budget) {
+      limit += (total * tier1_budget) / sum;
+      vivify_tier1 (&vivifier, limit);
+    }
+    if (tier2_budget && !solver->inconsistent &&
+        !TERMINATED (vivify_terminated_3)) {
+      limit += (total * tier2_budget) / sum;
+      vivify_tier2 (&vivifier, limit);
+    }
+    if (tier3_buget && !solver->inconsistent &&
+        !TERMINATED (vivify_terminated_4)) {
+      limit += (total * tier3_buget) / sum;
+      vivify_tier3 (&vivifier, limit);
+    }
+    if (irr_budget && !solver->inconsistent &&
+        !TERMINATED (vivify_terminated_5)) {
+      limit += (total * irr_budget) / sum;
+      vivify_irredundant (&vivifier, limit);
+      if (kissat_average (vivifier.vivified, vivifier.tried) < 0.01)
+        BUMP_DELAY (vivifyirr);
+      else
+        REDUCE_DELAY (vivifyirr);
+    }
+    release_vivifier (&vivifier);
+  }
+
+#ifndef QUIET
+  if (solver->statistics.probing_ticks < limit) {
+    uint64_t delta = limit - solver->statistics.probing_ticks;
+    kissat_phase (solver, "vivify-limit", GET (vivifications),
+                  "has %" PRIu64 " ticks left %.2f%%", delta,
+                  kissat_percent (delta, total));
+  } else {
+    uint64_t delta = solver->statistics.probing_ticks - limit;
+    kissat_phase (solver, "vivify-limit", GET (vivifications),
+                  "exceeded by %" PRIu64 " ticks %.2f%%", delta,
+                  kissat_percent (delta, total));
+  }
+#endif
 #if !defined(NDEBUG) || defined(METRICS)
   assert (solver->vivifying);
   solver->vivifying = false;

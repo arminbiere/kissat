@@ -45,26 +45,33 @@ static void schedule_prove_job_with_option (int expected, const char *opt,
     return;
   }
 
-  bool drat_trim;
-  bool drabt;
+  bool drat_trim = false;
+  bool dpr_trim = false;
+  bool drabt = false;
 
   if (!strcmp (name, "false")) {
     drabt = tissat_found_drabt;
-    drat_trim = false;
   } else if (tissat_big) {
     drabt = tissat_found_drabt;
     drat_trim = tissat_found_drat_trim;
-  } else if (tissat_found_drabt && !tissat_found_drat_trim) {
-    drabt = true;
-    drat_trim = false;
-  } else if (!tissat_found_drabt && tissat_found_drat_trim) {
-    drabt = false;
-    drat_trim = true;
+    dpr_trim = tissat_found_dpr_trim;
   } else {
-    assert (tissat_found_drabt);
-    assert (tissat_found_drat_trim);
-    drabt = scheduled & 1;
-    drat_trim = !drabt;
+    int drabt_pos = -1;
+    int drat_trim_pos = -1;
+    int dpr_trim_pos = -1;
+    int pos = 0;
+    if (tissat_found_drabt)
+      drabt_pos = pos++;
+    if (tissat_found_drat_trim)
+      drat_trim_pos = pos++;
+    if (tissat_found_dpr_trim)
+      dpr_trim_pos = pos++;
+    if (pos) {
+      pos = scheduled % pos;
+      drabt = (pos == drabt_pos);
+      drat_trim = (pos == drat_trim_pos);
+      dpr_trim = (pos == dpr_trim_pos);
+    }
   }
 
   const char *suffix = "";
@@ -74,6 +81,8 @@ static void schedule_prove_job_with_option (int expected, const char *opt,
   if (!size_compressions)
     compress = false;
   else if (drat_trim)
+    compress = false;
+  else if (dpr_trim)
     compress = false;
   else if (drabt)
     compress = (scheduled & 2);
@@ -110,6 +119,20 @@ static void schedule_prove_job_with_option (int expected, const char *opt,
 #endif
     } else {
       sprintf (cmd, "drat-trim %s %s", cnf, proof);
+      assert (strlen (cmd) < sizeof cmd);
+      tissat_schedule_command (0, cmd, job);
+    }
+  }
+
+  if (dpr_trim) {
+    if (expected == 10) {
+#if 0
+	  sprintf (cmd, "dpr-trim %s %s -S", cnf, proof);
+	  assert (strlen (cmd) < sizeof cmd);
+	  tissat_schedule_command (0, cmd, job);
+#endif
+    } else {
+      sprintf (cmd, "dpr-trim %s %s", cnf, proof);
       assert (strlen (cmd) < sizeof cmd);
       tissat_schedule_command (0, cmd, job);
     }

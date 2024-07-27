@@ -9,7 +9,7 @@
 static inline void kissat_fast_binary_assign (
     kissat *solver, const bool probing, const unsigned level, value *values,
     assigned *assigned, unsigned lit, unsigned other) {
-  if (level) {
+  if (GET_OPTION (jumpreasons) && level && solver->classification.bigbig) {
     unsigned other_idx = IDX (other);
     struct assigned *a = assigned + other_idx;
     if (a->binary) {

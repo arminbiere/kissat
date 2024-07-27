@@ -160,6 +160,8 @@ const char *kissat_parse_option_name (const char *arg, const char *name) {
   if (arg[0] != '-' || arg[1] != '-')
     return 0;
   char const *p = arg + 2, *q = name;
+  if (p[0] == 'n' && p[1] == 'o' && p[2] == '-')
+    return strcmp (p + 3, name) ? 0 : "0";
   while (*p && *p == *q)
     p++, q++;
   if (*q)

@@ -10,7 +10,7 @@
 
 #include "test.h"
 
-#define MAX_JOBS (1u << 12)
+#define MAX_JOBS (1u << 13)
 
 struct tissat_job {
   pid_t pid;

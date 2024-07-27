@@ -22,6 +22,7 @@ extern bool tissat_progress;
 #ifndef NPROOFS
 extern bool tissat_found_drabt;
 extern bool tissat_found_drat_trim;
+extern bool tissat_found_dpr_trim;
 #endif
 
 #if defined(_POSIX_C_SOURCE) || defined(__APPLE__)
@@ -69,9 +70,11 @@ extern const char *tissat_root;
 
 void tissat_init_solver (struct kissat *);
 
+extern kissat kissat_test_dummy_solver;
+
 #define DECLARE_AND_INIT_SOLVER(SOLVER) \
-  kissat dummy_solver, *solver = &dummy_solver; \
-  memset (&dummy_solver, 0, sizeof dummy_solver); \
+  kissat *solver = &kissat_test_dummy_solver; \
+  memset (solver, 0, sizeof *solver); \
   tissat_init_solver (solver)
 
 #endif

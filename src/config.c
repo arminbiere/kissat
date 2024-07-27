@@ -40,10 +40,15 @@ static void set_plain_options (kissat *solver) {
   kissat_set_option (solver, "bumpreasons", 0);
   kissat_set_option (solver, "chrono", 0);
   kissat_set_option (solver, "compact", 0);
+  kissat_set_option (solver, "eagersubsume", 0);
+  kissat_set_option (solver, "jumpreasons", 0);
   kissat_set_option (solver, "otfs", 0);
+  kissat_set_option (solver, "preprocess", 0);
+  kissat_set_option (solver, "reorder", 0);
   kissat_set_option (solver, "rephase", 0);
+  kissat_set_option (solver, "restartreusetrail", 0);
   kissat_set_option (solver, "simplify", 0);
-  kissat_set_option (solver, "stable", 0);
+  kissat_set_option (solver, "stable", 2);
   kissat_set_option (solver, "tumble", 0);
 }
 

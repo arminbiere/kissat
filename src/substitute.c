@@ -125,7 +125,8 @@ static void determine_representatives (kissat *solver, unsigned *repr) {
         }
         for (const unsigned *p = begin_scc; p != end_scc; p++) {
           const unsigned other = *p;
-          LOG ("repr[%s] = %s", LOGLIT (other), LOGLIT (min_lit));
+          LOG ("substitute repr[%s] = %s", LOGLIT (other),
+               LOGLIT (min_lit));
           repr[other] = min_lit;
           reach[other] = UINT_MAX;
 
@@ -564,7 +565,7 @@ static bool substitute_round (kissat *solver, unsigned round) {
   return !solver->inconsistent && removed;
 }
 
-static void substitute_rounds (kissat *solver) {
+static void substitute_rounds (kissat *solver, bool complete) {
   START (substitute);
   INC (substitutions);
   const unsigned maxrounds = GET_OPTION (substituterounds);
@@ -574,17 +575,19 @@ static void substitute_rounds (kissat *solver) {
       break;
     const uint64_t after = solver->statistics.substitute_ticks;
     const uint64_t ticks = after - before;
-    const uint64_t reference =
-        solver->statistics.search_ticks - solver->last.probe;
-    const double fraction = GET_OPTION (substituteeffort) * 1e-3;
-    const uint64_t limit = fraction * reference;
-    if (ticks > limit) {
-      kissat_extremely_verbose (
-          solver,
-          "last substitute round took %" PRIu64 " 'substitute_ticks' "
-          "> limit %" PRIu64 " = %g * %" PRIu64 " 'search_ticks'",
-          ticks, limit, fraction, reference);
-      break;
+    if (!complete) {
+      const uint64_t reference =
+          solver->statistics.search_ticks - solver->last.ticks.probe;
+      const double fraction = GET_OPTION (substituteeffort) * 1e-3;
+      const uint64_t limit = fraction * reference;
+      if (ticks > limit) {
+        kissat_extremely_verbose (
+            solver,
+            "last substitute round took %" PRIu64 " 'substitute_ticks' "
+            "> limit %" PRIu64 " = %g * %" PRIu64 " 'search_ticks'",
+            ticks, limit, fraction, reference);
+        break;
+      }
     }
   }
   if (!solver->inconsistent) {
@@ -598,7 +601,7 @@ static void substitute_rounds (kissat *solver) {
   STOP (substitute);
 }
 
-void kissat_substitute (kissat *solver) {
+void kissat_substitute (kissat *solver, bool complete) {
   if (solver->inconsistent)
     return;
   assert (solver->probing);
@@ -610,5 +613,5 @@ void kissat_substitute (kissat *solver) {
     return;
   if (TERMINATED (substitute_terminated_1))
     return;
-  substitute_rounds (solver);
+  substitute_rounds (solver, complete);
 }

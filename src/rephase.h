@@ -2,7 +2,6 @@
 #define _rephase_h_INCLUDED
 
 #include <stdbool.h>
-#include <stdint.h>
 
 struct kissat;
 

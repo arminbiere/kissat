@@ -7,6 +7,7 @@
 #include "promote.h"
 #include "propdense.h"
 #include "proprobe.h"
+#include "random.h"
 #include "rank.h"
 #include "report.h"
 #include "terminate.h"
@@ -14,16 +15,12 @@
 #include <inttypes.h>
 #include <string.h>
 
-typedef struct sweeper sweeper;
-
 struct sweeper {
   kissat *solver;
   unsigned *depths;
   unsigned *reprs;
-  unsigned *prev;
-  unsigned *next;
-  unsigned first;
-  unsigned last;
+  unsigned *next, *prev;
+  unsigned first, last;
   unsigned encoded;
   unsigned save;
   unsigneds vars;
@@ -37,6 +34,8 @@ struct sweeper {
     unsigned clauses, depth, vars;
   } limit;
 };
+
+typedef struct sweeper sweeper;
 
 static int sweep_solve (sweeper *sweeper) {
   kissat *solver = sweeper->solver;
@@ -82,9 +81,15 @@ static void init_sweeper (kissat *solver, sweeper *sweeper) {
   for (all_literals (lit))
     sweeper->reprs[lit] = lit;
   NALLOC (sweeper->prev, VARS);
+  memset (sweeper->prev, 0xff, VARS * sizeof *sweeper->prev);
   NALLOC (sweeper->next, VARS);
+  memset (sweeper->next, 0xff, VARS * sizeof *sweeper->next);
+#ifndef NDEBUG
   for (all_variables (idx))
-    sweeper->prev[idx] = sweeper->next[idx] = INVALID_IDX;
+    assert (sweeper->prev[idx] == INVALID_IDX);
+  for (all_variables (idx))
+    assert (sweeper->next[idx] == INVALID_IDX);
+#endif
   sweeper->first = sweeper->last = INVALID_IDX;
   INIT_STACK (sweeper->vars);
   INIT_STACK (sweeper->refs);
@@ -100,8 +105,9 @@ static void init_sweeper (kissat *solver, sweeper *sweeper) {
   kissat_connect_irredundant_large_clauses (solver);
 
   unsigned completed = solver->statistics.sweep_completed;
-  if (completed > 32)
-    completed = 32;
+  const unsigned max_completed = 32;
+  if (completed > max_completed)
+    completed = max_completed;
 
   uint64_t vars_limit = GET_OPTION (sweepvars);
   vars_limit <<= completed;
@@ -130,8 +136,13 @@ static void init_sweeper (kissat *solver, sweeper *sweeper) {
   kissat_extremely_verbose (solver, "sweeper clause limit %u",
                             sweeper->limit.clauses);
 
-  SET_EFFORT_LIMIT (ticks_limit, sweep, kitten_ticks);
-  sweeper->limit.ticks = ticks_limit;
+  if (GET_OPTION (sweepcomplete)) {
+    sweeper->limit.ticks = UINT64_MAX;
+    kissat_extremely_verbose (solver, "unlimited sweeper ticks limit");
+  } else {
+    SET_EFFORT_LIMIT (ticks_limit, sweep, kitten_ticks);
+    sweeper->limit.ticks = ticks_limit;
+  }
   set_kitten_ticks_limit (sweeper);
 }
 
@@ -175,8 +186,8 @@ static void clear_sweeper (sweeper *sweeper) {
   CLEAR_STACK (sweeper->vars);
   for (all_stack (reference, ref, sweeper->refs)) {
     clause *c = kissat_dereference_clause (solver, ref);
-    assert (c->sweeped);
-    c->sweeped = false;
+    assert (c->swept);
+    c->swept = false;
   }
   CLEAR_STACK (sweeper->refs);
   CLEAR_STACK (sweeper->backbone);
@@ -275,7 +286,7 @@ static void sweep_reference (sweeper *sweeper, unsigned depth,
   assert (EMPTY_STACK (sweeper->clause));
   kissat *solver = sweeper->solver;
   clause *c = kissat_dereference_clause (solver, ref);
-  if (c->sweeped)
+  if (c->swept)
     return;
   if (c->garbage)
     return;
@@ -293,7 +304,7 @@ static void sweep_reference (sweeper *sweeper, unsigned depth,
     PUSH_STACK (sweeper->clause, lit);
   }
   PUSH_STACK (sweeper->refs, ref);
-  c->sweeped = true;
+  c->swept = true;
   sweep_clause (sweeper, depth);
 }
 
@@ -629,11 +640,13 @@ static void flip_backbone_literals (struct sweeper *sweeper) {
     const unsigned *const end = END_STACK (sweeper->backbone), *p = q;
     while (p != end) {
       const unsigned lit = *p++;
+      INC (sweep_flip_backbone);
       if (kitten_flip_literal (kitten, lit)) {
         LOG ("flipping backbone candidate %s succeeded", LOGLIT (lit));
 #ifdef LOGGING
         total_flipped++;
 #endif
+        INC (sweep_flipped_backbone);
         flipped++;
       } else {
         LOG ("flipping backbone candidate %s failed", LOGLIT (lit));
@@ -656,7 +669,17 @@ static bool sweep_backbone_candidate (sweeper *sweeper, unsigned lit) {
   kissat *solver = sweeper->solver;
   LOG ("trying backbone candidate %s", LOGLIT (lit));
   kitten *kitten = solver->kitten;
+  signed char value = kitten_fixed (kitten, lit);
+  if (value) {
+    INC (sweep_fixed_backbone);
+    LOG ("literal %s already fixed", LOGLIT (lit));
+    assert (value > 0);
+    return false;
+  }
+
+  INC (sweep_flip_backbone);
   if (kitten_status (kitten) == 10 && kitten_flip_literal (kitten, lit)) {
+    INC (sweep_flipped_backbone);
     LOG ("flipping %s succeeded", LOGLIT (lit));
     LOGBACKBONE ("refined backbone candidates");
     return false;
@@ -664,19 +687,24 @@ static bool sweep_backbone_candidate (sweeper *sweeper, unsigned lit) {
 
   LOG ("flipping %s failed", LOGLIT (lit));
   const unsigned not_lit = NOT (lit);
+  INC (sweep_solved_backbone);
   kitten_assume (kitten, not_lit);
   int res = sweep_solve (sweeper);
   if (res == 10) {
     LOG ("sweeping backbone candidate %s failed", LOGLIT (lit));
     sweep_refine (sweeper);
+    INC (sweep_sat_backbone);
     return false;
   }
 
   if (res == 20) {
     LOG ("sweep unit %s", LOGLIT (lit));
     save_add_clear_core (sweeper);
+    INC (sweep_unsat_backbone);
     return true;
   }
+
+  INC (sweep_unknown_backbone);
 
   LOG ("sweeping backbone candidate %s failed", LOGLIT (lit));
   return false;
@@ -686,26 +714,67 @@ static void add_binary (kissat *solver, unsigned lit, unsigned other) {
   kissat_new_binary_clause (solver, lit, other);
 }
 
-static void enqueue_variable_last (sweeper *sweeper, unsigned idx) {
-  assert (sweeper->prev[idx] == INVALID_IDX);
-  assert (sweeper->next[idx] == INVALID_IDX);
-
-  const unsigned last = sweeper->last;
-  if (last == INVALID_IDX) {
-    assert (sweeper->first == INVALID_IDX);
-    sweeper->first = idx;
-  } else {
-    assert (sweeper->next[last] == INVALID_IDX);
-    sweeper->next[last] = idx;
-  }
-  sweeper->prev[idx] = last;
-  sweeper->last = idx;
+static bool scheduled_variable (sweeper *sweeper, unsigned idx) {
+#ifndef NDEBUG
+  kissat *const solver = sweeper->solver;
+  assert (VALID_INTERNAL_INDEX (idx));
+#endif
+  return sweeper->prev[idx] != INVALID_IDX || sweeper->first == idx;
 }
 
-static void enqueue_variable_first (sweeper *sweeper, unsigned idx) {
-  assert (sweeper->prev[idx] == INVALID_IDX);
-  assert (sweeper->next[idx] == INVALID_IDX);
+static void schedule_inner (sweeper *sweeper, unsigned idx) {
+  kissat *const solver = sweeper->solver;
+  assert (VALID_INTERNAL_INDEX (idx));
+  if (!ACTIVE (idx))
+    return;
+  const unsigned next = sweeper->next[idx];
+  if (next != INVALID_IDX) {
+    LOG ("rescheduling inner %s as last", LOGVAR (idx));
+    const unsigned prev = sweeper->prev[idx];
+    assert (sweeper->prev[next] == idx);
+    sweeper->prev[next] = prev;
+    if (prev == INVALID_IDX) {
+      assert (sweeper->first == idx);
+      sweeper->first = next;
+    } else {
+      assert (sweeper->next[prev] == idx);
+      sweeper->next[prev] = next;
+    }
+    const unsigned last = sweeper->last;
+    if (last == INVALID_IDX) {
+      assert (sweeper->first == INVALID_IDX);
+      sweeper->first = idx;
+    } else {
+      assert (sweeper->next[last] == INVALID_IDX);
+      sweeper->next[last] = idx;
+    }
+    sweeper->prev[idx] = last;
+    sweeper->next[idx] = INVALID_IDX;
+    sweeper->last = idx;
+  } else if (sweeper->last != idx) {
+    LOG ("scheduling inner %s as last", LOGVAR (idx));
+    const unsigned last = sweeper->last;
+    if (last == INVALID_IDX) {
+      assert (sweeper->first == INVALID_IDX);
+      sweeper->first = idx;
+    } else {
+      assert (sweeper->next[last] == INVALID_IDX);
+      sweeper->next[last] = idx;
+    }
+    assert (sweeper->next[idx] == INVALID_IDX);
+    sweeper->prev[idx] = last;
+    sweeper->last = idx;
+  } else
+    LOG ("keeping inner %s scheduled as last", LOGVAR (idx));
+}
 
+static void schedule_outer (sweeper *sweeper, unsigned idx) {
+#if !defined(NDEBUG) || defined(LOGGING)
+  kissat *const solver = sweeper->solver;
+#endif
+  assert (VALID_INTERNAL_INDEX (idx));
+  assert (!scheduled_variable (sweeper, idx));
+  assert (ACTIVE (idx));
   const unsigned first = sweeper->first;
   if (first == INVALID_IDX) {
     assert (sweeper->last == INVALID_IDX);
@@ -714,62 +783,41 @@ static void enqueue_variable_first (sweeper *sweeper, unsigned idx) {
     assert (sweeper->prev[first] == INVALID_IDX);
     sweeper->prev[first] = idx;
   }
+  assert (sweeper->prev[idx] == INVALID_IDX);
   sweeper->next[idx] = first;
   sweeper->first = idx;
+  LOG ("scheduling outer %s as first", LOGVAR (idx));
 }
 
-static void dequeue_variable (sweeper *sweeper, unsigned idx) {
-  const unsigned prev = sweeper->prev[idx];
-  const unsigned next = sweeper->next[idx];
-  if (prev == INVALID_IDX) {
-    assert (sweeper->first == idx);
-    sweeper->first = next;
-  } else {
-    assert (sweeper->next[prev] == idx);
-    sweeper->next[prev] = next;
-    sweeper->prev[idx] = INVALID_IDX;
-  }
-  if (next == INVALID_IDX) {
-    assert (sweeper->last == idx);
-    sweeper->last = prev;
-  } else {
-    assert (sweeper->prev[next] == idx);
-    sweeper->prev[next] = prev;
-    sweeper->next[idx] = INVALID_IDX;
-  }
-}
-
-static bool scheduled_variable (sweeper *sweeper, unsigned idx) {
-  if (sweeper->last == idx)
-    return true;
-  return sweeper->next[idx] != INVALID_IDX;
-}
-
-static bool schedule_variable (sweeper *sweeper, unsigned idx) {
-  kissat *solver = sweeper->solver;
-  assert (idx < VARS);
-  if (!ACTIVE (idx))
-    return false;
-  if (sweeper->last == idx)
-    return true;
-  if (sweeper->next[idx] == INVALID_IDX) {
-    LOG ("front scheduling sweeping candidate %s", LOGVAR (idx));
-    enqueue_variable_last (sweeper, idx);
-  } else {
-    LOG ("moving sweeping candidate %s to front", LOGVAR (idx));
-    dequeue_variable (sweeper, idx);
-    enqueue_variable_last (sweeper, idx);
-  }
-  return true;
-}
-
-static void schedule_literal (sweeper *sweeper, unsigned lit) {
-#ifndef NDEBUG
-  kissat *solver = sweeper->solver;
+static unsigned next_scheduled (sweeper *sweeper) {
+#if !defined(NDEBUG) || defined(LOGGING)
+  kissat *const solver = sweeper->solver;
 #endif
-  assert (lit < LITS);
-  schedule_variable (sweeper, IDX (lit));
+  unsigned res = sweeper->last;
+  if (res == INVALID_IDX) {
+    LOG ("no more scheduled variables left");
+    return INVALID_IDX;
+  }
+  assert (VALID_INTERNAL_INDEX (res));
+  LOG ("dequeuing next scheduled %s", LOGVAR (res));
+  const unsigned prev = sweeper->prev[res];
+  assert (sweeper->next[res] == INVALID_IDX);
+  sweeper->prev[res] = INVALID_IDX;
+  if (prev == INVALID_IDX) {
+    assert (sweeper->first == res);
+    sweeper->first = INVALID_IDX;
+  } else {
+    assert (sweeper->next[prev] == res);
+    sweeper->next[prev] = INVALID_IDX;
+  }
+  sweeper->last = prev;
+  return res;
 }
+
+#define all_scheduled(IDX) \
+  unsigned IDX = sweeper->first, NEXT_##IDX; \
+  IDX != INVALID_IDX && (NEXT_##IDX = sweeper->next[IDX], true); \
+  IDX = NEXT_##IDX
 
 static void substitute_connected_clauses (sweeper *sweeper, unsigned lit,
                                           unsigned repr) {
@@ -1103,6 +1151,8 @@ static bool sweep_equivalence_candidates (sweeper *sweeper, unsigned lit,
   const unsigned third = (end - begin == 3) ? INVALID_LIT : end[-4];
   const int status = kitten_status (kitten);
   if (status == 10 && kitten_flip_literal (kitten, lit)) {
+    INC (sweep_flip_equivalences);
+    INC (sweep_flipped_equivalences);
     LOG ("flipping %s succeeded", LOGLIT (lit));
     if (third == INVALID_LIT) {
       LOG ("squashing equivalence class of %s", LOGLIT (lit));
@@ -1117,6 +1167,8 @@ static bool sweep_equivalence_candidates (sweeper *sweeper, unsigned lit,
     LOGPARTITION ("refined equivalence candidates");
     return false;
   } else if (status == 10 && kitten_flip_literal (kitten, other)) {
+    ADD (sweep_flip_equivalences, 2);
+    INC (sweep_flipped_equivalences);
     LOG ("flipping %s succeeded", LOGLIT (other));
     if (third == INVALID_LIT) {
       LOG ("squashing equivalence class of %s", LOGLIT (lit));
@@ -1130,15 +1182,20 @@ static bool sweep_equivalence_candidates (sweeper *sweeper, unsigned lit,
     LOGPARTITION ("refined equivalence candidates");
     return false;
   }
+  if (status == 10)
+    ADD (sweep_flip_equivalences, 2);
   LOG ("flipping %s and %s both failed", LOGLIT (lit), LOGLIT (other));
   kitten_assume (kitten, not_lit);
   kitten_assume (kitten, other);
+  INC (sweep_solved_equivalences);
   int res = sweep_solve (sweeper);
   if (res == 10) {
+    INC (sweep_sat_equivalences);
     LOG ("first sweeping implication %s -> %s failed", LOGLIT (other),
          LOGLIT (lit));
     sweep_refine (sweeper);
   } else if (!res) {
+    INC (sweep_unknown_equivalences);
     LOG ("first sweeping implication %s -> %s hit ticks limit",
          LOGLIT (other), LOGLIT (lit));
   }
@@ -1146,6 +1203,7 @@ static bool sweep_equivalence_candidates (sweeper *sweeper, unsigned lit,
   if (res != 20)
     return false;
 
+  INC (sweep_unsat_equivalences);
   LOG ("first sweeping implication %s -> %s succeeded", LOGLIT (other),
        LOGLIT (lit));
 
@@ -1154,11 +1212,14 @@ static bool sweep_equivalence_candidates (sweeper *sweeper, unsigned lit,
   kitten_assume (kitten, lit);
   kitten_assume (kitten, not_other);
   res = sweep_solve (sweeper);
+  INC (sweep_solved_equivalences);
   if (res == 10) {
+    INC (sweep_sat_equivalences);
     LOG ("second sweeping implication %s <- %s failed", LOGLIT (other),
          LOGLIT (lit));
     sweep_refine (sweeper);
   } else if (!res) {
+    INC (sweep_unknown_equivalences);
     LOG ("second sweeping implication %s <- %s hit ticks limit",
          LOGLIT (other), LOGLIT (lit));
   }
@@ -1168,6 +1229,7 @@ static bool sweep_equivalence_candidates (sweeper *sweeper, unsigned lit,
     return false;
   }
 
+  INC (sweep_unsat_equivalences);
   LOG ("second sweeping implication %s <- %s succeeded too", LOGLIT (other),
        LOGLIT (lit));
 
@@ -1198,7 +1260,9 @@ static bool sweep_equivalence_candidates (sweeper *sweeper, unsigned lit,
     substitute_connected_clauses (sweeper, not_lit, not_other);
     sweep_remove (sweeper, lit);
   }
-  schedule_literal (sweeper, repr);
+
+  const unsigned repr_idx = IDX (repr);
+  schedule_inner (sweeper, repr_idx);
 
   return true;
 }
@@ -1251,6 +1315,15 @@ static const char *sweep_variable (sweeper *sweeper, unsigned idx) {
       depth++;
       LOG ("starting sweeping[%u]", depth);
     }
+    const unsigned choices = next - expand;
+    if (GET_OPTION (sweeprand) && choices > 1) {
+      const unsigned swap =
+          kissat_pick_random (&solver->random, 0, choices);
+      if (swap) {
+        unsigned *vars = sweeper->vars.begin;
+        SWAP (unsigned, vars[expand], vars[expand + swap]);
+      }
+    }
     const unsigned idx = PEEK_STACK (sweeper->vars, expand);
     LOG ("traversing and adding clauses of %s", LOGVAR (idx));
     for (unsigned sign = 0; sign < 2; sign++) {
@@ -1275,6 +1348,9 @@ static const char *sweep_variable (sweeper *sweeper, unsigned idx) {
     }
     expand++;
   }
+  ADD (sweep_depth, depth);
+  ADD (sweep_clauses, sweeper->encoded);
+  ADD (sweep_environment, SIZE_STACK (sweeper->vars));
   kissat_extremely_verbose (solver,
                             "sweeping variable %d environment of "
                             "%zu variables %u clauses depth %u",
@@ -1289,17 +1365,20 @@ static const char *sweep_variable (sweeper *sweeper, unsigned idx) {
     uint64_t units = solver->statistics.sweep_units;
     uint64_t solved = solver->statistics.sweep_solved;
 #endif
+    START (sweepbackbone);
     while (!EMPTY_STACK (sweeper->backbone)) {
       if (solver->inconsistent || TERMINATED (sweep_terminated_3) ||
           kitten_ticks_limit_hit (sweeper, "backbone refinement")) {
         limit_reached = true;
+      STOP_SWEEP_BACKBONE:
+        STOP (sweepbackbone);
         goto DONE;
       }
       flip_backbone_literals (sweeper);
       if (TERMINATED (sweep_terminated_4) ||
           kitten_ticks_limit_hit (sweeper, "backbone refinement")) {
         limit_reached = true;
-        goto DONE;
+        goto STOP_SWEEP_BACKBONE;
       }
       if (EMPTY_STACK (sweeper->backbone))
         break;
@@ -1309,6 +1388,7 @@ static const char *sweep_variable (sweeper *sweeper, unsigned idx) {
       if (sweep_backbone_candidate (sweeper, lit))
         success = true;
     }
+    STOP (sweepbackbone);
 #ifndef QUIET
     units = solver->statistics.sweep_units - units;
     solved = solver->statistics.sweep_solved - solved;
@@ -1323,17 +1403,20 @@ static const char *sweep_variable (sweeper *sweeper, unsigned idx) {
     uint64_t equivalences = solver->statistics.sweep_equivalences;
     solved = solver->statistics.sweep_solved;
 #endif
+    START (sweepequivalences);
     while (!EMPTY_STACK (sweeper->partition)) {
       if (solver->inconsistent || TERMINATED (sweep_terminated_5) ||
           kitten_ticks_limit_hit (sweeper, "partition refinement")) {
         limit_reached = true;
+      STOP_SWEEP_EQUIVALENCES:
+        STOP (sweepequivalences);
         goto DONE;
       }
       flip_partition_literals (sweeper);
       if (TERMINATED (sweep_terminated_6) ||
           kitten_ticks_limit_hit (sweeper, "backbone refinement")) {
         limit_reached = true;
-        goto DONE;
+        goto STOP_SWEEP_EQUIVALENCES;
       }
       if (EMPTY_STACK (sweeper->partition))
         break;
@@ -1347,6 +1430,7 @@ static const char *sweep_variable (sweeper *sweeper, unsigned idx) {
       } else
         CLEAR_STACK (sweeper->partition);
     }
+    STOP (sweepequivalences);
 #ifndef QUIET
     equivalences = solver->statistics.sweep_equivalences - equivalences;
     solved = solver->statistics.sweep_solved - solved;
@@ -1361,21 +1445,6 @@ static const char *sweep_variable (sweeper *sweeper, unsigned idx) {
     sweep_empty_clause (sweeper);
 
 DONE:
-  if (!success) {
-#ifndef QUIET
-    size_t unscheduled = 0;
-#endif
-    for (all_stack (unsigned, idx, sweeper->vars))
-      if (scheduled_variable (sweeper, idx)) {
-        LOG ("unscheduled %s", LOGVAR (idx));
-        dequeue_variable (sweeper, idx);
-#ifndef QUIET
-        unscheduled++;
-#endif
-      }
-    kissat_extremely_verbose (solver, "unscheduled %zu sweeping variables",
-                              unscheduled);
-  }
   clear_sweeper (sweeper);
 
   if (!solver->inconsistent && !kissat_propagated (solver))
@@ -1426,32 +1495,35 @@ static bool scheduable_variable (sweeper *sweeper, unsigned idx,
   return true;
 }
 
-static unsigned schedule_fresh (sweeper *sweeper) {
+static unsigned schedule_all_other_not_scheduled_yet (sweeper *sweeper) {
   kissat *solver = sweeper->solver;
-  flags *flags = solver->flags;
   sweep_candidates fresh;
   INIT_STACK (fresh);
-  const unsigned variables = VARS;
-  for (unsigned idx = 0; idx != variables; idx++) {
-    struct flags *f = flags + idx;
+  flags *const flags = solver->flags;
+  const bool incomplete = solver->sweep_incomplete;
+  for (all_variables (idx)) {
+    struct flags *const f = flags + idx;
     if (!f->active)
       continue;
-    if (f->sweep)
+    if (incomplete && !f->sweep)
       continue;
     if (scheduled_variable (sweeper, idx))
       continue;
     size_t occ;
-    if (!scheduable_variable (sweeper, idx, &occ))
+    if (!scheduable_variable (sweeper, idx, &occ)) {
+      FLAGS (idx)->sweep = false;
       continue;
+    }
     sweep_candidate cand;
     cand.rank = occ;
     cand.idx = idx;
     PUSH_STACK (fresh, cand);
   }
-  unsigned size = SIZE_STACK (fresh);
+  const size_t size = SIZE_STACK (fresh);
+  assert (size <= UINT_MAX);
   RADIX_STACK (sweep_candidate, unsigned, fresh, RANK_SWEEP_CANDIDATE);
   for (all_stack (sweep_candidate, cand, fresh))
-    enqueue_variable_first (sweeper, cand.idx);
+    schedule_outer (sweeper, cand.idx);
   RELEASE_STACK (fresh);
   return size;
 }
@@ -1460,18 +1532,22 @@ static unsigned reschedule_previously_remaining (sweeper *sweeper) {
   kissat *solver = sweeper->solver;
   flags *flags = solver->flags;
   unsigned rescheduled = 0;
-  for (all_stack (unsigned, idx, solver->sweep)) {
+  unsigneds *remaining = &solver->sweep_schedule;
+  for (all_stack (unsigned, idx, *remaining)) {
     struct flags *f = flags + idx;
     if (!f->active)
       continue;
-    size_t occ;
-    if (!scheduable_variable (sweeper, idx, &occ))
+    if (scheduled_variable (sweeper, idx))
       continue;
-    assert (!scheduled_variable (sweeper, idx));
-    enqueue_variable_last (sweeper, idx);
+    size_t occ;
+    if (!scheduable_variable (sweeper, idx, &occ)) {
+      f->sweep = false;
+      continue;
+    }
+    schedule_inner (sweeper, idx);
     rescheduled++;
   }
-  CLEAR_STACK (solver->sweep);
+  RELEASE_STACK (*remaining);
   return rescheduled;
 }
 
@@ -1479,32 +1555,42 @@ static unsigned incomplete_variables (sweeper *sweeper) {
   kissat *solver = sweeper->solver;
   flags *flags = solver->flags;
   unsigned res = 0;
-  for (unsigned idx = sweeper->first; idx != INVALID_IDX;
-       idx = sweeper->next[idx])
-    if (flags[idx].sweep)
+  for (all_variables (idx)) {
+    struct flags *f = flags + idx;
+    if (!f->active)
+      continue;
+    if (f->sweep)
       res++;
+  }
   return res;
 }
 
-static void mark_all_scheduled_variables_as_incomplete (sweeper *sweeper) {
+static void mark_incomplete (sweeper *sweeper) {
   kissat *solver = sweeper->solver;
-  kissat_extremely_verbose (
-      solver, "marking scheduled sweeping variables as incomplete");
   flags *flags = solver->flags;
-  for (unsigned idx = sweeper->first; idx != INVALID_IDX;
-       idx = sweeper->next[idx])
-    flags[idx].sweep = true;
+  unsigned marked = 0;
+  for (all_scheduled (idx))
+    if (!flags[idx].sweep) {
+      flags[idx].sweep = true;
+      marked++;
+    }
+  solver->sweep_incomplete = true;
+#ifndef QUIET
+  kissat_extremely_verbose (
+      solver, "marked %u scheduled sweeping variables as incomplete",
+      marked);
+#else
+  (void) marked;
+#endif
 }
 
 static unsigned schedule_sweeping (sweeper *sweeper) {
-  assert (sweeper->first == INVALID_IDX);
-  assert (sweeper->last == INVALID_IDX);
-  unsigned rescheduled = reschedule_previously_remaining (sweeper);
-  unsigned fresh = schedule_fresh (sweeper);
-  unsigned scheduled = fresh + rescheduled;
-  unsigned incomplete = incomplete_variables (sweeper);
-#ifndef QUIET
+  const unsigned rescheduled = reschedule_previously_remaining (sweeper);
+  const unsigned fresh = schedule_all_other_not_scheduled_yet (sweeper);
+  const unsigned scheduled = fresh + rescheduled;
+  const unsigned incomplete = incomplete_variables (sweeper);
   kissat *solver = sweeper->solver;
+#ifndef QUIET
   kissat_phase (solver, "sweep", GET (sweep),
                 "scheduled %u variables %.0f%% "
                 "(%u rescheduled %.0f%%, %u incomplete %.0f%%)",
@@ -1513,8 +1599,13 @@ static unsigned schedule_sweeping (sweeper *sweeper) {
                 rescheduled, kissat_percent (rescheduled, scheduled),
                 incomplete, kissat_percent (incomplete, scheduled));
 #endif
-  if (!incomplete)
-    mark_all_scheduled_variables_as_incomplete (sweeper);
+  if (incomplete)
+    assert (solver->sweep_incomplete);
+  else {
+    if (solver->sweep_incomplete)
+      INC (sweep_completed);
+    mark_incomplete (sweeper);
+  }
   return scheduled;
 }
 
@@ -1524,50 +1615,45 @@ static void unschedule_sweeping (sweeper *sweeper, unsigned swept,
 #ifdef QUIET
   (void) scheduled, (void) swept;
 #endif
-  assert (EMPTY_STACK (solver->sweep));
+  assert (EMPTY_STACK (solver->sweep_schedule));
+  assert (solver->sweep_incomplete);
   flags *flags = solver->flags;
-  for (unsigned idx = sweeper->first; idx != INVALID_IDX;
-       idx = sweeper->next[idx])
-    if (flags[idx].active)
-      PUSH_STACK (solver->sweep, idx);
-  unsigned remain = SIZE_STACK (solver->sweep);
-  if (remain) {
-    const unsigned incomplete = incomplete_variables (sweeper);
-    if (incomplete)
-      kissat_extremely_verbose (solver,
-                                "need to sweep %u more variables "
-                                "for completion",
-                                incomplete);
-    else {
-      kissat_extremely_verbose (solver,
-                                "no variables needed to complete sweep");
-      INC (sweep_completed);
+  for (all_scheduled (idx))
+    if (flags[idx].active) {
+      PUSH_STACK (solver->sweep_schedule, idx);
+      LOG ("untried scheduled %s", LOGVAR (idx));
     }
-  } else {
-    kissat_extremely_verbose (solver, "all variables swept");
+#ifndef QUIET
+  const unsigned retained = SIZE_STACK (solver->sweep_schedule);
+  kissat_extremely_verbose (
+      solver, "retained %u variables %.0f%% to be swept next time",
+      retained, kissat_percent (retained, solver->active));
+#endif
+  const unsigned incomplete = incomplete_variables (sweeper);
+  if (incomplete)
+    kissat_extremely_verbose (
+        solver, "need to sweep %u more variables %.0f%% for completion",
+        incomplete, kissat_percent (incomplete, solver->active));
+  else {
+    kissat_extremely_verbose (solver,
+                              "no more variables needed to complete sweep");
+    solver->sweep_incomplete = false;
     INC (sweep_completed);
   }
   kissat_phase (solver, "sweep", GET (sweep),
-                "swept %u variables (%u remain %.0f%%)", swept, remain,
-                kissat_percent (remain, scheduled));
+                "swept %u variables (%u remain %.0f%%)", swept, incomplete,
+                kissat_percent (incomplete, scheduled));
 }
 
-static bool empty_schedule (sweeper *sweeper) {
-  return sweeper->last == INVALID_IDX;
-}
-
-static unsigned pop_schedule (sweeper *sweeper) {
-  unsigned res = sweeper->last;
-  if (res != INVALID_IDX)
-    dequeue_variable (sweeper, res);
-  return res;
-}
-
-void kissat_sweep (kissat *solver) {
+bool kissat_sweep (kissat *solver) {
   if (!GET_OPTION (sweep))
-    return;
+    return false;
   if (solver->inconsistent)
-    return;
+    return false;
+  if (TERMINATED (sweep_terminated_7))
+    return false;
+  if (DELAYING (sweep))
+    return false;
   assert (!solver->level);
   assert (!solver->unflushed);
   START (sweep);
@@ -1578,32 +1664,40 @@ void kissat_sweep (kissat *solver) {
   sweeper sweeper;
   init_sweeper (solver, &sweeper);
   const unsigned scheduled = schedule_sweeping (&sweeper);
-  unsigned swept = 0;
-  while (!empty_schedule (&sweeper)) {
+  uint64_t swept = 0, limit = 10;
+  for (;;) {
     if (solver->inconsistent)
       break;
-    if (TERMINATED (sweep_terminated_7))
+    if (TERMINATED (sweep_terminated_8))
       break;
     if (solver->statistics.kitten_ticks > sweeper.limit.ticks)
       break;
-    const unsigned idx = pop_schedule (&sweeper);
-    assert (idx != INVALID_IDX);
+    unsigned idx = next_scheduled (&sweeper);
+    if (idx == INVALID_IDX)
+      break;
     FLAGS (idx)->sweep = false;
 #ifndef QUIET
     const char *res =
 #endif
         sweep_variable (&sweeper, idx);
     kissat_extremely_verbose (
-        solver, "swept[%u] external variable %d %s", swept,
+        solver, "swept[%" PRIu64 "] external variable %d %s", swept,
         kissat_export_literal (solver, LIT (idx)), res);
-    swept++;
+    if (++swept == limit) {
+      kissat_very_verbose (solver,
+                           "found %" PRIu64 " equivalences and %" PRIu64
+                           " units after sweeping %" PRIu64 " variables ",
+                           statistics->sweep_equivalences - equivalences,
+                           solver->statistics.sweep_units - units, swept);
+      limit *= 10;
+    }
   }
-  equivalences = statistics->sweep_equivalences - equivalences;
+  kissat_very_verbose (solver, "swept %" PRIu64 " variables", swept);
+  equivalences = statistics->sweep_equivalences - equivalences,
   units = solver->statistics.sweep_units - units;
   kissat_phase (solver, "sweep", GET (sweep),
                 "found %" PRIu64 " equivalences and %" PRIu64 " units",
                 equivalences, units);
-
   unschedule_sweeping (&sweeper, swept, scheduled);
   unsigned inactive = release_sweeper (&sweeper);
 
@@ -1612,8 +1706,8 @@ void kissat_sweep (kissat *solver) {
     kissat_probing_propagate (solver, 0, true);
   }
 
-#ifndef QUIET
   uint64_t eliminated = equivalences + units;
+#ifndef QUIET
   assert (solver->active >= inactive);
   solver->active -= inactive;
   REPORT (!eliminated, '=');
@@ -1621,5 +1715,10 @@ void kissat_sweep (kissat *solver) {
 #else
   (void) inactive;
 #endif
+  if (kissat_average (eliminated, swept) < 0.001)
+    BUMP_DELAY (sweep);
+  else
+    REDUCE_DELAY (sweep);
   STOP (sweep);
+  return eliminated;
 }

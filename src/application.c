@@ -5,6 +5,7 @@
 #include "error.h"
 #include "internal.h"
 #include "keatures.h"
+#include "krite.h"
 #include "parse.h"
 #include "print.h"
 #include "proof.h"
@@ -22,6 +23,7 @@ typedef struct application application;
 struct application {
   kissat *solver;
   const char *input_path;
+  const char *output_path;
 #ifndef NPROOFS
   const char *proof_path;
   file proof_file;
@@ -43,7 +45,6 @@ static void init_app (application *application, kissat *solver) {
   memset (application, 0, sizeof *application);
   application->solver = solver;
   application->witness = true;
-  application->time = 0;
   application->conflicts = -1;
   application->decisions = -1;
   application->strict = NORMAL_PARSING;
@@ -378,6 +379,9 @@ static bool parse_options (application *application, int argc,
 #if !defined(NPROOFS) || !defined(KISSAT_HAS_COMPRESSION)
   const char *force_option = 0;
 #endif
+  const char *conflicts_option = 0;
+  const char *decisions_option = 0;
+  const char *time_option = 0;
   const char *valstr;
   for (int i = 1; i < argc; i++) {
     const char *arg = argv[i];
@@ -457,8 +461,8 @@ static bool parse_options (application *application, int argc,
     else if ((valstr = kissat_parse_option_name (arg, "time"))) {
       int val;
       if (kissat_parse_option_value (valstr, &val) && val > 0) {
-        if (application->time > 0)
-          ERROR ("multiple '--time=%d' and '%s'", application->time, arg);
+        if (time_option)
+          ERROR ("multiple '%s' and '%s'", time_option, arg);
         application->time = val;
         alarm (val);
       } else
@@ -466,21 +470,21 @@ static bool parse_options (application *application, int argc,
     } else if ((valstr = kissat_parse_option_name (arg, "conflicts"))) {
       int val;
       if (kissat_parse_option_value (valstr, &val) && val >= 0) {
-        if (application->conflicts >= 0)
-          ERROR ("multiple '--conflicts=%d' and '%s'",
-                 application->conflicts, arg);
+        if (conflicts_option)
+          ERROR ("multiple '%s' and '%s'", conflicts_option, arg);
         kissat_set_conflict_limit (solver, val);
         application->conflicts = val;
+        conflicts_option = arg;
       } else
         ERROR ("invalid argument in '%s' (try '-h')", arg);
     } else if ((valstr = kissat_parse_option_name (arg, "decisions"))) {
       int val;
       if (kissat_parse_option_value (valstr, &val) && val >= 0) {
-        if (application->decisions >= 0)
-          ERROR ("multiple '--decisions=%d' and '%s'",
-                 application->decisions, arg);
+        if (decisions_option)
+          ERROR ("multiple '%s' and '%s'", decisions_option, arg);
         kissat_set_decision_limit (solver, val);
         application->decisions = val;
+        decisions_option = arg;
       } else
         ERROR ("invalid argument in '%s' (try '-h')", arg);
     } else if (!strcmp (arg, "--partial"))
@@ -519,6 +523,24 @@ static bool parse_options (application *application, int argc,
              "(configured with '--no-options')",
              arg);
 #endif
+    else if (!strcmp (arg, "-o")) {
+
+      if (++i == argc)
+        ERROR ("argument to '-o' missing (try '-h')");
+      arg = argv[i];
+      if (application->output_path)
+        ERROR ("multiple output options '-o %s' and '-o %s' (try '-h')",
+               application->output_path, arg);
+      application->output_path = arg;
+    }
+#ifdef NOPTIONS
+    else if (arg[0] == '-' && !arg[2] &&
+             (arg[1] == 'l' || arg[1] == 'q' || arg[1] == 's' ||
+              arg[1] == 'v'))
+      ERROR ("invalid short option '%s' "
+             "(configured with '--no-options')",
+             arg);
+#endif
 #ifdef QUIET
     else if (arg[0] == '-' && !arg[2] &&
              (arg[1] == 'q' || arg[1] == 's' || arg[1] == 'v'))
@@ -528,14 +550,6 @@ static bool parse_options (application *application, int argc,
     else if (!strcmp (arg, "-l"))
       ERROR ("invalid short option '%s' "
              "(configured without '-l' or '-g')",
-             arg);
-#endif
-#ifdef NOPTIONS
-    else if (arg[0] == '-' && !arg[2] &&
-             (arg[1] == 'l' || arg[1] == 'q' || arg[1] == 's' ||
-              arg[1] == 'v'))
-      ERROR ("invalid short option '%s' "
-             "(configured with '--no-options')",
              arg);
 #endif
     else if (arg[0] == '-' && arg[1])
@@ -794,22 +808,31 @@ static int run_application (kissat *solver, int argc, char **argv,
 #ifndef NPROOFS
   close_proof (&application);
 #endif
-  if (res) {
-    kissat_section (solver, "result");
-    if (res == 20) {
-      printf ("s UNSATISFIABLE\n");
-      fflush (stdout);
-    } else if (res == 10) {
+  kissat_section (solver, "result");
+  if (res == 20) {
+    printf ("s UNSATISFIABLE\n");
+    fflush (stdout);
+  } else if (res == 10) {
 #ifndef NDEBUG
-      if (GET_OPTION (check))
-        kissat_check_satisfying_assignment (solver);
+    if (GET_OPTION (check))
+      kissat_check_satisfying_assignment (solver);
 #endif
-      printf ("s SATISFIABLE\n");
-      fflush (stdout);
-      if (application.witness)
-        kissat_print_witness (solver, application.max_var,
-                              application.partial);
-    }
+    printf ("s SATISFIABLE\n");
+    fflush (stdout);
+    if (application.witness)
+      kissat_print_witness (solver, application.max_var,
+                            application.partial);
+  } else {
+    printf ("s UNKNOWN\n");
+    fflush (stdout);
+  }
+  if (application.output_path) {
+    // TODO want to use 'struct file' from 'file.h'?
+    FILE *file = fopen (application.output_path, "w");
+    if (!file)
+      ERROR ("could not write DIMACS file '%s'", application.output_path);
+    kissat_write_dimacs (solver, file);
+    fclose (file);
   }
 #ifndef QUIET
   kissat_print_statistics (solver);

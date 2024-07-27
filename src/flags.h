@@ -11,6 +11,7 @@ struct flags {
   bool backbone1 : 1;
   bool eliminate : 1;
   bool eliminated : 1;
+  unsigned factor : 2;
   bool fixed : 1;
   bool subsume : 1;
   bool sweep : 1;
