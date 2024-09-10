@@ -13,7 +13,7 @@ Run `./configure && make test` to configure, build and test in `build`.
 
 Binaries are provided with each major [release](https://github.com/arminbiere/kissat/releases/).
 
-You can get more information about Kissat in the last solver description for the SAT Competition 2022:
+You can get more information about Kissat in the last solver description for the SAT Competition 2024:
 
 <p>
 <a href="https://cca.informatik.uni-freiburg.de/biere/index.html#publications">Armin Biere</a>,
