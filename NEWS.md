@@ -1,3 +1,15 @@
+Version 4.0.1
+-------------
+
+  - updated README to point to the 2024 system description
+  - removed redundant line in congruence closure
+  - fixed proof chain generation for matching ITE
+  - fixed getting size of watches for `--compact`
+  - more precise completion in congruence
+  - writing DIMACS to `<stdout>` with `-o -`
+  - fixed reporting in congruence
+  - fixed DIMACS writing
+
 Version 4.0.0
 -------------
 

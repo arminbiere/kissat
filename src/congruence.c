@@ -834,8 +834,6 @@ static void add_binary_clause (closure *closure, unsigned a, unsigned b) {
     unit = b;
   else if (!a_value && b_value < 0)
     unit = a;
-  else if (a == b)
-    unit = a;
   if (unit != INVALID_LIT) {
     (void) !learn_congruence_unit (closure, unit);
     return;
@@ -1259,7 +1257,7 @@ static void add_ite_matching_proof_chain (closure *closure, gate *g,
   PUSH_STACK (*unsimplified, cond);
   SIMPLIFY_AND_ADD_TO_PROOF_CHAIN ();
   unsimplified->end--;
-  PUSH_STACK (*unsimplified, cond);
+  PUSH_STACK (*unsimplified, not_cond);
   SIMPLIFY_AND_ADD_TO_PROOF_CHAIN ();
   unsimplified->end--;
   SIMPLIFY_AND_ADD_TO_PROOF_CHAIN ();

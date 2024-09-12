@@ -270,7 +270,7 @@ static double distinct_paths (factoring *factoring, unsigned src_lit,
     const unsigned signed_src_lit = src_lit ^ sign;
     watches *const watches = &WATCHES (signed_src_lit);
     uint64_t ticks =
-        1 + kissat_cache_lines (SIZE_STACK (*watches), sizeof (watch));
+        1 + kissat_cache_lines (SIZE_WATCHES (*watches), sizeof (watch));
     for (all_binary_large_watches (watch, *watches)) {
       if (watch.type.binary) {
         const unsigned other = watch.binary.lit;
@@ -559,7 +559,7 @@ static void factorize_next (factoring *factoring, unsigned next,
         assert (min_lit != INVALID_LIT);
         watches *min_watches = all_watches + min_lit;
         unsigned c_size = c->size;
-        ticks += 1 + kissat_cache_lines (SIZE_STACK (*min_watches),
+        ticks += 1 + kissat_cache_lines (SIZE_WATCHES (*min_watches),
                                          sizeof (watch));
         for (all_binary_large_watches (min_watch, *min_watches)) {
           if (min_watch.type.binary)
@@ -893,7 +893,7 @@ adjust_scores_and_phases_of_fresh_varaibles (factoring *factoring) {
   }
 }
 
-static void run_factorization (kissat *solver, uint64_t limit) {
+static bool run_factorization (kissat *solver, uint64_t limit) {
   factoring factoring;
   init_factoring (solver, &factoring, limit);
   schedule_factorization (&factoring);
@@ -903,7 +903,7 @@ static void run_factorization (kissat *solver, uint64_t limit) {
 #endif
   uint64_t *ticks = &solver->statistics.factor_ticks;
   kissat_extremely_verbose (
-      solver, "factorization limit of %" PRIu64 " ticks", limit);
+      solver, "factorization limit of %" PRIu64 " ticks", limit - *ticks);
   while (!done && !kissat_empty_heap (&factoring.schedule)) {
     const unsigned first =
         kissat_pop_max_heap (solver, &factoring.schedule);
@@ -946,9 +946,11 @@ static void run_factorization (kissat *solver, uint64_t limit) {
     }
     release_quotients (&factoring);
   }
+  bool completed = kissat_empty_heap (&factoring.schedule);
   adjust_scores_and_phases_of_fresh_varaibles (&factoring);
   release_factoring (&factoring);
   REPORT (!factored, 'f');
+  return completed;
 }
 
 static void connect_clauses_to_factor (kissat *solver) {
@@ -1069,8 +1071,14 @@ void kissat_factor (kissat *solver) {
   if (!GET_OPTION (factor))
     return;
   statistics *s = &solver->statistics;
-  if (solver->limits.factor.marked >= s->literals_factor)
+  if (solver->limits.factor.marked >= s->literals_factor) {
+    kissat_extremely_verbose (
+        solver,
+        "factorization skipped as no literals have been marked to be added "
+        "(%" PRIu64 " < %" PRIu64,
+        solver->limits.factor.marked, s->literals_factor);
     return;
+  }
   START (factor);
   INC (factorizations);
   kissat_phase (solver, "factorization", GET (factorizations),
@@ -1089,23 +1097,26 @@ void kissat_factor (kissat *solver) {
   }
 #ifndef QUIET
   struct {
-    int64_t variables, clauses, ticks;
+    int64_t variables, binary, clauses, ticks;
   } before, after, delta;
   before.variables = s->variables_extension + s->variables_original;
-  before.clauses = BINARY_CLAUSES;
+  before.binary = BINARY_CLAUSES;
+  before.clauses = IRREDUNDANT_CLAUSES;
   before.ticks = s->factor_ticks;
 #endif
   kissat_enter_dense_mode (solver, 0);
   connect_clauses_to_factor (solver);
-  run_factorization (solver, limit);
+  bool completed = run_factorization (solver, limit);
   kissat_resume_sparse_mode (solver, false, 0);
 #ifndef QUIET
   after.variables = s->variables_extension + s->variables_original;
-  after.clauses = BINARY_CLAUSES;
+  after.binary = BINARY_CLAUSES;
+  after.clauses = IRREDUNDANT_CLAUSES;
   after.ticks = s->factor_ticks;
   delta.variables = after.variables - before.variables;
+  delta.binary = before.binary - after.binary;
   delta.clauses = before.clauses - after.clauses;
-  delta.ticks = before.ticks - after.ticks;
+  delta.ticks = after.ticks - before.ticks;
   kissat_very_verbose (solver, "used %f million factorization ticks",
                        delta.ticks * 1e-6);
   kissat_phase (solver, "factorization", GET (factorizations),
@@ -1113,9 +1124,13 @@ void kissat_factor (kissat *solver) {
                 delta.variables,
                 kissat_percent (delta.variables, before.variables));
   kissat_phase (solver, "factorization", GET (factorizations),
-                "removed %" PRId64 " binary clauses %.0f%%", delta.clauses,
+                "removed %" PRId64 " binary clauses %.0f%%", delta.binary,
+                kissat_percent (delta.binary, before.binary));
+  kissat_phase (solver, "factorization", GET (factorizations),
+                "removed %" PRId64 " large clauses %.0f%%", delta.clauses,
                 kissat_percent (delta.clauses, before.clauses));
 #endif
-  solver->limits.factor.marked = s->literals_factor;
+  if (completed)
+    solver->limits.factor.marked = s->literals_factor;
   STOP (factor);
 }
