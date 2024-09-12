@@ -11,11 +11,12 @@ static void schedule_solve_job_with_option (int expected, const char *opt,
     tissat_warning ("Skipping unreadable '%s'", path);
     return;
   }
-  char cmd[256];
-  assert (strlen (path) + strlen (opt) + 32 < sizeof cmd);
-  sprintf (cmd, "%s%s", opt, path);
-  assert (strlen (cmd) < sizeof cmd);
+  size_t len = strlen (opt) + strlen (path) + 1;
+  char * cmd = malloc (len);
+  strcpy (cmd, opt);
+  strcat (cmd, path);
   tissat_schedule_application (expected, cmd);
+  free (cmd);
   scheduled++;
 }
 

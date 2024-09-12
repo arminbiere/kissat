@@ -809,30 +809,54 @@ static int run_application (kissat *solver, int argc, char **argv,
   close_proof (&application);
 #endif
   kissat_section (solver, "result");
-  if (res == 20) {
-    printf ("s UNSATISFIABLE\n");
-    fflush (stdout);
-  } else if (res == 10) {
-#ifndef NDEBUG
-    if (GET_OPTION (check))
-      kissat_check_satisfying_assignment (solver);
-#endif
-    printf ("s SATISFIABLE\n");
-    fflush (stdout);
-    if (application.witness)
-      kissat_print_witness (solver, application.max_var,
-                            application.partial);
+  if (application.output_path && !strcmp (application.output_path, "-")) {
+    const char *status;
+    if (res == 20)
+      status = "UNSATISFIABLE";
+    else if (res == 10)
+      status = "SATISFIABLE";
+    else
+      status = "UNKNOWN";
+    kissat_message (solver,
+                    "not printing 's %s' status line "
+                    "when writing DIMACS to '<stdout>'",
+                    status);
   } else {
-    printf ("s UNKNOWN\n");
-    fflush (stdout);
+    if (res == 20) {
+      printf ("s UNSATISFIABLE\n");
+      fflush (stdout);
+    } else if (res == 10) {
+#ifndef NDEBUG
+      if (GET_OPTION (check))
+        kissat_check_satisfying_assignment (solver);
+#endif
+      printf ("s SATISFIABLE\n");
+      fflush (stdout);
+      if (application.witness)
+        kissat_print_witness (solver, application.max_var,
+                              application.partial);
+    } else {
+      printf ("s UNKNOWN\n");
+      fflush (stdout);
+    }
   }
   if (application.output_path) {
     // TODO want to use 'struct file' from 'file.h'?
-    FILE *file = fopen (application.output_path, "w");
-    if (!file)
-      ERROR ("could not write DIMACS file '%s'", application.output_path);
+    const char *path = application.output_path;
+    bool close_file;
+    FILE *file;
+    if (!strcmp (path, "-")) {
+      close_file = false;
+      file = stdout;
+    } else {
+      close_file = true;
+      file = fopen (path, "w");
+      if (!file)
+        ERROR ("could not write DIMACS file '%s'", path);
+    }
     kissat_write_dimacs (solver, file);
-    fclose (file);
+    if (close_file)
+      fclose (file);
   }
 #ifndef QUIET
   kissat_print_statistics (solver);
