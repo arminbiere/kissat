@@ -41,6 +41,7 @@ University of Helsinki 2024
 | <a href="https://github.com/arminbiere/cadical">cadical</a>
 | <a href="https://github.com/arminbiere/kissat">kissat</a>
 | <a href="https://github.com/arminbiere/gimsatul">gimsatul</a>
+| <a href="https://cca.informatik.uni-freiburg.de/sat24medals">medals</a>
 ]
 </p>
 
