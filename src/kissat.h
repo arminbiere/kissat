@@ -39,4 +39,10 @@ void kissat_set_decision_limit (kissat *solver, unsigned);
 
 void kissat_print_statistics (kissat *solver);
 
+// Minisat like API
+#include <stdbool.h>
+unsigned kissat_nvars (kissat *solver);
+unsigned kissat_new_var (kissat *solver);
+bool kissat_okay (kissat *solver);
+
 #endif

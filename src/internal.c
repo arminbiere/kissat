@@ -510,3 +510,18 @@ int kissat_value (kissat *solver, int elit) {
     tmp = -tmp;
   return tmp < 0 ? -elit : elit;
 }
+
+unsigned kissat_nvars (kissat *solver) {
+  return solver->vars;
+}
+
+unsigned kissat_new_var (kissat *solver) {
+  kissat_require_initialized (solver);
+  kissat_require (!GET (searches), "incremental solving not supported");
+  kissat_enlarge_variables(solver, solver->vars + 1);
+  return solver->vars - 1;
+}
+
+bool kissat_okay (kissat *solver) {
+  return !solver->inconsistent;
+}
