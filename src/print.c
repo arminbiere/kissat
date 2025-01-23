@@ -92,6 +92,8 @@ void kissat_line (kissat *solver) {
     print_line (solver);
 }
 
+void kissat_prefix (kissat *solver) { fputs (solver->prefix, stdout); }
+
 void kissat_verbose (kissat *solver, const char *fmt, ...) {
   if (verbosity (solver) < 1)
     return;
@@ -124,7 +126,7 @@ void kissat_section (kissat *solver, const char *name) {
     return;
   TERMINAL (stdout, 1);
   if (solver->sectioned)
-    fputs ("c\n", stdout);
+    kissat_line (solver);
   else
     solver->sectioned = true;
   fputs (solver->prefix, stdout);
@@ -137,7 +139,8 @@ void kissat_section (kissat *solver, const char *name) {
   for (size_t i = strlen (name); i < 66; i++)
     fputc ('-', stdout);
   COLOR (NORMAL);
-  fputs ("\nc\n", stdout);
+  fputc ('\n', stdout);
+  print_line (solver);
   fflush (stdout);
 }
 

@@ -14,6 +14,7 @@ struct kissat;
 int kissat_verbosity (struct kissat *);
 
 void kissat_line (struct kissat *);
+void kissat_prefix (struct kissat*);
 void kissat_signal (struct kissat *, const char *type, int sig);
 void kissat_section (struct kissat *, const char *name);
 
