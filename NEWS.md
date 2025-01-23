@@ -1,4 +1,4 @@
-Version 4.0.1
+Version 4.0.2
 -------------
   
   - support for setting printing prefix 'kissat_prefix'
