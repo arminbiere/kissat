@@ -7,7 +7,7 @@
 
 #define HEAP_CHILD(POS) (assert ((POS) < (1u << 31)), (2 * (POS) + 1))
 
-#define HEAP_PARENT(POS) (assert ((POS) > 0), (((POS) -1) / 2))
+#define HEAP_PARENT(POS) (assert ((POS) > 0), (((POS) - 1) / 2))
 
 static inline void kissat_bubble_up (kissat *solver, heap *heap,
                                      unsigned idx) {

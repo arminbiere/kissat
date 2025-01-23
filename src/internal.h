@@ -198,6 +198,7 @@ struct kissat {
   uint64_t ticks;
 
   format format;
+  char *prefix;
 
   statches antecedents[2];
   statches gates[2];

@@ -1,5 +1,10 @@
 Version 4.0.1
 -------------
+  
+  - support for setting printing prefix 'kissat_prefix'
+
+Version 4.0.1
+-------------
 
   - updated README to point to the 2024 system description
   - removed redundant line in congruence closure

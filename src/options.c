@@ -353,7 +353,7 @@ static bool ignore_embedded_option_for_fuzzing (const char *name) {
   return false;
 }
 
-void kissat_print_embedded_option_list (void) {
+void kissat_print_embedded_option_list () {
 #define OPTION(N, V, L, H, D) \
   if (!ignore_embedded_option_for_fuzzing (#N)) \
     printf ("c --%s=%d\n", #N, (int) (V));

@@ -23,8 +23,8 @@ static inline bool less_profile (profile *p, profile *q) {
   return strcmp (p->name, q->name) < 0;
 }
 
-static void print_profile (profile *p, double total) {
-  printf ("c %14.2f %7.2f %%  %s\n", p->time,
+static void print_profile (kissat *solver, profile *p, double total) {
+  printf ("%s%14.2f %7.2f %%  %s\n", solver->prefix, p->time,
           kissat_percent (p->time, total), p->name);
 }
 
@@ -61,9 +61,10 @@ void kissat_profiles_print (kissat *solver) {
   INSERTION_SORT (profile *, size, sorted, less_profile);
   const double total = named->total.time;
   for (size_t i = 0; i < size; i++)
-    print_profile (sorted[i], total);
-  printf ("c =============================================\n");
-  print_profile (&named->total, total);
+    print_profile (solver, sorted[i], total);
+  printf ("%s=============================================\n",
+          solver->prefix);
+  print_profile (solver, &named->total, total);
 }
 
 void kissat_start (kissat *solver, profile *profile) {

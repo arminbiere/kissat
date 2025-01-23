@@ -124,7 +124,7 @@ void kissat_print_tier_usage_statistics (kissat *solver, bool stable) {
     if (glue < tier1)
       continue;
     if (glue <= prefix || suffix <= glue + 1) {
-      fputs ("c ", stdout);
+      fputs (solver->prefix, stdout);
       fputs (mode, stdout);
       fputs (" glue ", stdout);
     }

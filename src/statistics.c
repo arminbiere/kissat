@@ -17,7 +17,7 @@ void kissat_print_glue_usage (kissat *solver) {
   const int64_t stable = solver->statistics.clauses_used_stable;
   const int64_t focused = solver->statistics.clauses_used_focused;
   if (!stable && !focused)
-    printf ("c no clauses used at all\n");
+    printf ("%sno clauses used at all\n", solver->prefix);
   else {
     if (focused)
       kissat_print_tier_usage_statistics (solver, false);

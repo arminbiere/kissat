@@ -94,7 +94,8 @@ void kissat_report (kissat *solver, bool verbose, char type) {
     if (solver->limits.reports > 1)
       fputs ("c\n", stdout);
     for (unsigned j = 0; j < ROWS; j++) {
-      fputs ("c  ", stdout);
+      fputs (solver->prefix, stdout);
+      fputc (' ', stdout);
       COLOR (CYAN);
       fputs (rows[j], stdout);
       COLOR (NORMAL);

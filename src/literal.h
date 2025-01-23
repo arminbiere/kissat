@@ -29,7 +29,7 @@
 
 #define NOT(LIT) (assert (VALID_INTERNAL_LITERAL (LIT)), ((LIT) ^ 1u))
 
-#define NEGATED(LIT) (assert (VALID_INTERNAL_LITERAL (LIT)), ((LIT) &1u))
+#define NEGATED(LIT) (assert (VALID_INTERNAL_LITERAL (LIT)), ((LIT) & 1u))
 
 #define STRIP(LIT) (assert (VALID_INTERNAL_LITERAL (LIT)), ((LIT) & ~1u))
 

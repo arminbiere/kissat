@@ -12,7 +12,7 @@ static void schedule_solve_job_with_option (int expected, const char *opt,
     return;
   }
   size_t len = strlen (opt) + strlen (path) + 1;
-  char * cmd = malloc (len);
+  char *cmd = malloc (len);
   strcpy (cmd, opt);
   strcat (cmd, path);
   tissat_schedule_application (expected, cmd);

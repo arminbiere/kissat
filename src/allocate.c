@@ -65,6 +65,16 @@ void kissat_free (kissat *solver, void *ptr, size_t bytes) {
     assert (!bytes);
 }
 
+char *kissat_strdup (kissat *solver, const char *str) {
+  char *res = kissat_malloc (solver, strlen (str) + 1);
+  return strcpy (res, str);
+}
+
+void kissat_freestr (struct kissat *solver, char *str) {
+  assert (str);
+  kissat_free (solver, str, strlen (str) + 1);
+}
+
 void *kissat_nalloc (kissat *solver, size_t n, size_t size) {
   void *res;
   if (!n || !size)

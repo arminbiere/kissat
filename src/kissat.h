@@ -31,6 +31,8 @@ void kissat_banner (const char *line_prefix, const char *name_of_app);
 int kissat_get_option (kissat *solver, const char *name);
 int kissat_set_option (kissat *solver, const char *name, int new_value);
 
+void kissat_set_prefix (kissat *solver, const char *prefix);
+
 int kissat_has_configuration (const char *name);
 int kissat_set_configuration (kissat *solver, const char *name);
 

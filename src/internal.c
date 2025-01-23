@@ -45,7 +45,13 @@ kissat *kissat_init (void) {
 #ifndef NDEBUG
   kissat_init_checker (solver);
 #endif
+  solver->prefix = kissat_strdup (solver, "c ");
   return solver;
+}
+
+void kissat_set_prefix (kissat *solver, const char *prefix) {
+  kissat_freestr (solver, solver->prefix);
+  solver->prefix = kissat_strdup (solver, prefix);
 }
 
 #define DEALLOC_GENERIC(NAME, ELEMENTS_PER_BLOCK) \
@@ -142,6 +148,8 @@ void kissat_release (kissat *solver) {
 #ifndef QUIET
   RELEASE_STACK (solver->profiles.stack);
 #endif
+
+  kissat_freestr (solver, solver->prefix);
 
 #ifndef NDEBUG
   kissat_release_checker (solver);

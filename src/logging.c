@@ -10,7 +10,7 @@ static void begin_logging (kissat *solver, const char *prefix,
                            const char *fmt, va_list *ap) {
   TERMINAL (stdout, 1);
   assert (GET_OPTION (log));
-  fputs ("c ", stdout);
+  fputs (solver->prefix, stdout);
   COLOR (MAGENTA);
   printf ("%s %u ", prefix, solver->level);
   vprintf (fmt, *ap);

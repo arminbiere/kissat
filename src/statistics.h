@@ -433,7 +433,7 @@ void kissat_print_glue_usage (struct kissat *);
 
 #define PRINT_STAT(NAME, PRIMARY, SECONDARY, UNITS, TYPE) \
   do { \
-    printf ("c %-" SFW1 "s %" SFW2 PRIu64 " ", NAME ":", \
+    printf ("%s%-" SFW1 "s %" SFW2 PRIu64 " ", solver->prefix, NAME ":", \
             (uint64_t) PRIMARY); \
     const double SAVED_SECONDARY = (double) (SECONDARY); \
     const char *SAVED_UNITS = (const char *) (UNITS); \

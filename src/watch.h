@@ -124,7 +124,7 @@ static inline watch kissat_blocking_watch (unsigned lit) {
 
 #define SET_END_OF_WATCHES(WS, P) \
   do { \
-    size_t SIZE = (unsigned *) (P) -kissat_begin_vector (solver, &WS); \
+    size_t SIZE = (unsigned *) (P) - kissat_begin_vector (solver, &WS); \
     kissat_resize_vector (solver, &WS, SIZE); \
   } while (0)
 

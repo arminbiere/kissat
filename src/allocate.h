@@ -8,6 +8,9 @@ struct kissat;
 void *kissat_malloc (struct kissat *, size_t bytes);
 void kissat_free (struct kissat *, void *, size_t bytes);
 
+char *kissat_strdup (struct kissat *, const char *);
+void kissat_freestr (struct kissat *, char *);
+
 void *kissat_calloc (struct kissat *, size_t n, size_t size);
 void *kissat_nalloc (struct kissat *, size_t n, size_t size);
 void kissat_dealloc (struct kissat *, void *ptr, size_t n, size_t size);
