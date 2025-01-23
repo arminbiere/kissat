@@ -23,6 +23,16 @@ static void end_logging (void) {
   fflush (stdout);
 }
 
+void kissat_begin_logging (kissat *solver, const char *prefix,
+                           const char *fmt, ...) {
+  va_list ap;
+  va_start (ap, fmt);
+  begin_logging (solver, prefix, fmt, &ap);
+  va_end (ap);
+}
+
+void kissat_end_logging (void) { end_logging (); }
+
 void kissat_log_msg (kissat *solver, const char *prefix, const char *fmt,
                      ...) {
   va_list ap;

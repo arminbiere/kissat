@@ -8,11 +8,19 @@
 #include "reference.h"
 #include "watch.h"
 
+#include <stdarg.h>
+
 // clang-format off
 
 const char * kissat_log_lit (kissat *, unsigned lit);
 const char * kissat_log_var (kissat *, unsigned idx);
 const char * kissat_log_repr (kissat *, unsigned lit, const unsigned *);
+
+void kissat_begin_logging (kissat *, const char *prefix,
+                           const char *fmt, ...)
+ATTRIBUTE_FORMAT (3, 4);
+
+void kissat_end_logging (void);
 
 void kissat_log_msg (kissat *, const char*, const char *fmt, ...)
 ATTRIBUTE_FORMAT (3, 4);

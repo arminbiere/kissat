@@ -2804,7 +2804,7 @@ static clause *find_large_xor_side_clause (closure *closure,
         break;
       }
     }
-    if (found == size_lits && !c->garbage) {
+    if (found < UINT_MAX && !c->garbage) {
       res = c;
       break;
     }

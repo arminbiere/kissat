@@ -127,8 +127,18 @@ void *kissat_realloc (kissat *solver, void *p, size_t old_bytes,
     return 0;
   }
   dec_bytes (solver, old_bytes);
+#ifdef LOGGING
+  if (GET_OPTION (log) > 3)
+    kissat_begin_logging (solver, LOGPREFIX, "realloc (%p[%zu, %zu) = ", p,
+                          old_bytes, new_bytes);
+#endif
   void *res = realloc (p, new_bytes);
-  LOG4 ("realloc (%p[%zu], %zu) = %p", p, old_bytes, new_bytes, res);
+#ifdef LOGGING
+  if (GET_OPTION (log) > 3) {
+    printf ("%p", res);
+    kissat_end_logging ();
+  }
+#endif
   if (new_bytes && !res)
     kissat_fatal ("out-of-memory reallocating from %zu to %zu bytes",
                   old_bytes, new_bytes);
