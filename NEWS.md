@@ -1,3 +1,10 @@
+Version 4.0.3
+-------------
+  
+  - added `-flto` support / test (reason for changes to `stack`)
+  - reactivated `scripts/build-and-test-all-configurations.sh`
+  - inlined through macros generic `stack` enlarging / shrinking
+
 Version 4.0.2
 -------------
   
