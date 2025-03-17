@@ -34,14 +34,45 @@
 
 #define ENLARGE_STACK(S) \
   do { \
-    assert (FULL_STACK (S)); \
-    kissat_stack_enlarge (solver, (chars *) &(S), sizeof *(S).begin); \
+    const size_t BYTES_PER_ELEMENT = sizeof *(S).begin; \
+    const size_t OLD_SIZE = SIZE_STACK (S); \
+    const size_t OLD_CAPACITY = CAPACITY_STACK (S); \
+    size_t NEW_CAPACITY = \
+        OLD_CAPACITY ? 2 * OLD_CAPACITY : BYTES_PER_ELEMENT; \
+    const size_t OLD_BYTES = OLD_CAPACITY * BYTES_PER_ELEMENT; \
+    const size_t NEW_BYTES = NEW_CAPACITY * BYTES_PER_ELEMENT; \
+    (S).begin = kissat_realloc (solver, (S).begin, OLD_BYTES, NEW_BYTES); \
+    (S).allocated = (S).begin + NEW_CAPACITY; \
+    (S).end = (S).begin + OLD_SIZE; \
+    assert ((S).end <= (S).allocated); \
   } while (0)
 
 #define SHRINK_STACK(S) \
   do { \
-    if (!FULL_STACK (S)) \
-      kissat_shrink_stack (solver, (chars *) &(S), sizeof *(S).begin); \
+    if (FULL_STACK (S)) \
+      break; \
+    const size_t BYTES_PER_ELEMENT = sizeof *(S).begin; \
+    const size_t OLD_CAPACITY = CAPACITY_STACK (S); \
+    const size_t OLD_BYTES = OLD_CAPACITY * BYTES_PER_ELEMENT; \
+    const size_t OLD_SIZE = SIZE_STACK (S); \
+    if (!OLD_SIZE) { \
+      kissat_free (solver, (S).begin, OLD_BYTES); \
+      (S).begin = (S).end = (S).allocated = 0; \
+      break; \
+    } \
+    if (OLD_BYTES <= sizeof (void *)) \
+      break; \
+    assert (OLD_CAPACITY); \
+    const unsigned LD_OLD_SIZE = kissat_log2_ceiling_of_word (OLD_SIZE); \
+    const size_t NEW_CAPACITY = ((size_t) 1) << LD_OLD_SIZE; \
+    size_t NEW_BYTES = NEW_CAPACITY * BYTES_PER_ELEMENT; \
+    if (NEW_BYTES == OLD_BYTES) \
+      break; \
+    assert (NEW_BYTES < OLD_BYTES); \
+    (S).begin = kissat_realloc (solver, (S).begin, OLD_BYTES, NEW_BYTES); \
+    (S).allocated = (S).begin + NEW_CAPACITY; \
+    (S).end = (S).begin + OLD_SIZE; \
+    assert ((S).end <= (S).allocated); \
   } while (0)
 
 #define PUSH_STACK(S, E) \
@@ -132,9 +163,5 @@ typedef STACK (unsigned) unsigneds;
 // clang-format on
 
 struct kissat;
-
-void kissat_stack_enlarge (struct kissat *, chars *,
-                           size_t size_of_element);
-void kissat_shrink_stack (struct kissat *, chars *, size_t size_of_element);
 
 #endif

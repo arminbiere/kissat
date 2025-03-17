@@ -1,25 +1,26 @@
 #!/bin/sh
 
 asan=no
-check=unknown
 check_all=no
 check_heap=no
 check_kitten=no
 check_queue=no
+check=unknown
 check_vectors=no
 check_walk=no
 compact=no
 coverage=no
 debug=no
 default=no
-extreme=no
 embedded=unknown
+extreme=no
 kitten=unknown
 logging=unknown
-metrics=unknown
+lto=no
 m32=no
-options=yes
+metrics=unknown
 optimize=unknown
+options=yes
 pedantic=unknown
 pic=no
 profile=no
@@ -169,9 +170,11 @@ builds. Furthermore, in case of '-fsanitize=address' the macro '-DASAN' is
 defined, such that some tests incompatible with ASAN can be omitted.
        
   -m32              add '-m32' option to compile for 32-bit
-  -f...             add '-f...' options,('-fsanitize=address', '-fpic' ...)
   -static           add '-static' linking flag
   -shared           add '-fpic' compilation flag and produce shared library
+
+  -f...             add '-f...' options, such as
+                    -fsanitize=address', '-fpic' or '-flto'
 
 The default configuration builds optimized code with 'gcc' without symbols,
 an no checking, metrics, embedded options parsing nor logging code included.
@@ -266,6 +269,11 @@ do
     -static|--static) static=yes;;
     -shared|--shared) shared=yes;;
     -fpic|-fPIC) passtocompiler="$passtocompiler $1"; pic=yes;;
+    -flto)
+      passtolinker="$passtolinker $1"
+      passtocompiler="$passtocompiler $1"
+      lto=yes
+      ;;
     -f*)
       [ x"`echo $1|grep fsanitize=.*address`" = x ] || asan=yes
       passtolinker="$passtolinker $1"
@@ -582,6 +590,7 @@ esac
 [ $shared = yes -a $pic = no ] && passtocompiler="$passtocompiler -fpic"
 
 [ $asan = yes ] && CFLAGS="$CFLAGS -DASAN"
+[ $lto = yes ] && CFLAGS="$CFLAGS -DLTO"
 [ $check_heap = yes ] && CFLAGS="$CFLAGS -DCHECK_HEAP"
 [ $check_kitten = yes ] && CFLAGS="$CFLAGS -DCHECK_KITTEN"
 [ $check_queue = yes ] && CFLAGS="$CFLAGS -DCHECK_QUEUE"

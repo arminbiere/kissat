@@ -810,6 +810,7 @@ static int run_application (kissat *solver, int argc, char **argv,
 #endif
   kissat_section (solver, "result");
   if (application.output_path && !strcmp (application.output_path, "-")) {
+#ifndef QUIET
     const char *status;
     if (res == 20)
       status = "UNSATISFIABLE";
@@ -821,6 +822,7 @@ static int run_application (kissat *solver, int argc, char **argv,
                     "not printing 's %s' status line "
                     "when writing DIMACS to '<stdout>'",
                     status);
+#endif
   } else {
     if (res == 20) {
       printf ("s UNSATISFIABLE\n");

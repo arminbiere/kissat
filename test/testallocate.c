@@ -45,7 +45,7 @@ static void test_allocate_coverage (void) {
   assert (!p);
 }
 
-#ifndef ASAN
+#if !defined(ASAN) && !defined(LTO)
 
 #include <setjmp.h>
 
@@ -92,7 +92,7 @@ static void test_allocate_error (void) {
 void tissat_schedule_allocate (void) {
   SCHEDULE_FUNCTION (test_allocate_basic);
   SCHEDULE_FUNCTION (test_allocate_coverage);
-#ifndef ASAN
+#if !defined(ASAN) && !defined(LTO)
   SCHEDULE_FUNCTION (test_allocate_error);
 #endif
 }
