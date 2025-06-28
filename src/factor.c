@@ -839,14 +839,14 @@ static bool apply_factoring (factoring *factoring, quotient *q) {
 }
 
 static void
-adjust_scores_and_phases_of_fresh_varaibles (factoring *factoring) {
+adjust_scores_and_phases_of_fresh_variables (factoring *factoring) {
   const unsigned *begin = BEGIN_STACK (factoring->fresh);
   const unsigned *end = END_STACK (factoring->fresh);
   kissat *const solver = factoring->solver;
   {
-    const unsigned *p = begin;
-    while (p != end) {
-      const unsigned lit = *p++;
+    const unsigned *p = end;
+    while (p != begin) {
+      const unsigned lit = *--p;
       const unsigned idx = IDX (lit);
       LOG ("unbumping fresh[%zu] %s", (size_t) (p - begin - 1),
            LOGVAR (idx));
@@ -855,19 +855,17 @@ adjust_scores_and_phases_of_fresh_varaibles (factoring *factoring) {
     }
   }
   {
-    const unsigned *p = end;
+    const unsigned *p = begin;
     links *links = solver->links;
     queue *queue = &solver->queue;
-    while (p != begin) {
-      const unsigned lit = *--p;
+    while (p != end) {
+      const unsigned lit = *p++;
       const unsigned idx = IDX (lit);
       kissat_dequeue_links (idx, links, queue);
     }
-    queue->stamp = 0;
-    unsigned rest = queue->first;
-    p = end;
-    while (p != begin) {
-      const unsigned lit = *--p;
+    p = begin;
+    while (p != end) {
+      const unsigned lit = *p++;
       const unsigned idx = IDX (lit);
       struct links *l = links + idx;
       if (DISCONNECTED (queue->first)) {
@@ -881,12 +879,13 @@ adjust_scores_and_phases_of_fresh_varaibles (factoring *factoring) {
       l->next = queue->first;
       queue->first = idx;
       assert (DISCONNECTED (l->prev));
-      l->stamp = ++queue->stamp;
     }
-    while (!DISCONNECTED (rest)) {
-      struct links *l = links + rest;
+    queue->stamp = 0;
+    unsigned idx = queue->first;
+    while (!DISCONNECTED (idx)) {
+      struct links *l = links + idx;
       l->stamp = ++queue->stamp;
-      rest = l->next;
+      idx = l->next;
     }
     solver->queue.search.idx = queue->last;
     solver->queue.search.stamp = queue->stamp;
@@ -948,7 +947,7 @@ static bool run_factorization (kissat *solver, uint64_t limit) {
     release_quotients (&factoring);
   }
   bool completed = kissat_empty_heap (&factoring.schedule);
-  adjust_scores_and_phases_of_fresh_varaibles (&factoring);
+  adjust_scores_and_phases_of_fresh_variables (&factoring);
   release_factoring (&factoring);
   REPORT (!factored, 'f');
   return completed;
