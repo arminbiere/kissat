@@ -890,6 +890,7 @@ adjust_scores_and_phases_of_fresh_varaibles (factoring *factoring) {
     }
     solver->queue.search.idx = queue->last;
     solver->queue.search.stamp = queue->stamp;
+    kissat_check_queue (solver);
   }
 }
 
