@@ -104,6 +104,8 @@ struct kissat {
   unsigned size;
   unsigned active;
   unsigned randec;
+  int decided;
+  unsigneds branched;
 
   ints export;
   ints units;

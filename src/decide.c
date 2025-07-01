@@ -206,30 +206,69 @@ int kissat_decide_phase (kissat *solver, unsigned idx) {
   return res < 0 ? -1 : 1;
 }
 
-void kissat_decide (kissat *solver) {
-  START (decide);
-  assert (solver->unassigned);
+void kissat_write_cnf(kissat *solver, const char *filename) {
+  FILE *file = fopen(filename, "w");
+  unsigned clause_count = 0;
+  for (all_clauses(C)) {
+    if (!C->garbage && !C->shrunken) {
+      clause_count++;
+    }
+  }
+  fprintf(file, "p cnf %u %u\n", solver->vars, clause_count);
+  for (all_clauses(C)) {
+    if (C->garbage || C->shrunken)
+      continue;
+    for (unsigned i = 0; i < C->size; i++) {
+      unsigned lit_index = C->lits[i];
+      int var_index = lit_index / 2;
+      int sign = (lit_index % 2 == 0) ? 1 : -1;
+      fprintf(file, "%d ", sign * (var_index + 1));
+    }
+    fprintf(file, "0\n");
+  }
+  fclose(file);
+}
+
+void kissat_decide(kissat *solver) {
+  START(decide);
+  assert(solver->unassigned);
   if (solver->warming)
-    INC (warming_decisions);
+    INC(warming_decisions);
   else {
-    INC (decisions);
+    INC(decisions);
     if (solver->stable)
-      INC (stable_decisions);
+      INC(stable_decisions);
     else
-      INC (focused_decisions);
+      INC(focused_decisions);
   }
   solver->level++;
-  assert (solver->level != INVALID_LEVEL);
-  const unsigned idx = kissat_next_decision_variable (solver);
-  const value value = kissat_decide_phase (solver, idx);
-  unsigned lit = LIT (idx);
+  assert(solver->level != INVALID_LEVEL);
+  // //! 输出当前clauses
+  // char filename[256];
+  // snprintf(filename, sizeof(filename),
+  //          "/root/project/neurosat/dimacs/train/kissat/decision_clauses_%d.cnf",
+  //          solver->decided);
+  // kissat_write_cnf(solver, filename);
+  //! 这里嵌入神经网络决策，代替kissat_next_decision_variable
+  const unsigned idx = kissat_next_decision_variable(solver);
+  //! 记录decidede variable
+  solver->decided++;
+  PUSH_STACK(solver->branched, idx);
+  //! 输出当前clauses
+  char filename[256];
+  snprintf(filename, sizeof(filename),
+           "/root/project/neurosat/dimacs/train/kissat/decision_clauses_%d.cnf",
+           solver->decided);
+  kissat_write_cnf(solver, filename);
+  const value value = kissat_decide_phase(solver, idx);
+  unsigned lit = LIT(idx);
   if (value < 0)
-    lit = NOT (lit);
-  kissat_push_frame (solver, lit);
-  assert (solver->level < SIZE_STACK (solver->frames));
-  LOG ("decide literal %s", LOGLIT (lit));
-  kissat_assign_decision (solver, lit);
-  STOP (decide);
+    lit = NOT(lit);
+  kissat_push_frame(solver, lit);
+  assert(solver->level < SIZE_STACK(solver->frames));
+  LOG("decide literal %s", LOGLIT(lit));
+  kissat_assign_decision(solver, lit);
+  STOP(decide);
 }
 
 void kissat_internal_assume (kissat *solver, unsigned lit) {
