@@ -1,3 +1,9 @@
+Version 4.0.4
+-------------
+
+  - disabled fast elimination `fastel` by default
+  - delayed bounded variable addition `factor` for larger formulas
+
 Version 4.0.3
 -------------
   

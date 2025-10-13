@@ -17,6 +17,7 @@
 #include "vector.h"
 #include "watch.h"
 
+#include <math.h>
 #include <string.h>
 
 #define FACTOR 1
@@ -1064,11 +1065,30 @@ static void connect_clauses_to_factor (kissat *solver) {
       connected, kissat_percent (candidates, initial_candidates));
 }
 
+static bool kissat_factoring (kissat *solver) {
+  if (!GET_OPTION (factor))
+    return false;
+  if (!solver->active)
+    return false;
+  unsigned active = solver->active;
+  size_t log_active = log10 (active);
+  size_t eliminations = solver->statistics.eliminations;
+  unsigned delay = GET_OPTION (factordelay);
+  size_t limit = eliminations + delay;
+  if (log_active <= limit)
+    return true;
+  kissat_very_verbose (solver, "delaying factorization as "
+                       "'%zu = log10(variables) = log10 (%u) "
+                       " > eliminations + delay = %zu + %u = %zu",
+                       log_active, active, eliminations, delay, limit);
+  return false;
+}
+
 void kissat_factor (kissat *solver) {
   assert (!solver->level);
   if (solver->inconsistent)
     return;
-  if (!GET_OPTION (factor))
+  if (!kissat_factoring (solver))
     return;
   statistics *s = &solver->statistics;
   if (solver->limits.factor.marked >= s->literals_factor) {

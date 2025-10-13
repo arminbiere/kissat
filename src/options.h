@@ -53,12 +53,13 @@
   OPTION (extract, 1, 0, 1, "extract gates in variable elimination") \
   OPTION (factor, 1, 0, 1, "bounded variable addition") \
   OPTION (factorcandrounds, 2, 0, INT_MAX, "candidates reduction rounds") \
+  OPTION (factordelay, 4, 0, 12, "delaying factor") \
   OPTION (factoreffort, 50, 0, 1e6, "bounded variable effort in per mille") \
   OPTION (factorhops, 3, 1, 10, "structural factoring heuristic hops") \
   OPTION (factoriniticks, 700, 1, 1000000, "initial ticks ticks in millions") \
   OPTION (factorsize, 5, 2, INT_MAX, "bounded variable addition clause size") \
   OPTION (factorstructural, 0, 0, 1, "structural bounded variable addition") \
-  OPTION (fastel, 1, 0, 1, "initial fast variable elimination") \
+  OPTION (fastel, 0, 0, 1, "initial fast variable elimination") \
   OPTION (fastelclslim, 100, 1, INT_MAX, "fast elimination clause length limit") \
   OPTION (fastelim, 8, 1, 1000, "fast elimination resolvents limit") \
   OPTION (fasteloccs, 100, 1, 1000, "fast elimination occurrence limit") \
