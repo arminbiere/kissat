@@ -1,6 +1,7 @@
 Version 4.0.4
 -------------
 
+  - fixes for kitten stand-alone usage
   - disabled fast elimination `fastel` by default
   - delayed bounded variable addition `factor` for larger formulas
 
