@@ -40,7 +40,7 @@ static void test_file_readable (void) {
     bool RES = kissat_file_readable (PATH); \
     if (RES && EXPECTED) \
       printf ("file '%s' determined to be readable as expected\n", PATH); \
-    else if (!RES && ~EXPECTED) \
+    else if (!RES && !EXPECTED) \
       printf ("file '%s' determined not to be readable as expected\n", \
               PATH); \
     else if (RES && !EXPECTED) \
@@ -66,7 +66,7 @@ static void test_file_writable (void) {
     bool RES = kissat_file_writable (PATH); \
     if (RES && EXPECTED) \
       printf ("file '%s' determined to be writable as expected\n", PATH); \
-    else if (!RES && ~EXPECTED) \
+    else if (!RES && !EXPECTED) \
       printf ("file '%s' determined not to be writable as expected\n", \
               PATH); \
     else if (RES && !EXPECTED) \
